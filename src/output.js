@@ -18,7 +18,8 @@ export function render(comp = <></>) {
   return renderer;
 }
 
-export function renderOnce(comp) {
+export async function renderOnce(comp) {
+  if (renderer) await renderer.waitUntilExit();
   render(comp);
   clearRenderer();
 }

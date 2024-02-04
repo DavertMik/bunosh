@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { renderOnce, isStaticOutput} from './src/output';
 import Gradient from 'ink-gradient';
 import BigText from 'ink-big-text';
+import inquirer from 'inquirer';
 
 export function say(...args) {
   if (isStaticOutput) {
@@ -13,40 +14,18 @@ export function say(...args) {
   const colors = ['yellow', 'magenta', 'cyan', 'blue', 'blueBright', 'magentaBright', 'cyanBright', 'whiteBright'];
 
   renderOnce(
-    <Box gap={1} marginLeft={1}>
-      <Text>📢</Text>
+    <Box gap={1} height={20} overflow='hidden' >
+      <Text color='white'>!</Text>
       {args.map((arg, i) => <Text color={colors[i]} key={i}>{arg}</Text>)}
     </Box>
   );
 }
 
-export async function ask(question, opts = { placeholder: '' }) {
-  let userResponse = null;
+export async function ask(question, opts = {}) {
 
-  render(<></>)
+  const answers = await inquirer.prompt({ name: question, message: question, ...opts })
 
-  const AskQuery = () => {
-    const [query, setQuery] = useState('');
-  
-    function finish() {
-      userResponse = query;
-      unmount();
-    }
-
-    return (
-      <Box>
-        <Box marginRight={1}>
-          <Text>{question}</Text>
-        </Box>
-  
-        <TextInput value={query} onSubmit={finish} onChange={setQuery} />
-      </Box>
-    );
-  };
-  
-  await render(<AskQuery />); 
-
-  return userResponse;
+  return Object.values(answers)[0];
 }
 
 export function yell(text) {

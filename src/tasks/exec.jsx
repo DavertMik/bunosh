@@ -6,22 +6,34 @@ import { renderTask, TaskInfo, TaskResult } from '../task.jsx';
 
 const DEFAULT_OUTPUT_SIZE = 10;
 
-export default async function exec(strings, ...values) {
+export default function exec(strings, ...values) {
   
   const cmd = strings.reduce((accumulator, str, i) => {
     return accumulator + str + (values[i] || '');
   }, '');
 
   let resolve, reject;
-  let cmdPromise = new Promise((res, rej) => {
+  const cmdPromise = new Promise((res, rej) => {
     resolve = res;
     reject = rej;
   });
-  
+
+  let envs = null
+  cmdPromise.env = (newEnvs) => envs = newEnvs;
+
+  let cwd = null;
+  cmdPromise.cwd = (newCwd) => cwd = newCwd;
   
   const ExecOutput = () => {
-    const shell = $(strings, ...values);
-    
+    let shell = $(strings, ...values);
+    if (cwd) {
+      // console.log('cwd', cwd)
+      shell = $(strings, ...values).cwd(cwd);
+    } 
+    if (envs) {
+      shell = $(strings, ...values).env(envs);
+    }
+
     const stackOutput = [];
     
     const [printedLines, setPrintedLines] = useState([]);
@@ -58,11 +70,18 @@ export default async function exec(strings, ...values) {
     </>
   }
 
-  renderTask(new TaskInfo({
-    promise: cmdPromise,
-    kind: 'exec',
-    text: cmd,
-  }), <ExecOutput />);
+  setTimeout(() => {
+    let extraText = '';
+    if (cwd) extraText += `at ${cwd}`;
+    if (envs) extraText += ` with ${envs}`;
+
+    renderTask(new TaskInfo({
+      promise: cmdPromise,
+      kind: 'exec',
+      text: cmd,
+      extraText: extraText,
+    }), <ExecOutput />);
+  }, 0);
 
   return cmdPromise;
 }
