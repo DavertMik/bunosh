@@ -1,9 +1,10 @@
 {
   "name": "bunosh",
-  "module": "index.ts",
+  "module": "index.js",
   "devDependencies": {
     "@types/bun": "latest",
-    "prettier": "^3.2.4"
+    "prettier": "^3.2.4",
+    "lint-staged": "^15.2.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -11,11 +12,17 @@
   "dependencies": {
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.7",
+    "cfonts": "^3.2.0",
     "commander": "^11.1.0",
+    "debug": "^4.3.4",
     "husky": "^9.0.6",
     "ink": "^4.4.1",
-    "lint-staged": "^15.2.0",
-    "parse-function": "^5.6.10",
-    "picocolors": "^1.0.0"
+    "ink-big-text": "^2.0.0",
+    "ink-gradient": "^3.0.0",
+    "ink-spinner": "^5.0.0",
+    "inquirer": "^9.2.13",
+    "picocolors": "^1.0.0",
+    "react": "^18.2.0",
+    "timer-node": "^5.0.7"
   }
 }

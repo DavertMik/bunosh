@@ -2,9 +2,31 @@ const { Command } = require("commander");
 import babelParser from "@babel/parser";
 import traverse from "@babel/traverse";
 import color from "picocolors";
+import cfonts from 'cfonts';
+
+const BUNOSHFILE = `bunoshFile.js`;
+
+const banner = `
+${cfonts.render('Bunosh', { font: 'pallet', gradient: ['blue','yellow'], colors: ['system'], space: false}).string}
+
+🍲 ${color.bold(color.white('Bunosh'))} - your ${color.bold('exceptional')} task runner powered by Bun
+   Commands are loaded from ${color.bold(BUNOSHFILE)} as JS functions`;
 
 export default function bunosh(commands, source) {
   const program = new Command();
+
+  program.configureHelp({
+    commandDescription: _cmd => banner,
+    commandUsage: usg => 'bunosh <command> <args> [options]',
+    showGlobalOptions: false,
+    visibleArguments: _opt => [],
+    visibleGlobalOptions: _opt => [],
+    // Bunosh has no default options
+    // visibleOptions: _opt => [],
+    // commandDescription: _opt => '',
+    // argumentTerm: (arg) => color.gray("aaa"),
+    subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
+  });  
 
   const completeAst = babelParser.parse(source, {
     sourceType: "module",
@@ -28,7 +50,8 @@ export default function bunosh(commands, source) {
 
     const command = program.command(prepareCommandName(fnName));
 
-    args.forEach((arg) => {
+    
+    args.filter(a => !!a).forEach((arg) => {
       command.argument(`<${arg}>`);
     });
     Object.entries(opts).forEach(([opt, value]) => {
@@ -37,14 +60,7 @@ export default function bunosh(commands, source) {
     });
 
     command.description(comment);
-
     command.action(commands[fnName].bind(commands));
-
-    program.configureHelp({
-      // commandDescription: _opt => '',
-      argumentTerm: (arg) => color.gray("aaa"),
-      subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
-    });
 
     // We either take the ast from the file or we parse the function body
     function fetchFnAst() {
@@ -82,29 +98,9 @@ export default function bunosh(commands, source) {
         },
       });
 
-      return functionArguments;
+      return functionArguments.flat();
     }
 
-    // Command description is a docblock of a function, if it is taken from source
-    function parseComments() {
-      let docBlock = "";
-
-      traverse(ast, {
-        FunctionDeclaration(path) {
-          if (path.node.id.name !== fnName) return;
-
-          const leadingComments = path.node.leadingComments;
-          console.log(path.node.loc);
-          if (leadingComments && leadingComments.length > 0) {
-            docBlock = leadingComments[0].value.trim();
-          }
-        },
-      });
-
-      console.log(docBlock);
-
-      return docBlock;
-    }
 
     // We parse command options from the object of last function args
     function parseOpts() {
@@ -172,7 +168,7 @@ export default function bunosh(commands, source) {
           .slice(startFromLine, path.node?.loc?.start?.line)
           .join("\n");
         const matches = commentSource.match(
-          /\/\*\*\s([\s\S]*)\\*\/\s*export\s+function/,
+          /\/\*\*\s([\s\S]*)\\*\/\s*export/,
         );
 
         if (matches && matches[1]) {
