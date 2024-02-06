@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import { Text, Box, Newline } from 'ink';
+import { Text, Box } from 'ink';
 import Spinner from 'ink-spinner';
 import { Timer } from 'timer-node';
 import { render, clearRenderer, renderOnce } from './output';
@@ -29,6 +29,9 @@ export function ignoreFail(enable = true) {
 const globalTimer = new Timer({ label: 'global', precision: 'ms'});
 globalTimer.start();
 process.on('exit', (code) => {
+  // we don't need this banner if no tasks were executed
+  if (!process.env.BUNOSH_COMMAND_STARTED) return;
+
   globalTimer.stop();
   const success = code === 0;
   const tasksFailed = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.FAIL).length;

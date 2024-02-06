@@ -5,7 +5,11 @@ import { task, stopOnFail, ignoreFail } from "./src/task";
 
 export { program as bunosh };
 
-// exec + alias +
 export { exec, fetch, task, stopOnFail, ignoreFail};
 export { exec as $ }
 
+export function buildCmd(cmd) {
+  return function(args) {
+    return exec`${cmd} ${args}`
+  }
+}

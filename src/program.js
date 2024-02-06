@@ -2,31 +2,36 @@ const { Command } = require("commander");
 import babelParser from "@babel/parser";
 import traverse from "@babel/traverse";
 import color from "picocolors";
-import cfonts from 'cfonts';
+import fs from 'fs';
+import openEditor from 'open-editor';
+import banner from '../templates/banner';
 
-const BUNOSHFILE = `bunoshFile.js`;
+export const BUNOSHFILE = `bunosh.tasks.js`;
 
-const banner = `
-${cfonts.render('Bunosh', { font: 'pallet', gradient: ['blue','yellow'], colors: ['system'], space: false}).string}
-
-🍲 ${color.bold(color.white('Bunosh'))} - your ${color.bold('exceptional')} task runner powered by Bun
-   Commands are loaded from ${color.bold(BUNOSHFILE)} as JS functions`;
+export { banner };
 
 export default function bunosh(commands, source) {
   const program = new Command();
 
+  const internalCommands = [];
+
   program.configureHelp({
-    commandDescription: _cmd => banner,
+    commandDescription: _cmd => `${banner}\n  Commands are loaded from ${color.bold(BUNOSHFILE)} as JS functions`,
     commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
-    visibleArguments: _opt => [],
+    // visibleArguments: cmd => cmd.registeredArguments,
     visibleGlobalOptions: _opt => [],
     // Bunosh has no default options
-    // visibleOptions: _opt => [],
+    visibleOptions: _opt => [],
+    visibleCommands: cmd => cmd.commands.filter(c => !internalCommands.includes(c)),
     // commandDescription: _opt => '',
     // argumentTerm: (arg) => color.gray("aaa"),
     subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
-  });  
+  });
+
+  program.showHelpAfterError();
+  program.showSuggestionAfterError(true);
+  program.addHelpCommand(false);
 
   const completeAst = babelParser.parse(source, {
     sourceType: "module",
@@ -49,7 +54,9 @@ export default function bunosh(commands, source) {
     const comment = comments[fnName];
 
     const command = program.command(prepareCommandName(fnName));
-
+    command.hook('preAction', (thisCommand) => {
+      process.env.BUNOSH_COMMAND_STARTED = true;
+    })
     
     args.filter(a => !!a).forEach((arg) => {
       command.argument(`<${arg}>`);
@@ -101,7 +108,6 @@ export default function bunosh(commands, source) {
       return functionArguments.flat();
     }
 
-
     // We parse command options from the object of last function args
     function parseOpts() {
       let functionOpts = {};
@@ -146,6 +152,38 @@ export default function bunosh(commands, source) {
       return functionOpts;
     }
   });
+
+  const editCmd = program.command('edit')
+    .description('Open the bunosh file in your editor. $EDITOR or \'code\' is used.')
+    .action(() => {
+      openEditor([{
+        file: BUNOSHFILE,
+      }], {
+        editor: process.env.EDITOR ? null : 'code',
+      });
+    });
+
+  internalCommands.push(editCmd);
+
+  const exoprtCmd = program.command('export:scripts')
+    .description('Export commands to "scripts" section of package.json.')
+    .action(() => {
+
+      exportFn(Object.keys(commands));
+    });
+    
+  internalCommands.push(exoprtCmd);    
+
+  program.addHelpText('after', `
+Example call:
+  bunosh ${program.commands.find(c => !internalCommands.includes(c)).name()} ${color.gray('<args>')} ${color.gray('[options]')}
+
+Special Commands:
+  📝 Edit bunosh file: ${color.bold('bunosh edit')}
+  📥 Export scripts to package.json: ${color.bold('bunosh export:scripts')}
+
+`);
+
 
   program.on("command:*", (cmd) => {
     console.log(`\nUnknown command ${cmd}\n`);
@@ -240,4 +278,42 @@ function parseDocBlock(funcName, code) {
   }
 
   return null;
+}
+
+function exportFn(commands) {
+  if (!fs.existsSync(BUNOSHFILE)) {
+    console.error(`${BUNOSHFILE} file not found, can\'t export its commands.`);
+    return false;
+  }
+
+  if (!fs.existsSync('package.json')) {
+    console.error('package.json now found, can\'t set scripts.');
+    return false;
+  }
+
+  const pkg = JSON.parse(fs.readFileSync('package.json').toString());
+  if (!pkg.scripts) {
+    pkg.scripts = {};
+  }
+  
+  // cleanup from previously exported
+  for (let s in pkg.scripts ) {
+    if (pkg[s] && pkg[s].startsWith('bunosh')) delete pkg[s];
+  }
+
+  const scripts = Object.fromEntries(commands.map(prepareCommandName).map(k => [k, 'bunosh '+k]));
+
+  pkg.scripts = {...pkg.scripts, ...scripts };
+
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4));
+
+  console.log('Added scripts:');
+  console.log();
+
+  Object.keys(scripts).forEach(k => console.log('   bun run ' + k));
+
+  console.log();
+  console.log('package.json updated');
+  console.log(`${Object.keys(scripts).length} scripts exported`);
+  return true;
 }

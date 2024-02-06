@@ -27,11 +27,10 @@ export default function exec(strings, ...values) {
   const ExecOutput = () => {
     let shell = $(strings, ...values);
     if (cwd) {
-      // console.log('cwd', cwd)
-      shell = $(strings, ...values).cwd(cwd);
+      shell = shell.cwd(cwd);
     } 
     if (envs) {
-      shell = $(strings, ...values).env(envs);
+      shell = shell.env(envs);
     }
 
     const stackOutput = [];
