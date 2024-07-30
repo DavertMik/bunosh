@@ -1,10 +1,11 @@
-
+#!/usr/bin/env bun
 import program, { BUNOSHFILE, banner }  from "./src/program";
 import { existsSync, readFileSync } from "fs";
 import init from "./src/init";
-import { say, yell } from './io';
+import path from "path";
+import './index';
 
-const tasksFile = `./${BUNOSHFILE}`;
+const tasksFile = path.join(process.cwd(), BUNOSHFILE);
 
 if (!existsSync(tasksFile)) {
   console.log(banner);
@@ -18,13 +19,12 @@ if (!existsSync(tasksFile)) {
   console.error(`Bunosh file not found: ${tasksFile}`);
   console.log("Run `bunosh init` to create a new bunosh tasks file here")
   console.log();
-  process.ar
   process.exit(1);
 }
 
-global.say = say;
-global.yell = yell;
-
 import(tasksFile).then((tasks) => {
   program(tasks, readFileSync(tasksFile, "utf-8"));
+}).catch((e) => {
+  console.error(`Error loading: ${tasksFile}`);
+  console.error(e);
 });

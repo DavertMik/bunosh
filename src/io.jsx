@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import { Box, Text } from 'ink';
-import { renderOnce, isStaticOutput} from './src/output';
+import { renderOnce, isStaticOutput} from './output';
 import Gradient from 'ink-gradient';
 import BigText from 'ink-big-text';
 import inquirer from 'inquirer';

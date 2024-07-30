@@ -1,14 +1,22 @@
 #!/usr/bin/env bun
 import { exec, fetch, task, ignoreFail } from "./index";
-import { ask, say, yell } from "./io";
+import { ask, say, yell } from "./src/io";
 import fs from "fs";
-import { writeToFile } from "./files";
+import { writeToFile } from "./src/files";
 
 /**
  * Builds binary file for Bunosh
  */
 export async function buildBinary() {
   await exec`bun build ./run.js --compile --outfile bunosh`;  
+}
+
+export async function buildDocker() {  
+  ignoreFail(true);
+  // process.chdir('/home/davert/projects/testomatio/frontend')
+
+  await exec`yarn build`.cwd('/home/davert/projects/testomatio/frontend');
+  await exec`docker build .`;
 }
 
 /**
@@ -38,7 +46,11 @@ export async function helloWorld(
 /**
  * Hello other
  */
-export async function helloOther() {
+export async function helloOther(opts = {
+  user: null,
+  val: "ok",
+  flag: false
+}) {
   
   yell('running everything!')
 
@@ -59,7 +71,7 @@ export async function helloOther() {
 /**
  * Deploys code to staging
 */
-export async function updateToProduction() {
+export async function updateToProduction(env) {
   
   await Promise.all([
     exec`ps aux | grep redis`,    

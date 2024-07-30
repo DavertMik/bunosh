@@ -1,7 +1,7 @@
 const { Command } = require("commander");
 import babelParser from "@babel/parser";
 import traverse from "@babel/traverse";
-import color from "picocolors";
+import color from "chalk";
 import fs from 'fs';
 import openEditor from 'open-editor';
 import banner from '../templates/banner';
@@ -16,7 +16,7 @@ export default function bunosh(commands, source) {
   const internalCommands = [];
 
   program.configureHelp({
-    commandDescription: _cmd => `${banner}\n  Commands are loaded from ${color.bold(BUNOSHFILE)} as JS functions`,
+    commandDescription: _cmd => `${banner}\n  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`,
     commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
     // visibleArguments: cmd => cmd.registeredArguments,
@@ -27,6 +27,7 @@ export default function bunosh(commands, source) {
     // commandDescription: _opt => '',
     // argumentTerm: (arg) => color.gray("aaa"),
     subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
+    subcommandDescription: (cmd) => cmd.description(),
   });
 
   program.showHelpAfterError();
@@ -48,25 +49,52 @@ export default function bunosh(commands, source) {
     const fnBody = commands[fnName].toString();
 
     const ast = fetchFnAst();
-
     const args = parseArgs();
     const opts = parseOpts();
+
     const comment = comments[fnName];
 
-    const command = program.command(prepareCommandName(fnName));
-    command.hook('preAction', (thisCommand) => {
+    const commandName = prepareCommandName(fnName);
+
+    const command = program.command(commandName);
+    command.hook('preAction', (_thisCommand) => {
       process.env.BUNOSH_COMMAND_STARTED = true;
     })
     
-    args.filter(a => !!a).forEach((arg) => {
-      command.argument(`<${arg}>`);
-    });
-    Object.entries(opts).forEach(([opt, value]) => {
-      if (value === false || value === null) command.option(`--${opt}`);
-      command.option(`--${opt} [${opt}]`, "", value);
+    let argsAndOptsDescription = [];
+
+    Object.entries(args).forEach(([arg, value]) => {
+      if (value === undefined) {
+        argsAndOptsDescription.push(`<${arg}>`);
+        return command.argument(`<${arg}>`);
+      }
+
+      if (value === null) {
+        argsAndOptsDescription.push(`[${arg}]`);
+        return command.argument(`[${arg}]`, '', null);
+      }
+      
+      argsAndOptsDescription.push(`[${arg}=${value}]`);
+      command.argument(`[${arg}]`, ``, value);
     });
 
-    command.description(comment);
+    Object.entries(opts).forEach(([opt, value]) => {
+      if (value === false || value === null) {
+        argsAndOptsDescription.push(`--${opt}`);
+        return command.option(`--${opt}`);
+      }
+      
+      argsAndOptsDescription.push(`--${opt}=${value}`);
+      command.option(`--${opt} [${opt}]`, "", value);
+
+    });
+
+    let description = comment?.split('\n')[0] || '';  
+
+
+    if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
+
+    command.description(description);
     command.action(commands[fnName].bind(commands));
 
     // We either take the ast from the file or we parse the function body
@@ -89,7 +117,7 @@ export default function bunosh(commands, source) {
 
     // We parse command args from function args
     function parseArgs() {
-      const functionArguments = [];
+      const functionArguments = {};
 
       traverse(ast, {
         FunctionDeclaration(path) {
@@ -99,13 +127,20 @@ export default function bunosh(commands, source) {
             .filter((node) => {
               return node?.right?.type !== "ObjectExpression";
             })
-            .map((param) => param.name);
+            .forEach((param) => {
+              if (param.type === "AssignmentPattern") {
+                functionArguments[param.left.name] = param.right.value;
+                return;
+              }
+              if (!param.name) return;
 
-          functionArguments.push(params);
+              return functionArguments[param.name] = null;
+            });
+
         },
       });
 
-      return functionArguments.flat();
+      return functionArguments;
     }
 
     // We parse command options from the object of last function args
@@ -124,7 +159,8 @@ export default function bunosh(commands, source) {
           )
             return;
 
-          node.right.properties.forEach((p) => {
+
+          node?.right?.properties?.forEach((p) => {
             if (
               ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
                 p.value.type,
@@ -175,13 +211,10 @@ export default function bunosh(commands, source) {
   internalCommands.push(exoprtCmd);    
 
   program.addHelpText('after', `
-Example call:
-  bunosh ${program.commands.find(c => !internalCommands.includes(c)).name()} ${color.gray('<args>')} ${color.gray('[options]')}
 
 Special Commands:
   📝 Edit bunosh file: ${color.bold('bunosh edit')}
   📥 Export scripts to package.json: ${color.bold('bunosh export:scripts')}
-
 `);
 
 
@@ -212,6 +245,7 @@ Special Commands:
         if (matches && matches[1]) {
           comments[functionName] = matches[1]
             .replace(/^\s*\*\s*/gm, "") // remove * chars
+            .replace(/\s*\*\*\s*$/gm, "") // remove * chars
             .trim()
             .replace(/^@.*$/gm, "") // remove params from description
             .trim();
