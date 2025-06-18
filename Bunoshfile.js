@@ -51,9 +51,9 @@ export async function helloOther(opts = {
   flag: false
 }) {
 
-  yell('running everything!')
+  // yell('running everything!')
 
-  await fetch('https://reqres.in/api/users')
+  // await fetch('https://reqres.in/api/users')
 
   await Promise.all([
     fetch('https://reqres.in/api/users/1'),
@@ -61,10 +61,10 @@ export async function helloOther(opts = {
     fetch('https://reqres.in/api/users/2')
   ])
 
-  ignoreFail(true);
+  // ignoreFail(true);
 
-  await exec`ps aux | grep node`;
-  await exec`git status`.cwd('/home/davert/projects/codeceptjs');
+  // await exec`ps aux | grep node`;
+  // await exec`git status`.cwd('/home/davert/projects/codeceptjs');
 }
 
 /**
