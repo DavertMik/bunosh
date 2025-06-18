@@ -37,34 +37,43 @@ export default function exec(strings, ...values) {
     const [exitCode, setExitCode] = useState(null);    
 
     const readNextChunk = async () => {
-      let shell = $(strings, ...values).nothrow();
+      try {
+        let shell = $(strings, ...values).nothrow();
 
-      if (cwd) {
-        shell = shell.cwd(cwd);
-      } 
-      if (envs) {
-        shell = shell.env(envs);
-      }
+        if (cwd) {
+          shell = shell.cwd(cwd);
+        } 
+        if (envs) {
+          shell = shell.env(envs);
+        }
 
-      // there should be API to read stderr line by line...
-      for await (let line of shell.lines()) {
-        debugTask(cmd, line);
-        stackOutput.push(line);
+        // there should be API to read stderr line by line...
+        for await (let line of shell.lines()) {
+          debugTask(cmd, line);
+          stackOutput.push(line);
+          setPrintedLines(stackOutput.slice(-DEFAULT_OUTPUT_SIZE));
+        }
+
+        const { exitCode, stderr } = await shell;
+
+        if (stderr) {
+          debugTask(cmd, stderr.toString());
+          stackOutput.push(stderr.toString())
+          setPrintedLines(stackOutput.slice(-DEFAULT_OUTPUT_SIZE));
+        }
+
+        const code = parseInt(exitCode, 10);
+        setExitCode(code);
+        if (code == 0) resolve(TaskResult.success(stackOutput.join('\n')));
+        if (code !== 0) resolve(TaskResult.fail(stackOutput.join('\n')));
+      } catch (error) {
+        // Catch any errors that Bun might throw before our handling
+        debugTask(cmd, error.toString());
+        stackOutput.push(`Error: ${error.message}`);
         setPrintedLines(stackOutput.slice(-DEFAULT_OUTPUT_SIZE));
+        setExitCode(1);
+        resolve(TaskResult.fail(`Error: ${error.message}`));
       }
-
-      const { exitCode, stderr } = await shell;
-
-      if (stderr) {
-        debugTask(cmd, stderr.toString());
-        stackOutput.push(stderr.toString())
-        setPrintedLines(stackOutput.slice(-DEFAULT_OUTPUT_SIZE));
-      }
-
-      const code = parseInt(exitCode, 10);
-      setExitCode(code);
-      if (code == 0) resolve(TaskResult.success(stackOutput.join('\n')));
-      if (code !== 0) resolve(TaskResult.fail(stackOutput.join('\n')));
     };
 
     useEffect(() => {

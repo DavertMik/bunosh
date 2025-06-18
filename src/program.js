@@ -6,7 +6,7 @@ import fs from 'fs';
 import openEditor from 'open-editor';
 import banner from '../templates/banner';
 
-export const BUNOSHFILE = `bunosh.tasks.js`;
+export const BUNOSHFILE = `Bunoshfile.js`;
 
 export { banner };
 

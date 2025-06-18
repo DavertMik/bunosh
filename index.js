@@ -5,7 +5,7 @@ import copyFile from "./src/tasks/copyFile";
 import { ask, yell, say } from "./src/io";
 import { task, stopOnFail, ignoreFail } from "./src/task";
 
-// export { program as bunosh };
+export { exec, fetch, writeToFile, copyFile, ask, yell, say, task, stopOnFail, ignoreFail };
 
 
 export function buildCmd(cmd) {
