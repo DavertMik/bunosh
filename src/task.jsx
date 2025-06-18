@@ -208,6 +208,7 @@ function removeFromRender(taskInfo) {
       clearTimeoutId = null;
     }
     
+    
     // Clear all renderers and reset for next group (minimal cleanup)
     clearRenderer(); // Clear all renderers, not just default
     activeComponents = [];
@@ -226,6 +227,7 @@ export const renderTask = async (taskInfo, children) => {
   tasksExecuted.push(taskInfo);
   addToRender(<Task key={`${tasksExecuted.length}_${taskInfo}`} taskInfo={taskInfo}>{children}</Task>);
 };
+
 
 
 
