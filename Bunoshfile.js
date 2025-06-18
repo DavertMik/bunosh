@@ -53,7 +53,7 @@ export async function helloOther(opts = {
 
   // yell('running everything!')
 
-  // await fetch('https://reqres.in/api/users')
+  await fetch('https://reqres.in/api/users')
 
   await Promise.all([
     fetch('https://reqres.in/api/users/1'),
@@ -63,7 +63,7 @@ export async function helloOther(opts = {
 
   // ignoreFail(true);
 
-  // await exec`ps aux | grep node`;
+  await exec`ps aux | grep node`;
   // await exec`git status`.cwd('/home/davert/projects/codeceptjs');
 }
 

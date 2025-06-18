@@ -40,6 +40,19 @@ Bunosh is a task runner that transforms JavaScript functions into CLI commands. 
 - `src/task.jsx` - Task execution wrapper with status indicators
 - Real-time output rendering for long-running commands
 
+#### Rich UI Mode Control
+Rich UI mode is controlled by environment variables in `src/output.js`:
+- **Enable Rich UI**: `FORCE_RICH_UI=1 ./bunosh.js <command>`
+- **Disable Rich UI**: `CI=1 ./bunosh.js <command>` or `DEBUG=bunosh ./bunosh.js <command>`
+- **Force Rich UI in debug**: `DEBUG=bunosh FORCE_RICH_UI=1 ./bunosh.js <command>`
+
+Rich UI automatically disables in:
+- CI environments (`process.env.CI`)
+- Debug mode (`process.env.DEBUG`) unless `FORCE_RICH_UI` is set
+- Non-TTY environments unless `FORCE_RICH_UI` is set
+
+Rich UI provides interactive terminal experience with bordered boxes, spinners, and grid layouts for parallel tasks. Static mode falls back to simple console output.
+
 ### AST Processing
 The program uses Babel to parse Bunoshfile.js and extract:
 - Function signatures to generate CLI interfaces

@@ -13,24 +13,38 @@ export default async function httpFetch() {
   const method = arguments[1]?.method || 'GET';
   const text = `${method} ${url}`;
   
-  
   let resolve, reject;
-  let promise = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
+  let startExecution = null;
+  
+  // Create a promise that can be started later
+  let resolveStart;
+  const startPromise = new Promise((res) => {
+    resolveStart = res;
+  });
+
+  startExecution = () => {
+    resolveStart();
+  };
+
+  let promise = startPromise.then(() => {
+    return new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
   });
   
   const FetchOutput = () => {
-    const fetchPromise = fetch(...arguments);
-    
-
     const stackOutput = [];
     
     const [response, setResponse] = useState(null);
     const [printedLines, setPrintedLines] = useState([]);
 
     useEffect(() => {
-      fetchPromise.then(async (response) => {
+      // Wait for start signal before executing
+      startPromise.then(() => {
+        const fetchPromise = fetch(...arguments);
+        
+        fetchPromise.then(async (response) => {
         setResponse(response);
 
         setPrintedLines(['a', 'b', 'c']);
@@ -45,7 +59,9 @@ export default async function httpFetch() {
         }
         
         resolve(TaskResult.success(stackOutput.join('\n')));
-        resolve(TaskResult.fail(stackOutput.join('\n')));
+        }).catch(error => {
+          resolve(TaskResult.fail(error.toString()));
+        });
       });
     }, []);
     
@@ -64,11 +80,17 @@ export default async function httpFetch() {
     </>
   }
 
-  renderTask(new TaskInfo({
-    promise,
-    kind: 'fetch',
-    text,
-  }), <FetchOutput />);
+  // Delay renderTask call to allow planning phase to detect parallel tasks
+  setTimeout(() => {
+    const taskInfo = new TaskInfo({
+      promise,
+      kind: 'fetch',
+      text,
+    });
+    taskInfo.startExecution = startExecution;
+
+    renderTask(taskInfo, <FetchOutput />);
+  }, 10); // Small delay to ensure all Promise.all tasks are registered first
 
   return promise;
 }

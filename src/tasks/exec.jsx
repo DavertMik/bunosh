@@ -13,9 +13,23 @@ export default function exec(strings, ...values) {
   });
 
   let resolve, reject;
-  const cmdPromise = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
+  let startExecution = null;
+  
+  // Create a promise that can be started later
+  let resolveStart;
+  const startPromise = new Promise((res) => {
+    resolveStart = res;
+  });
+
+  startExecution = () => {
+    resolveStart();
+  };
+
+  const cmdPromise = startPromise.then(() => {
+    return new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
   });
 
   let envs = null
@@ -77,7 +91,10 @@ export default function exec(strings, ...values) {
     };
 
     useEffect(() => {
-      readNextChunk();
+      // Wait for start signal before executing
+      startPromise.then(() => {
+        readNextChunk();
+      });
     }, []);
     
     if (isStaticOutput) return <></>
@@ -95,18 +112,22 @@ export default function exec(strings, ...values) {
     </>
   }
 
+  // Delay renderTask call to allow planning phase to detect parallel tasks
   setTimeout(() => {
     let extraText = '';
     if (cwd) extraText += `at ${cwd}`;
     if (envs) extraText += ` with ${envs}`;
 
-    renderTask(new TaskInfo({
+    const taskInfo = new TaskInfo({
       promise: cmdPromise,
       kind: 'exec',
       text: cmd,
       extraText: extraText,
-    }), <ExecOutput />);
-  }, 0);
+    });
+    taskInfo.startExecution = startExecution;
+
+    renderTask(taskInfo, <ExecOutput />);
+  }, 10); // Small delay to ensure all Promise.all tasks are registered first
 
   return cmdPromise;
 }
