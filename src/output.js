@@ -93,11 +93,32 @@ export async function renderToString(comp) {
     write() { return true; }
   });
   
-  // Render to our string stream instead of terminal
+  // Detect terminal dimensions to match live rendering
+  const terminalWidth = process.stdout.columns || 80;
+  const terminalHeight = process.stdout.rows || 24;
+  
+  // Create a custom stdout stream that reports the correct terminal size
+  class TerminalSizeStringStream extends StringStream {
+    get columns() {
+      return terminalWidth;
+    }
+    
+    get rows() {
+      return terminalHeight;
+    }
+    
+    get isTTY() {
+      return true; // Pretend to be a TTY for proper formatting
+    }
+  }
+  
+  const terminalSizedStream = new TerminalSizeStringStream();
+  
+  // Render to our string stream with proper terminal dimensions
   const instance = inkRender(comp, {
-    stdout: stringStream,
+    stdout: terminalSizedStream,
     stdin: mockStdin,
-    stderr: stringStream,
+    stderr: terminalSizedStream,
     patchConsole: false
   });
   
@@ -105,7 +126,7 @@ export async function renderToString(comp) {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   // Get the rendered output as string
-  let output = stringStream.getString();
+  let output = terminalSizedStream.getString();
   
   // Clean up
   instance.unmount();

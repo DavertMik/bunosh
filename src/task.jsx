@@ -34,6 +34,7 @@ let outputtedTaskIds = new Set(); // Track which tasks have been output to conso
 
 // Global output buffer to preserve all task group outputs
 let globalOutputBuffer = [];
+let outputBufferIndex = 0; // Track what's already been output
 
 let stopFailToggle = true;
 
@@ -408,14 +409,19 @@ async function captureGlobalContainerOutput() {
       globalOutputBuffer.push(staticOutput.trim());
     }
     
-    // Clear the current Ink canvas before outputting all accumulated results
+    // Clear the current Ink canvas before outputting new results
     clearInkCanvas();
     
-    // Output all accumulated task group results
-    globalOutputBuffer.forEach(output => {
-      console.log(output);
-      console.log(); // Add spacing between task groups
-    });
+    // Output only the new task group results (from outputBufferIndex onwards)
+    for (let i = outputBufferIndex; i < globalOutputBuffer.length; i++) {
+      console.log(globalOutputBuffer[i]);
+      if (i < globalOutputBuffer.length - 1) {
+        console.log(); // Add spacing between task groups, but not after the last one
+      }
+    }
+    
+    // Update the index to mark everything as output
+    outputBufferIndex = globalOutputBuffer.length;
   } catch (error) {
     console.error('Failed to capture global container output:', error);
   }
@@ -502,12 +508,19 @@ async function captureAndOutputInkState(taskInfo, result, timeMs, children) {
     if (staticOutput.trim()) {
       globalOutputBuffer.push(staticOutput.trim());
       
-      // Clear current Ink canvas and output all accumulated results
+      // Clear current Ink canvas and output only new results
       clearInkCanvas();
-      globalOutputBuffer.forEach(output => {
-        console.log(output);
-        console.log(); // Add spacing between task groups
-      });
+      
+      // Output only the new task group results (from outputBufferIndex onwards)
+      for (let i = outputBufferIndex; i < globalOutputBuffer.length; i++) {
+        console.log(globalOutputBuffer[i]);
+        if (i < globalOutputBuffer.length - 1) {
+          console.log(); // Add spacing between task groups, but not after the last one
+        }
+      }
+      
+      // Update the index to mark everything as output
+      outputBufferIndex = globalOutputBuffer.length;
     }
   } catch (error) {
     // If rendering to string fails, just skip it
