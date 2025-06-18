@@ -366,7 +366,7 @@ async function captureGlobalContainerOutput() {
   try {
     // Create static components for all completed tasks
     const staticComponents = completedTasks.map(({ taskInfo, result, duration }) => {
-      const outputLines = result?.output ? result.output.split('\n').filter(line => line.trim()).slice(0, 8) : [];
+      const outputLines = result?.output ? result.output.split('\n').slice(0, 8) : [];
       const staticChildren = outputLines.length > 0 ? (
         <Box overflow='hidden' height={Math.min(outputLines.length + 2, 10)} borderStyle="round" flexDirection="column">
           {outputLines.map((line, i) => (
@@ -409,7 +409,11 @@ async function captureGlobalContainerOutput() {
       globalOutputBuffer.push(staticOutput.trim());
     }
     
-    // Clear the current Ink canvas before outputting new results
+    // First clear the Ink renderer to stop live updates
+    clearRenderer(globalTaskContainer.rendererId);
+    
+    // Clear just enough lines to remove the Ink UI artifacts
+    // but not previous outputs
     clearInkCanvas();
     
     // Output only the new task group results (from outputBufferIndex onwards)
@@ -428,10 +432,10 @@ async function captureGlobalContainerOutput() {
 }
 
 function clearInkCanvas() {
-  // Calculate how many lines to clear based on current Ink rendering
-  // For parallel tasks: about 12-15 lines, for single tasks: about 5-8 lines
-  const isParallelGroup = globalTaskContainer.activeTasks.size > 1 || globalTaskContainer.completedTasks.size > 1;
-  const linesToClear = isParallelGroup ? 15 : 8;
+  // Clear enough lines to remove current Ink artifacts including bordered boxes
+  // but not so many that we clear previous task outputs
+  // For parallel tasks, need more lines for the grid layout
+  const linesToClear = globalTaskContainer.completedTasks.size > 1 ? 8 : 5;
   
   // Move cursor up and clear each line
   for (let i = 0; i < linesToClear; i++) {
@@ -508,10 +512,8 @@ async function captureAndOutputInkState(taskInfo, result, timeMs, children) {
     if (staticOutput.trim()) {
       globalOutputBuffer.push(staticOutput.trim());
       
-      // Clear current Ink canvas and output only new results
-      clearInkCanvas();
-      
       // Output only the new task group results (from outputBufferIndex onwards)
+      // Don't clear canvas first - let the static output naturally replace the Ink rendering
       for (let i = outputBufferIndex; i < globalOutputBuffer.length; i++) {
         console.log(globalOutputBuffer[i]);
         if (i < globalOutputBuffer.length - 1) {
