@@ -7,8 +7,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "prettier": "^3.4.3",
-    "lint-staged": "^16.1.2"
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.4.3"
   },
   "types": "index.d.ts",
   "dependencies": {
@@ -42,6 +42,8 @@
     "*.{js,css,md}": "prettier --write"
   },
   "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch",
     "hello:other": "bunosh hello:other",
     "hello:world": "bunosh hello:world",
     "update:to-production": "bunosh update:to-production",

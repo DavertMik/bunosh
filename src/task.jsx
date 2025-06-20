@@ -425,7 +425,8 @@ async function captureGlobalContainerOutput() {
   // Output status lines for exec tasks since they already showed live output
   execTasks.forEach(({ taskInfo, result, duration }) => {
     const statusChar = result?.status === TaskStatus.SUCCESS ? '✓' : '✗';
-    const statusLine = `${statusChar} ${taskInfo.kind} ${taskInfo.text}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${duration}ms`;
+    const statusColor = result?.status === TaskStatus.SUCCESS ? chalk.green : chalk.red;
+    const statusLine = `${statusColor.bold(statusChar)} ${chalk.bold(taskInfo.kind)} ${chalk.underline(taskInfo.text)}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${chalk.dim(`${duration}ms`)}`;
     console.log('\n' + statusLine);
   });
   
@@ -691,7 +692,8 @@ export const Task = ({ taskInfo, children }) => {
           // Rich UI mode - for exec tasks, just output the status line since live output was already shown
           if (taskInfo.kind === 'exec') {
             const statusChar = result.status === TaskStatus.SUCCESS ? '✓' : '✗';
-            const statusLine = `${statusChar} ${taskInfo.kind} ${taskInfo.text}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${timer.ms()}ms`;
+            const statusColor = result.status === TaskStatus.SUCCESS ? chalk.green : chalk.red;
+            const statusLine = `${statusColor.bold(statusChar)} ${chalk.bold(taskInfo.kind)} ${chalk.underline(taskInfo.text)}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${chalk.dim(`${timer.ms()}ms`)}`;
             console.log('\n' + statusLine);
             console.log(); // Add spacing after task
           } else {
