@@ -417,10 +417,26 @@ async function captureGlobalContainerOutput() {
   const completedTasks = Array.from(globalTaskContainer.completedTasks.values());
 
   if (completedTasks.length === 0) return;
+  
+  // Output status lines for exec tasks, filter them out from static output
+  const execTasks = completedTasks.filter(task => task.taskInfo.kind === 'exec');
+  const tasksToOutput = completedTasks.filter(task => task.taskInfo.kind !== 'exec');
+  
+  // Output status lines for exec tasks since they already showed live output
+  execTasks.forEach(({ taskInfo, result, duration }) => {
+    const statusChar = result?.status === TaskStatus.SUCCESS ? '✓' : '✗';
+    const statusLine = `${statusChar} ${taskInfo.kind} ${taskInfo.text}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${duration}ms`;
+    console.log('\n' + statusLine);
+  });
+  
+  // If only exec tasks, skip all the static output generation and canvas clearing
+  if (tasksToOutput.length === 0) {
+    return; // No tasks need static output, and exec tasks already handled
+  }
 
   try {
-    // Create static components for all completed tasks
-    const staticComponents = completedTasks.map(({ taskInfo, result, duration }) => {
+    // Create static components for non-exec tasks only
+    const staticComponents = tasksToOutput.map(({ taskInfo, result, duration }) => {
       const outputLines = result?.output ? result.output.split('\n').slice(0, 8) : [];
       const staticChildren = outputLines.length > 0 ? (
         <Box overflow='hidden' height={Math.min(outputLines.length + 2, 10)} borderStyle="round" flexDirection="column">
@@ -672,8 +688,18 @@ export const Task = ({ taskInfo, children }) => {
         if (isStaticOutput) {
           outputTaskResultCI(taskInfo, result, timer.ms());
         } else {
-          // Rich UI mode - let the global container handle all output
-          // Don't call captureAndOutputInkState individually for sequential tasks
+          // Rich UI mode - for exec tasks, just output the status line since live output was already shown
+          if (taskInfo.kind === 'exec') {
+            const statusChar = result.status === TaskStatus.SUCCESS ? '✓' : '✗';
+            const statusLine = `${statusChar} ${taskInfo.kind} ${taskInfo.text}${taskInfo.extraText ? ` ${taskInfo.extraText}` : ''} ${timer.ms()}ms`;
+            console.log('\n' + statusLine);
+            console.log(); // Add spacing after task
+          } else {
+            // For non-exec tasks, use the normal capture method
+            captureAndOutputInkState(taskInfo, result, timer.ms(), children).catch(err => {
+              console.error('Failed to capture task state:', err);
+            });
+          }
         }
       }
     }

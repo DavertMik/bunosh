@@ -93,6 +93,9 @@ export default function exec(strings, ...values) {
         const code = parseInt(exitCode, 10);
         setExitCode(code);
         setIsRunning(false);
+        
+        // Don't clear the renderer here - let the task system handle cleanup
+        
         if (code == 0) resolve(TaskResult.success(stackOutput.join('\n')));
         if (code !== 0) resolve(TaskResult.fail(stackOutput.join('\n')));
       } catch (error) {

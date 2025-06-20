@@ -95,3 +95,15 @@ export async function testStreaming() {
   // Command that produces output over time
   await exec`sh -c 'for i in 1 2 3 4 5; do echo "Line $i"; sleep 0.5; done'`;
 }
+
+/**
+ * Test live output validation
+ */
+export async function testLiveOutput() {
+  console.log("Testing live output with no artifacts and no duplicates...\n");
+  
+  // Test with a command that produces clear, timed output
+  await exec`sh -c 'echo "Step 1: Starting"; sleep 0.3; echo "Step 2: Processing"; sleep 0.3; echo "Step 3: Almost done"; sleep 0.3; echo "Step 4: Complete"'`;
+  
+  console.log("\n--- Test completed ---");
+}
