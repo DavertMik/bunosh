@@ -15,8 +15,8 @@ export async function buildDocker() {
   ignoreFail(true);
   // process.chdir('/home/davert/projects/testomatio/frontend')
 
-  await exec`yarn build`.cwd('/home/davert/projects/testomatio/frontend');
-  await exec`docker build .`;
+  // await exec`yarn build`.cwd('/home/davert/projects/testomatio/frontend');
+  await exec`docker build .`.cwd('/home/davert/projects/testomatio/frontend');;
 }
 
 /**
@@ -86,4 +86,12 @@ export async function updateToStaging() {
   // this is not ok
   const env = await ask('Which environment we are in?');
   say(env);
+}
+
+/**
+ * Test streaming output
+ */
+export async function testStreaming() {
+  // Command that produces output over time
+  await exec`sh -c 'for i in 1 2 3 4 5; do echo "Line $i"; sleep 0.5; done'`;
 }

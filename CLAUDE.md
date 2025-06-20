@@ -5,11 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 - **Run Bunosh**: `bun bunosh.js` or `bunosh <command>` (requires global install)
+- **Run test files**: `bun <filename.js>` - Execute JavaScript files with Bun runtime
 - **Build binary**: `bunosh build:binary` - Creates standalone executable
 - **Format code**: `prettier --write "*.{js,css,md}"` (via lint-staged)
 - **Initialize new tasks file**: `bunosh init`
 - **Edit tasks**: `bunosh edit` - Opens tasks file in editor
 - **Export to package.json**: `bunosh export:scripts` - Adds commands to package.json scripts
+
+## Runtime Environment
+
+**IMPORTANT**: This project uses Bun as the JavaScript runtime, NOT Node.js.
+- Always use `bun` command instead of `node`
+- Use `bun <script.js>` to execute JavaScript files
+- Bun provides faster startup and built-in TypeScript support
 
 ## Core Architecture
 

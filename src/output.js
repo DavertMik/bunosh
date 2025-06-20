@@ -3,7 +3,7 @@ import { render as inkRender } from 'ink';
 import debug from 'debug';
 import { Writable } from 'stream';
 
-export const isStaticOutput = process.env.CI || (process.env.DEBUG && !process.env.FORCE_RICH_UI) || (!process.stdout.isTTY && !process.env.FORCE_RICH_UI);
+export const isStaticOutput = process.env.CI || (process.env.DEBUG && !process.env.FORCE_RICH_UI) || (!process.stdout.isTTY && !process.env.FORCE_RICH_UI) || process.env.TEST_STATIC;
 
 // Only enable debug logging when explicitly requested
 if (process.env.DEBUG && process.env.DEBUG.includes('bunosh')) {
@@ -16,14 +16,30 @@ export function render(comp = <></>, rendererId = 'default') {
   let renderer = renderers.find(r => r.id === rendererId);
   
   if (!renderer) {
+    // Add debug marker for new renderer creation
+    if (process.env.DEBUG?.includes('bunosh')) {
+      console.log(`🎬 Creating renderer: ${rendererId}`);
+    }
+    
+    // Create renderer with options to minimize artifacts
+    const renderOptions = {
+      // Try to minimize initial output
+      patchConsole: false,
+      exitOnCtrlC: false
+    };
+    
     renderer = {
       id: rendererId,
-      instance: inkRender(comp)
+      instance: inkRender(comp, renderOptions)
     };
     renderers.push(renderer);
     return renderer.instance;
   }
 
+  // Add debug marker for re-render
+  if (process.env.DEBUG?.includes('bunosh')) {
+    console.log(`🔄 Re-rendering: ${rendererId}`);
+  }
   renderer.instance.rerender(comp);
   return renderer.instance;
 }
@@ -38,7 +54,11 @@ export async function renderOnce(comp) {
 export function destroyRenderer(rendererId) {
   const index = renderers.findIndex(r => r.id === rendererId);
   if (index !== -1) {
+    if (process.env.DEBUG?.includes('bunosh')) {
+      console.log(`💥 Destroying renderer: ${rendererId}`);
+    }
     const renderer = renderers[index];
+    
     // Unmount to convert to static terminal output
     renderer.instance.unmount();
     renderers.splice(index, 1);
@@ -49,11 +69,17 @@ export function clearRenderer(rendererId = null) {
   if (rendererId) {
     const index = renderers.findIndex(r => r.id === rendererId);
     if (index !== -1) {
+      if (process.env.DEBUG?.includes('bunosh')) {
+        console.log(`🧹 Clearing renderer: ${rendererId}`);
+      }
       renderers[index].instance.unmount();
       renderers.splice(index, 1);
     }
   } else {
     // Clear all renderers
+    if (process.env.DEBUG?.includes('bunosh')) {
+      console.log(`🧹 Clearing ALL renderers (${renderers.length})`);
+    }
     renderers.forEach(r => r.instance.unmount());
     renderers = [];
   }
