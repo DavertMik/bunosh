@@ -54,8 +54,15 @@ export default function exec(strings, ...values) {
       try {
         setIsRunning(true);
         
-        // Build shell with stderr redirected to stdout for line-by-line reading
-        let shell = $`sh -c '${cmd} 2>&1'`.nothrow();
+        // Build shell with the command - use eval to properly parse command and args
+        let shell;
+        try {
+          // Use Function constructor to create a template literal with the command
+          shell = new Function('$', `return $\`${cmd}\`.nothrow().quiet();`)($);
+        } catch (e) {
+          // Fallback to treating as a single command if template parsing fails
+          shell = $`sh -c ${cmd}`.nothrow().quiet();
+        }
 
         if (cwd) {
           shell = shell.cwd(cwd);
@@ -63,9 +70,16 @@ export default function exec(strings, ...values) {
         if (envs) {
           shell = shell.env(envs);
         }
-
-        // Read all output (stdout + stderr) line by line
-        for await (let line of shell.lines()) {
+        
+        // Execute the shell command
+        const result = await shell;
+        const { exitCode, stdout, stderr } = result;
+        
+        // Convert output to lines and process
+        const allOutput = stdout.toString() + stderr.toString();
+        const lines = allOutput.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
           debugTask(cmd, line);
           stackOutput.push(line);
           
@@ -76,26 +90,16 @@ export default function exec(strings, ...values) {
               console.log(`${taskExecution.prefix(taskExecution.pattern)} ${line}`);
             }
           } else {
-            // In rich UI mode, update the displayed lines in real-time
-            // Use functional update to ensure we get the latest state
-            setPrintedLines(prev => {
-              const newLines = [...stackOutput];
-              return newLines;
-            });
-            
-            // Add a small delay to allow React to process the state update
-            await new Promise(resolve => setTimeout(resolve, 10));
+            // In rich UI mode, update the displayed lines
+            setPrintedLines([...stackOutput]);
           }
         }
-
-        const { exitCode } = await shell;
 
         const code = parseInt(exitCode, 10);
         setExitCode(code);
         setIsRunning(false);
         
-        // Don't clear the renderer here - let the task system handle cleanup
-        
+        // Include output in result for display in the final box
         if (code == 0) resolve(TaskResult.success(stackOutput.join('\n')));
         if (code !== 0) resolve(TaskResult.fail(stackOutput.join('\n')));
       } catch (error) {
@@ -105,7 +109,7 @@ export default function exec(strings, ...values) {
         setPrintedLines([...stackOutput]);
         setExitCode(1);
         setIsRunning(false);
-        resolve(TaskResult.fail(`Error: ${error.message}`));
+        resolve(TaskResult.fail(null));
       }
     };
 
@@ -116,43 +120,38 @@ export default function exec(strings, ...values) {
       });
     }, []);
     
-    if (isStaticOutput) return <></>
+    if (isStaticOutput) return null;
 
-    // Always render the frame with live output
+    // Return output content to be used by StandardTaskFormat
     return (
-      <Box flexDirection="column" borderStyle="round" padding={1}>
-        {/* Live output area */}
-        <Box flexDirection="column">
-          {printedLines.length > 0 ? (
-            printedLines.map((line, i) => (
-              <Text wrap="end" key={i}>{line}</Text>
-            ))
-          ) : isRunning ? (
-            <Text dimColor>Starting...</Text>
-          ) : (
-            <Text dimColor>No output</Text>
-          )}
-        </Box>
+      <Box flexDirection="column" width="100%">
+        {printedLines.length > 0 ? (
+          printedLines.slice(-15).map((line, i) => (
+            <Text wrap="truncate-end" key={i}>{line}</Text>
+          ))
+        ) : isRunning ? (
+          <Text dimColor>Starting command...</Text>
+        ) : (
+          <Text dimColor>No output</Text>
+        )}
       </Box>
     )
   }
 
-  // Delay renderTask call to allow planning phase to detect parallel tasks
-  setTimeout(() => {
-    let extraText = '';
-    if (cwd) extraText += `at ${cwd}`;
-    if (envs) extraText += ` with ${envs}`;
+  // Create and render task immediately
+  let extraText = '';
+  if (cwd) extraText += `at ${cwd}`;
+  if (envs) extraText += ` with ${envs}`;
 
-    const taskInfo = new TaskInfo({
-      promise: cmdPromise,
-      kind: 'exec',
-      text: cmd,
-      extraText: extraText,
-    });
-    taskInfo.startExecution = startExecution;
+  const taskInfo = new TaskInfo({
+    promise: cmdPromise,
+    kind: 'exec',
+    text: cmd,
+    extraText: extraText,
+  });
+  taskInfo.startExecution = startExecution;
 
-    renderTask(taskInfo, <ExecOutput />);
-  }, 10); // Small delay to ensure all Promise.all tasks are registered first
+  renderTask(taskInfo, <ExecOutput />);
 
   return cmdPromise;
 }
