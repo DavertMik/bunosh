@@ -1,9 +1,9 @@
-import exec from "./src/tasks/exec";
-import fetch from "./src/tasks/fetch";
-import writeToFile from "./src/tasks/writeToFile";
-import copyFile from "./src/tasks/copyFile";
-import { ask, yell, say } from "./src/io";
-import { task, stopOnFail, ignoreFail } from "./src/task";
+import exec from "./src/tasks/exec.js";
+import fetch from "./src/tasks/fetch.js";
+import writeToFile from "./src/tasks/writeToFile.js";
+import copyFile from "./src/tasks/copyFile.js";
+import { ask, yell, say } from "./src/io.js";
+import { task, stopOnFail, ignoreFail } from "./src/task.js";
 
 export { exec, fetch, writeToFile, copyFile, ask, yell, say, task, stopOnFail, ignoreFail };
 

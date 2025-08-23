@@ -14,10 +14,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Runtime Environment
 
-**IMPORTANT**: This project uses Bun as the JavaScript runtime, NOT Node.js.
-- Always use `bun` command instead of `node`
-- Use `bun <script.js>` to execute JavaScript files
+**Primary Runtime**: This project is optimized for Bun JavaScript runtime.
+- **Bun** (recommended): Full functionality with real-time streaming output
+- **Node.js** (fallback): Basic functionality with simple command execution
+- Use `bun <script.js>` or `node <script.js>` to execute JavaScript files
 - Bun provides faster startup and built-in TypeScript support
+
+### Runtime Compatibility
+The system automatically detects the runtime environment:
+- **Bun**: Uses `Bun.spawn()` for real-time streaming command output
+- **Node.js**: Falls back to `execSync()` for simple command execution without streaming
 
 ## Core Architecture
 
@@ -37,29 +43,47 @@ Bunosh is a task runner that transforms JavaScript functions into CLI commands. 
 - JSDoc comments or first-line comments become command descriptions
 
 ### Built-in Tasks (`src/tasks/`)
-- `exec.jsx` - Shell command execution with Ink UI (wraps Bun Shell)
-- `fetch.jsx` - HTTP requests with loading indicators
-- `writeToFile.jsx` - File writing with template string builder
-- `copyFile.jsx` - File copying operations
+- `exec.js` - Shell command execution with console output (wraps Bun Shell)
+- `fetch.js` - HTTP requests with progress indicators
+- `writeToFile.js` - File writing with template string builder
+- `copyFile.js` - File copying operations
 
-### UI System
-- Built on React/Ink for terminal UI components
-- `src/io.jsx` - User interaction functions (ask, say, yell)
-- `src/task.jsx` - Task execution wrapper with status indicators
-- Real-time output rendering for long-running commands
+### Output System
+- Console-based output with pluggable formatter support
+- `src/io.js` - User interaction functions (ask, say, yell)
+- `src/task.js` - Task execution wrapper with status tracking and counter
+- `src/printer.js` - Central output controller with formatter delegation
+- Real-time streaming output for long-running commands
 
-#### Rich UI Mode Control
-Rich UI mode is controlled by environment variables in `src/output.js`:
-- **Enable Rich UI**: `FORCE_RICH_UI=1 ./bunosh.js <command>`
-- **Disable Rich UI**: `CI=1 ./bunosh.js <command>` or `DEBUG=bunosh ./bunosh.js <command>`
-- **Force Rich UI in debug**: `DEBUG=bunosh FORCE_RICH_UI=1 ./bunosh.js <command>`
+#### Output Formatters
+Output formatting is handled by pluggable formatter classes in `src/formatters/`:
 
-Rich UI automatically disables in:
-- CI environments (`process.env.CI`)
-- Debug mode (`process.env.DEBUG`) unless `FORCE_RICH_UI` is set
-- Non-TTY environments unless `FORCE_RICH_UI` is set
+**ConsoleFormatter** (`src/formatters/console.js`):
+- Default formatter for local development
+- Colored terminal output with icons (▶ ✓ ✗)
+- Full-width lines with background colors
+- Delayed start printing (50ms) - quick tasks show only completion
+- Auto-detected when `!process.env.CI`
 
-Rich UI provides interactive terminal experience with bordered boxes, spinners, and grid layouts for parallel tasks. Static mode falls back to simple console output.
+**GitHubActionsFormatter** (`src/formatters/github-actions.js`):
+- Specialized output for GitHub Actions CI
+- Uses `::group::`, `::notice::`, `::error::` commands
+- Creates collapsible sections for long-running tasks
+- Auto-detected when `process.env.GITHUB_ACTIONS === 'true'`
+
+**Architecture**:
+- `src/formatters/factory.js` - Auto-detects environment and creates formatter
+- `src/formatters/base.js` - Base class defining formatter interface
+- Each formatter handles start/finish/error/output formatting independently
+- Task counting system tracks all operations (exec, fetch, writeToFile, copyFile)
+
+#### Adding New Formatters
+To add support for new CI systems (GitLab, TeamCity, Azure DevOps):
+1. Create formatter class extending `BaseFormatter`
+2. Implement `format(taskName, status, taskType, extra)` method
+3. Implement `formatOutput(line, isError)` method
+4. Add static `detect()` method for environment detection
+5. Register in `factory.js` FORMATTERS array
 
 ### AST Processing
 The program uses Babel to parse Bunoshfile.js and extract:
@@ -75,5 +99,5 @@ Functions available in tasks via `global.bunosh` or direct imports:
 - `writeToFile` - File operations
 - `copyFile` - File copying
 - `ask`, `say`, `yell` - User interaction
-- `task` - Wrapped execution with UI
+- `task` - Task execution wrapper with console output
 - `stopOnFail`, `ignoreFail` - Error handling control

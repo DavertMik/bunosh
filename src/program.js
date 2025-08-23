@@ -12,6 +12,7 @@ export { banner };
 
 export default function bunosh(commands, source) {
   const program = new Command();
+  program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
 
   const internalCommands = [];
 
@@ -19,13 +20,9 @@ export default function bunosh(commands, source) {
     commandDescription: _cmd => `${banner}\n  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`,
     commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
-    // visibleArguments: cmd => cmd.registeredArguments,
     visibleGlobalOptions: _opt => [],
-    // Bunosh has no default options
     visibleOptions: _opt => [],
     visibleCommands: cmd => cmd.commands.filter(c => !internalCommands.includes(c)),
-    // commandDescription: _opt => '',
-    // argumentTerm: (arg) => color.gray("aaa"),
     subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
     subcommandDescription: (cmd) => cmd.description(),
   });
@@ -36,7 +33,6 @@ export default function bunosh(commands, source) {
 
   const completeAst = babelParser.parse(source, {
     sourceType: "module",
-    plugins: ["jsx"],
     ranges: true,
     tokens: true,
     comments: true,
@@ -91,13 +87,11 @@ export default function bunosh(commands, source) {
 
     let description = comment?.split('\n')[0] || '';  
 
-
     if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
     command.description(description);
     command.action(commands[fnName].bind(commands));
 
-    // We either take the ast from the file or we parse the function body
     function fetchFnAst() {
       let hasFnInSource = false;
 
@@ -115,7 +109,6 @@ export default function bunosh(commands, source) {
       return babelParser.parse(fnBody, { comment: true, tokens: true });
     }
 
-    // We parse command args from function args
     function parseArgs() {
       const functionArguments = {};
 
@@ -143,7 +136,6 @@ export default function bunosh(commands, source) {
       return functionArguments;
     }
 
-    // We parse command options from the object of last function args
     function parseOpts() {
       let functionOpts = {};
 
@@ -158,7 +150,6 @@ export default function bunosh(commands, source) {
             node.right.type === "ObjectExpression"
           )
             return;
-
 
           node?.right?.properties?.forEach((p) => {
             if (
@@ -180,7 +171,6 @@ export default function bunosh(commands, source) {
                 !p.value.argument.value;
               return;
             }
-            // ignore other options for now
           });
         },
       });
@@ -204,7 +194,6 @@ export default function bunosh(commands, source) {
   const exoprtCmd = program.command('export:scripts')
     .description('Export commands to "scripts" section of package.json.')
     .action(() => {
-
       exportFn(Object.keys(commands));
     });
     
@@ -216,7 +205,6 @@ Special Commands:
   📝 Edit bunosh file: ${color.bold('bunosh edit')}
   📥 Export scripts to package.json: ${color.bold('bunosh export:scripts')}
 `);
-
 
   program.on("command:*", (cmd) => {
     console.log(`\nUnknown command ${cmd}\n`);
@@ -244,10 +232,10 @@ Special Commands:
 
         if (matches && matches[1]) {
           comments[functionName] = matches[1]
-            .replace(/^\s*\*\s*/gm, "") // remove * chars
-            .replace(/\s*\*\*\s*$/gm, "") // remove * chars
+            .replace(/^\s*\*\s*/gm, "")
+            .replace(/\s*\*\*\s*$/gm, "")
             .trim()
-            .replace(/^@.*$/gm, "") // remove params from description
+            .replace(/^@.*$/gm, "")
             .trim();
         } else {
           const innerComments = path.node?.body?.innerComments;
@@ -304,7 +292,6 @@ function parseDocBlock(funcName, code) {
   const match = code.match(regex);
 
   if (match && match[1]) {
-    // Remove leading asterisks and trim the result
     return match[1]
       .replace(/^\s*\*\s*/gm, "")
       .split("\n")[0]
@@ -330,7 +317,6 @@ function exportFn(commands) {
     pkg.scripts = {};
   }
   
-  // cleanup from previously exported
   for (let s in pkg.scripts ) {
     if (pkg[s] && pkg[s].startsWith('bunosh')) delete pkg[s];
   }

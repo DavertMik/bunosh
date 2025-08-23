@@ -1,11 +1,9 @@
-import { BUNOSHFILE } from "./program";
-import color from "picocolors";
+import { BUNOSHFILE } from "./program.js";
+import color from "chalk";
 import fs from 'fs';
 
 const template = `
-import { exec, fetch, ignoreFail } from 'bunosh';
-import { say, yell } from 'bunosh/io';
-import { writeToFile } from 'bunosh/files';
+import { exec, fetch, ignoreFail, say, yell, writeToFile } from 'bunosh';
 
 /**
  * 🎉 Hello world command

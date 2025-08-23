@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-import { exec, fetch, task, ignoreFail } from "./index";
-import { ask, say, yell } from "./src/io";
+import { exec, fetch, task, ignoreFail, ask, say, yell, writeToFile } from "./index";
 import fs from "fs";
-import writeToFile from "./src/tasks/writeToFile";
 
 /**
  * Builds binary file for Bunosh
@@ -30,7 +28,7 @@ export async function helloWorld(
 ) {
   // console.log("Hello World!", arg1);
   yell("I need all git status");
-  const pack = await task('read file', () => {
+  const pack = await task('read file package.json', () => {
     return fs.readFileSync("package.json").toString();
   });
   writeToFile('test.txt', l => {
@@ -101,9 +99,9 @@ export async function testStreaming() {
  */
 export async function testLiveOutput() {
   console.log("Testing live output with no artifacts and no duplicates...\n");
-  
+
   // Test with a command that produces clear, timed output
   await exec`sh -c 'echo "Step 1: Starting"; sleep 0.3; echo "Step 2: Processing"; sleep 0.3; echo "Step 3: Almost done"; sleep 0.3; echo "Step 4: Complete"'`;
-  
+
   console.log("\n--- Test completed ---");
 }
