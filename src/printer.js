@@ -1,8 +1,11 @@
+import chalk from 'chalk';
 import { createFormatter } from './formatters/factory.js';
+import { getTaskPrefix } from './task.js';
 
 export class Printer {
-  constructor(taskType) {
+  constructor(taskType, taskId = null) {
     this.taskType = taskType;
+    this.taskId = taskId;
     this.startTime = null;
     this.startTimeout = null;
     this.hasStarted = false;
@@ -13,12 +16,16 @@ export class Printer {
     if (status === 'start' && !this.startTime) {
       this.startTime = Date.now();
     }
-    
+
     if ((status === 'finish' || status === 'error') && this.startTime) {
       extra.duration = Date.now() - this.startTime;
     }
 
-    const output = this.formatter.format(taskName, status, this.taskType, extra);
+    // Add task prefix for parallel tasks
+    const prefix = this.taskId ? getTaskPrefix(this.taskId) : '';
+    const prefixedTaskName = prefix ? `${prefix} ${taskName}` : taskName;
+
+    const output = this.formatter.format(prefixedTaskName, status, this.taskType, extra);
     if (output) {
       console.log(output);
     }
@@ -27,7 +34,7 @@ export class Printer {
   start(taskName, extra = {}) {
     this.startTime = Date.now();
     const delay = this.formatter.getStartDelay ? this.formatter.getStartDelay() : 50;
-    
+
     if (this.formatter.shouldDelayStart && this.formatter.shouldDelayStart()) {
       this.startTimeout = setTimeout(() => {
         this.hasStarted = true;
@@ -60,8 +67,12 @@ export class Printer {
 
   output(line, isError = false) {
     if (!line.trim()) return;
-    
-    const formattedLine = this.formatter.formatOutput(line, isError);
+
+    // Add task prefix for parallel tasks on output lines
+    const prefix = this.taskId ? getTaskPrefix(this.taskId) : '';
+    const prefixedLine = prefix ? `${chalk.gray.dim(prefix)} ${line}` : line;
+
+    const formattedLine = this.formatter.formatOutput(prefixedLine, isError);
     if (formattedLine) {
       console.log(formattedLine);
     }

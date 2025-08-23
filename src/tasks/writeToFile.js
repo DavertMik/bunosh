@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import Printer from '../printer.js';
-import { registerTaskExecution } from '../task.js';
+import { createTaskInfo, finishTaskInfo } from '../task.js';
 
 export default function writeToFile(fileName, lineBuilderFn) {
   let text = '';
@@ -26,7 +26,8 @@ export default function writeToFile(fileName, lineBuilderFn) {
     text += fs.readFileSync(path.join(process.cwd(), fileName));
   }
 
-  const printer = new Printer('writeToFile');
+  const taskInfo = createTaskInfo(fileName);
+  const printer = new Printer('writeToFile', taskInfo.id);
   
   try {
     printer.start(fileName);
@@ -39,10 +40,10 @@ export default function writeToFile(fileName, lineBuilderFn) {
     
     fs.writeFileSync(fileName, text);
     printer.finish(fileName, { characters: text.length });
-    registerTaskExecution(fileName, true);
+    finishTaskInfo(taskInfo, true, null, `${text.length} characters`);
   } catch (error) {
     printer.error(fileName, error);
-    registerTaskExecution(fileName, false, error);
+    finishTaskInfo(taskInfo, false, error, error.message);
     throw error;
   }
 

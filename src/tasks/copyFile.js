@@ -1,19 +1,20 @@
 const { copySync } = require('fs-extra');
 import Printer from '../printer.js';
-import { registerTaskExecution } from '../task.js';
+import { createTaskInfo, finishTaskInfo } from '../task.js';
 
 export default function copyFile(src, dst) {
-  const printer = new Printer('copyFile');
   const taskName = `${src} ⇒ ${dst}`;
+  const taskInfo = createTaskInfo(taskName);
+  const printer = new Printer('copyFile', taskInfo.id);
   
   try {
     printer.start(taskName);
     copySync(src, dst);
     printer.finish(taskName);
-    registerTaskExecution(taskName, true);
+    finishTaskInfo(taskInfo, true, null, 'File copied');
   } catch (error) {
     printer.error(taskName, error);
-    registerTaskExecution(taskName, false, error);
+    finishTaskInfo(taskInfo, false, error, error.message);
     throw error;
   }
 }

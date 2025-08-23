@@ -1,4 +1,4 @@
-import { TaskResult, registerTaskExecution } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo } from '../task.js';
 import Printer from '../printer.js';
 
 const isBun = typeof Bun !== 'undefined';
@@ -16,12 +16,21 @@ export default function exec(strings, ...values) {
     if (cwd) extraInfo.cwd = cwd;
     if (envs) extraInfo.env = envs;
 
-    const printer = new Printer('exec');
+    const taskInfo = createTaskInfo(cmd);
+    const printer = new Printer('exec', taskInfo.id);
     printer.start(cmd, extraInfo);
 
     try {
-      if (!Bun) {
-        return nodeExec(cmd, extraInfo);
+      if (global.disableBunForTesting || !isBun) {
+        const result = await nodeExec(cmd, extraInfo, printer, taskInfo);
+        if (result.status === 'success') {
+          finishTaskInfo(taskInfo, true, null, result.output);
+          resolve(result);
+        } else {
+          finishTaskInfo(taskInfo, false, new Error(result.output), result.output);
+          resolve(result);
+        }
+        return;
       }
 
       // Bun implementation with real-time streaming
@@ -121,16 +130,17 @@ export default function exec(strings, ...values) {
 
       if (exitCode === 0) {
         printer.finish(cmd);
-        registerTaskExecution(cmd, true);
+        finishTaskInfo(taskInfo, true, null, output.trim());
         resolve(TaskResult.success(output.trim()));
       } else {
+        const error = new Error(`Exit code: ${exitCode}`);
         printer.error(cmd, null, { exitCode });
-        registerTaskExecution(cmd, false, new Error(`Exit code: ${exitCode}`));
+        finishTaskInfo(taskInfo, false, error, output.trim());
         resolve(TaskResult.fail(output.trim()));
       }
     } catch (error) {
       printer.error(cmd, error);
-      registerTaskExecution(cmd, false, error);
+      finishTaskInfo(taskInfo, false, error, error.message);
       resolve(TaskResult.fail(error.message));
     }
   });
@@ -148,26 +158,47 @@ export default function exec(strings, ...values) {
   return cmdPromise;
 }
 
-async function nodeExec(cmd, extraInfo, printer)      // Node.js fallback - simple execution without real-time output
-{
-  const { execSync } = await import('child_process');
-  try {
-    const output = execSync(cmd, {
-      cwd: cwd || process.cwd(),
-      env: envs ? { ...process.env, ...envs } : process.env,
-      encoding: 'utf8'
+async function nodeExec(cmd, extraInfo, printer, taskInfo) {
+  // Node.js fallback - simple execution without real-time output
+  const { spawn } = await import('child_process');
+  
+  return new Promise((resolve) => {
+    const proc = spawn('sh', ['-c', cmd], {
+      cwd: extraInfo.cwd || process.cwd(),
+      env: extraInfo.env ? { ...process.env, ...extraInfo.env } : process.env,
+      stdio: ['ignore', 'pipe', 'pipe']
     });
-    if (output.trim()) {
-      printer.output(output.trim());
-    }
-    printer.finish(cmd);
-    registerTaskExecution(cmd, true);
-    return resolve(TaskResult.success(output.trim()));
-  } catch (error) {
-    if (error.stdout) printer.output(error.stdout);
-    if (error.stderr) printer.output(error.stderr, true);
-    printer.error(cmd, error);
-    registerTaskExecution(cmd, false, error);
-    return resolve(TaskResult.fail(error.message));
-  }
+    
+    let output = '';
+    let errorOutput = '';
+    
+    proc.stdout.on('data', (data) => {
+      const text = data.toString();
+      printer.output(text.trim());
+      output += text;
+    });
+    
+    proc.stderr.on('data', (data) => {
+      const text = data.toString();
+      printer.output(text.trim(), true);
+      errorOutput += text;
+    });
+    
+    proc.on('close', (code) => {
+      const combinedOutput = (output + errorOutput).trim();
+      
+      if (code === 0) {
+        printer.finish(cmd);
+        resolve(TaskResult.success(combinedOutput));
+      } else {
+        printer.error(cmd, new Error(`Exit code: ${code}`));
+        resolve(TaskResult.fail(combinedOutput));
+      }
+    });
+    
+    proc.on('error', (error) => {
+      printer.error(cmd, error);
+      resolve(TaskResult.fail(error.message));
+    });
+  });
 }

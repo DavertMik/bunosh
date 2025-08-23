@@ -1,4 +1,4 @@
-import { TaskResult, registerTaskExecution } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo } from '../task.js';
 import Printer from '../printer.js';
 
 export default async function httpFetch() {
@@ -6,7 +6,8 @@ export default async function httpFetch() {
   const method = arguments[1]?.method || 'GET';
   const taskName = `${method} ${url}`;
   
-  const printer = new Printer('fetch');
+  const taskInfo = createTaskInfo(taskName);
+  const printer = new Printer('fetch', taskInfo.id);
   printer.start(taskName);
 
   try {
@@ -28,18 +29,19 @@ export default async function httpFetch() {
 
     if (response.ok) {
       printer.finish(taskName, { status: `${response.status} ${response.statusText}` });
-      registerTaskExecution(taskName, true);
+      finishTaskInfo(taskInfo, true, null, output.trim());
       return TaskResult.success(output.trim());
     } else {
       const errorMsg = `HTTP ${response.status} ${response.statusText}`;
+      const error = new Error(errorMsg);
       printer.error(taskName, errorMsg);
-      registerTaskExecution(taskName, false, new Error(errorMsg));
+      finishTaskInfo(taskInfo, false, error, errorMsg);
       return TaskResult.fail(errorMsg);
     }
     
   } catch (error) {
     printer.error(taskName, error);
-    registerTaskExecution(taskName, false, error);
+    finishTaskInfo(taskInfo, false, error, error.message);
     return TaskResult.fail(error.message);
   }
 }

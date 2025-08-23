@@ -91,7 +91,7 @@ describe('Exec Runtime Compatibility', () => {
     
     const execCode = execFunction.toString();
     expect(execCode).toContain('nodeExec');
-    expect(execCode).toContain('if (!Bun)');
+    expect(execCode).toContain('!isBun');
   });
 
   test('exec handles special characters in commands', async () => {

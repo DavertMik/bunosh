@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, spyOn } from 'bun:test';
-import { task, TaskStatus, tasksExecuted, registerTaskExecution } from '../src/task.js';
+import { task, TaskStatus, tasksExecuted, createTaskInfo, finishTaskInfo } from '../src/task.js';
 import execFunction from '../src/tasks/exec.js';
 import fetchFunction from '../src/tasks/fetch.js';
 import writeToFileFunction from '../src/tasks/writeToFile.js';
@@ -15,24 +15,29 @@ describe('Task System', () => {
     expect(TaskStatus.SUCCESS).toBe('success');
   });
 
-  test('registerTaskExecution adds task to tasksExecuted', () => {
+  test('createTaskInfo and finishTaskInfo manage task lifecycle', () => {
     const initialCount = tasksExecuted.length;
-    registerTaskExecution('test task', true);
+    
+    const taskInfo = createTaskInfo('test task');
     
     expect(tasksExecuted.length).toBe(initialCount + 1);
-    expect(tasksExecuted[tasksExecuted.length - 1].name).toBe('test task');
-    expect(tasksExecuted[tasksExecuted.length - 1].status).toBe(TaskStatus.SUCCESS);
+    expect(taskInfo.name).toBe('test task');
+    expect(taskInfo.status).toBe(TaskStatus.RUNNING);
+    
+    finishTaskInfo(taskInfo, true, null, 'success output');
+    
+    expect(taskInfo.status).toBe(TaskStatus.SUCCESS);
+    expect(taskInfo.result.output).toBe('success output');
   });
 
-  test('registerTaskExecution handles failure', () => {
-    const initialCount = tasksExecuted.length;
-    registerTaskExecution('failed task', false, new Error('test error'));
+  test('finishTaskInfo handles failure', () => {
+    const taskInfo = createTaskInfo('failed task');
+    const error = new Error('test error');
     
-    expect(tasksExecuted.length).toBe(initialCount + 1);
-    const lastTask = tasksExecuted[tasksExecuted.length - 1];
-    expect(lastTask.name).toBe('failed task');
-    expect(lastTask.status).toBe(TaskStatus.FAIL);
-    expect(lastTask.result.output).toBe('test error');
+    finishTaskInfo(taskInfo, false, error, 'error output');
+    
+    expect(taskInfo.status).toBe(TaskStatus.FAIL);
+    expect(taskInfo.result.output).toBe('test error');
   });
 
   test('task function executes successfully', async () => {
