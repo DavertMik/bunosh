@@ -244,7 +244,9 @@ describe('Bunosh End-to-End Tests', () => {
           const trimmed = line.trim();
           // Handle both "  command   description" and "command description" formats
           if (trimmed && !trimmed.startsWith('Usage:')) {
-            return trimmed.split(/\s+/)[0];
+            // Strip ANSI color codes and get first word
+            const cleanedLine = trimmed.replace(/\x1B\[[0-9;]*m/g, '');
+            return cleanedLine.split(/\s+/)[0];
           }
           return null;
         })

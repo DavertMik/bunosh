@@ -86,8 +86,7 @@ jobs:
         node bunosh.js --help || echo "Help command test completed"
 
     - name: Run e2e tests with Node.js
-      run: |
-        npx vitest run test/e2e --reporter=verbose
+      run: npm run test:e2e
       env:
         CI: true
         FORCE_COLOR: 1
