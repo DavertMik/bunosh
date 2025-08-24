@@ -125,6 +125,23 @@ export async function runSystemCommand(command, options = {}) {
  * Helper to check if bunosh binary is available
  */
 export async function checkBunoshAvailable() {
+  // In Node.js environments, we need Bun to run bunosh
+  const runtime = process.env.BUNOSH_RUNTIME || 'bun';
+  
+  if (runtime === 'node') {
+    // Check if bun command exists
+    try {
+      const { spawn } = await import('child_process');
+      return new Promise((resolve) => {
+        const proc = spawn('which', ['bun'], { stdio: 'ignore' });
+        proc.on('close', (code) => resolve(code === 0));
+        proc.on('error', () => resolve(false));
+      });
+    } catch {
+      return false;
+    }
+  }
+  
   // Create a temp directory with a Bunoshfile to test bunosh availability
   const tempDir = createTempTestDir();
   createTestBunoshfile(tempDir);
