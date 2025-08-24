@@ -296,10 +296,12 @@ Special Commands:
             .replace(/^@.*$/gm, "")
             .trim();
         } else {
-          const innerComments = path.node?.body?.innerComments;
+          // Check for comments attached to the first statement in the function body
+          const firstStatement = path.node?.body?.body?.[0];
+          const leadingComments = firstStatement?.leadingComments;
 
-          if (innerComments && innerComments.length > 0) {
-            comments[functionName] = innerComments[0].value.trim();
+          if (leadingComments && leadingComments.length > 0) {
+            comments[functionName] = leadingComments[0].value.trim();
           }
         }
 

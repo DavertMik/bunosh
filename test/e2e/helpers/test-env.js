@@ -51,6 +51,8 @@ export function createTestPackageJson(testDir, scripts = {}) {
  */
 export function createTestBunoshfile(testDir) {
   const bunoshfileContent = `// Test Bunoshfile
+const { exec, fetch, writeToFile, task, say, ask, yell } = global.bunosh;
+
 export function simpleExec() {
   /* Simple exec command */
   return exec\`echo "Hello from exec"\`;
@@ -58,8 +60,7 @@ export function simpleExec() {
 
 export async function fetchTask() {
   /* Fetch data from API */
-  const response = await fetch('https://httpbin.org/json');
-  const data = await response.json();
+  const data = await fetch('https://httpbin.org/json');
   say('Fetched data:', data.slideshow ? 'slideshow found' : 'no slideshow');
   return data;
 }
@@ -93,14 +94,14 @@ export async function parallelTask() {
   return results;
 }
 
-export function taskWithArgs(name, greeting = 'Hello') {
+export function taskWithArgs(name, options = { greeting: 'Hello' }) {
   /* Task with arguments and options */
-  return exec\`echo "\${greeting}, \${name}!"\`;
+  return exec\`echo "\${options.greeting}, \${name}!"\`;
 }
 
-export function failingTask() {
+export async function failingTask() {
   /* Task that fails */
-  return exec\`exit 1\`;
+  return task('Failing task', () => exec\`sh -c 'exit 1'\`);
 }
 `;
 

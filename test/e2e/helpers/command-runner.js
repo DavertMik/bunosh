@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { BUNOSH_BINARY } from './test-env.js';
+import { BUNOSH_BINARY, createTempTestDir, cleanupTempDir, createTestBunoshfile } from './test-env.js';
 
 /**
  * Executes a bunosh command and returns the result
@@ -8,11 +8,16 @@ export async function runBunoshCommand(args, options = {}) {
   return new Promise((resolve) => {
     const { cwd, timeout = 15000, env = {} } = options;
     
-    // Choose runtime based on environment variable or default to node
-    const runtime = process.env.BUNOSH_RUNTIME || 'node';
+    // Choose runtime based on environment variable or default to bun
+    const runtime = process.env.BUNOSH_RUNTIME || 'bun';
     const runtimeCmd = runtime === 'bun' ? 'bun' : 'node';
     
-    const proc = spawn(runtimeCmd, [BUNOSH_BINARY, ...args.split(' ')], {
+    // Handle args - if string, split by spaces; if already array, use as-is
+    const argsArray = typeof args === 'string' 
+      ? args.split(' ').filter(arg => arg.length > 0)
+      : args;
+    
+    const proc = spawn(runtimeCmd, [BUNOSH_BINARY, ...argsArray], {
       cwd,
       env: { ...process.env, ...env },
       stdio: ['pipe', 'pipe', 'pipe']
@@ -120,6 +125,15 @@ export async function runSystemCommand(command, options = {}) {
  * Helper to check if bunosh binary is available
  */
 export async function checkBunoshAvailable() {
-  const result = await runBunoshCommand('--help', { timeout: 5000 });
+  // Create a temp directory with a Bunoshfile to test bunosh availability
+  const tempDir = createTempTestDir();
+  createTestBunoshfile(tempDir);
+  
+  const result = await runBunoshCommand('--help', { 
+    timeout: 5000,
+    cwd: tempDir 
+  });
+  
+  cleanupTempDir(tempDir);
   return result.success;
 }

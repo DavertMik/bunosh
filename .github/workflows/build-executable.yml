@@ -168,10 +168,110 @@ jobs:
         rm -rf cross-test
         echo "🎉 All cross-platform tests passed!"
 
-  publish-release:
-    name: Publish Release Assets
+  update-version-and-publish:
+    name: Update Version and Publish to NPM
     runs-on: ubuntu-latest
     needs: [build-and-test, test-cross-platform]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Setup Node.js for NPM
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Extract version from release tag
+      id: get_version
+      run: |
+        # Remove 'v' prefix from tag name if present
+        VERSION=${GITHUB_REF#refs/tags/}
+        VERSION=${VERSION#v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+        # Check if this is a beta version
+        if [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"rc"* ]]; then
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          echo "npm_tag=beta" >> $GITHUB_OUTPUT
+          echo "This is a pre-release version"
+        else
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          echo "npm_tag=latest" >> $GITHUB_OUTPUT
+          echo "This is a stable release"
+        fi
+
+    - name: Update package.json version
+      run: |
+        # Update version in package.json
+        npm version ${{ steps.get_version.outputs.version }} --no-git-tag-version
+        echo "Updated package.json to version ${{ steps.get_version.outputs.version }}"
+
+    - name: Run final tests before publish
+      run: |
+        bun test
+        export BUNOSH_RUNTIME=node
+        npx vitest run test/e2e --reporter=basic
+
+    - name: Configure git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit version update
+      run: |
+        git add package.json
+        git commit -m "🔖 Bump version to ${{ steps.get_version.outputs.version }}"
+        git push origin HEAD:main
+
+    - name: Publish to NPM (Latest)
+      if: steps.get_version.outputs.is_prerelease == 'false'
+      run: npm publish --tag latest
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Publish to NPM (Beta)
+      if: steps.get_version.outputs.is_prerelease == 'true'
+      run: npm publish --tag beta
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create NPM publish summary
+      run: |
+        echo "## 📦 NPM Publication Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version**: ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**NPM Tag**: ${{ steps.get_version.outputs.npm_tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Pre-release**: ${{ steps.get_version.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.get_version.outputs.is_prerelease }}" == "false" ]; then
+          echo "✅ **Published to NPM as latest version**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with: \`npm install bunosh\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ **Published to NPM as beta version**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with: \`npm install bunosh@beta\`" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  publish-release-assets:
+    name: Publish Release Assets
+    runs-on: ubuntu-latest
+    needs: [build-and-test, test-cross-platform, update-version-and-publish]
     if: github.event_name == 'release'
     
     steps:
@@ -203,6 +303,12 @@ jobs:
           
           ### Installation
           
+          **Via NPM:**
+          ```bash
+          npm install -g bunosh
+          ```
+          
+          **Via Executable:**
           1. Download the appropriate file for your platform
           2. Extract the archive (Linux/macOS) or unzip (Windows)  
           3. Make executable: `chmod +x bunosh-*` (Linux/macOS only)
@@ -211,29 +317,31 @@ jobs:
           ### Features
           
           - ✅ Full Bunosh functionality
-          - ✅ No Node.js or Bun installation required
+          - ✅ No Node.js or Bun installation required (for executables)
           - ✅ Cross-runtime compatibility (Bun + Node.js fallback)
           - ✅ All built-in tasks (exec, fetch, writeToFile, etc.)
           - ✅ NPM scripts integration
           - ✅ Parallel task execution
+          - ✅ Enhanced ASCII art output
           
           **Note**: These executables include the Bun runtime and work independently of your system's Node.js/Bun installation.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
-    name: Build Summary
+    name: Release Summary
     runs-on: ubuntu-latest
-    needs: [build-and-test, test-cross-platform]
+    needs: [build-and-test, test-cross-platform, update-version-and-publish, publish-release-assets]
     if: always()
     
     steps:
-    - name: Generate build summary
+    - name: Generate release summary
       run: |
-        echo "## Executable Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
         echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tag**: ${GITHUB_REF#refs/tags/}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ "${{ needs.build-and-test.result }}" == "success" ]; then
@@ -248,14 +356,27 @@ jobs:
           echo "❌ **Cross-Platform Tests**: Some compatibility issues found" >> $GITHUB_STEP_SUMMARY
         fi
         
+        if [ "${{ needs.update-version-and-publish.result }}" == "success" ]; then
+          echo "✅ **NPM Publication**: Successfully published to registry" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **NPM Publication**: Failed to publish" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.publish-release-assets.result }}" == "success" ]; then
+          echo "✅ **Release Assets**: Executables attached to GitHub release" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Release Assets**: Failed to attach executables" >> $GITHUB_STEP_SUMMARY
+        fi
+        
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Platforms Built" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Deliverables" >> $GITHUB_STEP_SUMMARY
+        echo "- **NPM Package**: Available via \`npm install bunosh\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Linux x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
         echo "- **macOS x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY  
         echo "- **Windows x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Tests Performed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Help command functionality" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Init command and Bunoshfile creation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Custom task execution" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Cross-platform compatibility" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Quality Assurance" >> $GITHUB_STEP_SUMMARY
+        echo "- Unit tests across all modules" >> $GITHUB_STEP_SUMMARY
+        echo "- End-to-end tests (Bun + Node.js runtimes)" >> $GITHUB_STEP_SUMMARY
+        echo "- Cross-platform executable validation" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM package verification" >> $GITHUB_STEP_SUMMARY
