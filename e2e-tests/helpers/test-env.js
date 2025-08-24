@@ -4,7 +4,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const BUNOSH_ROOT = path.resolve(__dirname, '../../../');
+export const BUNOSH_ROOT = path.resolve(__dirname, '../../');
 export const BUNOSH_BINARY = path.join(BUNOSH_ROOT, 'bunosh.js');
 
 /**

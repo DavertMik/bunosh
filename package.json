@@ -36,10 +36,10 @@
     "*.{js,css,md}": "prettier --write"
   },
   "scripts": {
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "test:e2e": "vitest run test/e2e",
-    "test:e2e:watch": "vitest test/e2e",
+    "test": "bun test test/",
+    "test:watch": "bun test test/ --watch",
+    "test:e2e": "vitest run",
+    "test:e2e:watch": "vitest",
     "build": "bun build ./bunosh.js --compile --outfile bunosh",
     "build:all": "npm run build:linux && npm run build:macos && npm run build:windows",
     "build:linux": "bun build ./bunosh.js --compile --target=bun-linux-x64 --outfile dist/bunosh-linux-x64",

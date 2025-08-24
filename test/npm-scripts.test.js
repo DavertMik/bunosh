@@ -43,7 +43,8 @@ describe('NPM Scripts Integration', () => {
 
   test('npm scripts appear in help output with npm: namespace', () => {
     // Read the program.js file to verify npm script integration exists
-    const programContent = fs.readFileSync('/home/davert/projects/bunosh/src/program.js', 'utf8');
+    const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
+    const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify npm script loading function exists
     expect(programContent).toContain('loadNpmScripts');
@@ -54,14 +55,16 @@ describe('NPM Scripts Integration', () => {
   });
 
   test('npm script commands use script command as description', () => {
-    const programContent = fs.readFileSync('/home/davert/projects/bunosh/src/program.js', 'utf8');
+    const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
+    const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify that script command is used as description
     expect(programContent).toContain('color.gray(scriptCommand)');
   });
 
   test('npm script execution uses bunosh exec instead of execSync', () => {
-    const programContent = fs.readFileSync('/home/davert/projects/bunosh/src/program.js', 'utf8');
+    const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
+    const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify that bunosh exec is used for execution, not execSync
     expect(programContent).toContain('exec([\'npm run \', \'\'], scriptName)');
@@ -70,7 +73,8 @@ describe('NPM Scripts Integration', () => {
   });
 
   test('handles missing package.json gracefully', () => {
-    const programContent = fs.readFileSync('/home/davert/projects/bunosh/src/program.js', 'utf8');
+    const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
+    const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify error handling for missing package.json
     expect(programContent).toContain('fs.existsSync(\'package.json\')');
