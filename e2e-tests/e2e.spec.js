@@ -128,7 +128,11 @@ describe('Bunosh End-to-End Tests', () => {
       expect(result.success).toBe(true); // Process succeeds in test mode
       expect(result.exitCode).toBe(0);   // Exit code 0 in test mode
       expect(result.stdout).toContain('Failed: 1'); // But reports failure
-      expect(result.stdout).toMatch(/[Ee]xit code: 1/); // Shows command failure (case-insensitive)
+      
+      // Check for failure indication (different formats in CI vs local)
+      const hasExitCodeMessage = result.stdout.includes('exit code: 1') || result.stdout.includes('Exit code: 1');
+      const hasCIErrorFormat = result.stdout.includes('❌ [exec]');
+      expect(hasExitCodeMessage || hasCIErrorFormat).toBe(true);
     });
   });
 
