@@ -3,7 +3,11 @@ import color from "chalk";
 import fs from 'fs';
 
 const template = `
-import { exec, fetch, ignoreFail, say, yell, writeToFile } from 'bunosh';
+// tasks
+const { exec, fetch, writeToFile, task } = global.bunosh;
+
+// input/output
+const { say, ask, yell } = global.bunosh;
 
 /**
  * 🎉 Hello world command
