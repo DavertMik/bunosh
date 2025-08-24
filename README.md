@@ -3,7 +3,7 @@
 > *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients such as mushrooms, cheese, sour cream*
 
 <p align="center">
-  <img src="assets/logo.jpg" alt="Logo">
+  <img src="assets/logo.png" alt="Logo">
 </p>
 
 ## What is Bunosh?
@@ -41,7 +41,7 @@ Create a `Bunoshfile.js`:
  */
 export async function build(opts = { production: false }) {
   await exec`npm run build`;
-  
+
   if (opts.production) {
     await exec`npm run optimize`;
   }
@@ -170,35 +170,6 @@ bun test formatters.test.js
 
 # Run with timeout
 bun test --timeout 10000
-```
-
-**Test Coverage:**
-- ✅ Core Architecture (Task system, formatters, printer)
-- ✅ Runtime Compatibility (Bun vs Node.js execution)
-- ✅ Output Formats (Console, GitHub Actions)
-- ✅ Built-in Tasks (exec, fetch, file operations)
-- ✅ Integration Scenarios (Parallel execution, error handling)
-
-### Project Structure
-
-```
-bunosh/
-├── src/
-│   ├── formatters/          # Output format handlers
-│   │   ├── console.js       # Terminal formatting
-│   │   ├── github-actions.js # CI formatting
-│   │   └── factory.js       # Auto-detection
-│   ├── tasks/               # Built-in task functions
-│   │   ├── exec.js          # Shell command execution
-│   │   ├── fetch.js         # HTTP requests
-│   │   ├── writeToFile.js   # File writing
-│   │   └── copyFile.js      # File copying
-│   ├── printer.js           # Output controller
-│   ├── task.js              # Task management system
-│   ├── program.js           # CLI program builder
-│   └── io.js                # User interaction
-├── test/                    # Comprehensive test suite
-└── Bunoshfile.js           # Example tasks file
 ```
 
 ## Environment Integration

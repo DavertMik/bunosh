@@ -2,7 +2,15 @@
 
 bun.lockb
 node_modules
+
+# Bunosh executables
 bunosh
+bunosh-*
+*.exe
+
+# Build artifacts
+dist/
+build/
 
 # Logs
 
@@ -122,7 +130,6 @@ out
 # Nuxt.js build / generate output
 
 .nuxt
-dist
 
 # Gatsby files
 

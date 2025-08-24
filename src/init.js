@@ -1,4 +1,4 @@
-import { BUNOSHFILE } from "./program.js";
+import { BUNOSHFILE, banner } from "./program.js";
 import color from "chalk";
 import fs from 'fs';
 

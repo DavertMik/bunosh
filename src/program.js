@@ -5,23 +5,32 @@ const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
 import fs from 'fs';
 import openEditor from 'open-editor';
-import banner from '../templates/banner.js';
+import { yell } from './io.js';
+import cprint from "./font.js";
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
-export { banner };
+export const banner = () => {
+  console.log(cprint('Bunosh', { symbol: '⯀' }));
+  console.log(color.gray('🍲 Your exceptional task runner'));
+  console.log();
+};
 
 export default function bunosh(commands, source) {
   const program = new Command();
   program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
 
   const internalCommands = [];
-  
+
   // Load npm scripts from package.json
   const npmScripts = loadNpmScripts();
 
   program.configureHelp({
-    commandDescription: _cmd => `${banner}\n  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`,
+    commandDescription: _cmd => {
+      // Show banner and description
+      banner();
+      return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
+    },
     commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
@@ -47,20 +56,20 @@ export default function bunosh(commands, source) {
 
   // Collect all commands (bunosh + npm scripts) and sort them
   const allCommands = [];
-  
+
   // Add bunosh commands
   Object.keys(commands).forEach((fnName) => {
     allCommands.push({ type: 'bunosh', name: fnName, data: commands[fnName] });
   });
-  
+
   // Add npm scripts
   Object.entries(npmScripts).forEach(([scriptName, scriptCommand]) => {
     allCommands.push({ type: 'npm', name: `npm:${scriptName}`, data: { scriptName, scriptCommand } });
   });
-  
+
   // Sort all commands alphabetically by name
   allCommands.sort((a, b) => a.name.localeCompare(b.name));
-  
+
   // Process all commands in sorted order
   allCommands.forEach((cmdData) => {
     if (cmdData.type === 'bunosh') {
@@ -79,7 +88,7 @@ export default function bunosh(commands, source) {
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
       })
-      
+
       let argsAndOptsDescription = [];
 
       Object.entries(args).forEach(([arg, value]) => {
@@ -92,7 +101,7 @@ export default function bunosh(commands, source) {
           argsAndOptsDescription.push(`[${arg}]`);
           return command.argument(`[${arg}]`, '', null);
         }
-        
+
         argsAndOptsDescription.push(`[${arg}=${value}]`);
         command.argument(`[${arg}]`, ``, value);
       });
@@ -102,13 +111,13 @@ export default function bunosh(commands, source) {
           argsAndOptsDescription.push(`--${opt}`);
           return command.option(`--${opt}`);
         }
-        
+
         argsAndOptsDescription.push(`--${opt}=${value}`);
         command.option(`--${opt} [${opt}]`, "", value);
 
       });
 
-      let description = comment?.split('\n')[0] || '';  
+      let description = comment?.split('\n')[0] || '';
 
       if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
@@ -206,12 +215,12 @@ export default function bunosh(commands, source) {
       const commandName = `npm:${scriptName}`;
       const command = program.command(commandName);
       command.description(color.gray(scriptCommand)); // Use script command as description
-      
+
       // Create action with proper closure to capture scriptName
       command.action(createNpmScriptAction(scriptName));
     }
   });
-  
+
   // Helper function to create npm script action with proper closure
   function createNpmScriptAction(scriptName) {
     return async () => {
@@ -245,8 +254,8 @@ export default function bunosh(commands, source) {
     .action(() => {
       exportFn(Object.keys(commands));
     });
-    
-  internalCommands.push(exoprtCmd);    
+
+  internalCommands.push(exoprtCmd);
 
   program.addHelpText('after', `
 
@@ -346,7 +355,7 @@ function exportFn(commands) {
   if (!pkg.scripts) {
     pkg.scripts = {};
   }
-  
+
   for (let s in pkg.scripts ) {
     if (pkg[s] && pkg[s].startsWith('bunosh')) delete pkg[s];
   }

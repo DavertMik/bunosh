@@ -32,7 +32,7 @@ if (customBunoshfile) {
 }
 
 if (!existsSync(tasksFile)) {
-  console.log(banner);
+  banner();
 
   if (process.argv.includes('init')) {
     init();
