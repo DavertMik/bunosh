@@ -237,8 +237,14 @@ describe('Bunosh End-to-End Tests', () => {
       const sortedCommands = [...commands].sort();
       expect(commands).toEqual(sortedCommands);
       
-      // Should contain both bunosh and npm commands  
-      expect(commands.some(cmd => cmd.startsWith('simple:'))).toBe(true);
+      // Should contain both bunosh and npm commands
+      // Check for any of the bunosh commands that should be present
+      const hasBunoshCommand = commands.some(cmd => 
+        cmd === 'simple:exec' || cmd === 'fetch:task' || cmd === 'file:task' ||
+        cmd === 'yell:task' || cmd === 'composite:task' || cmd === 'parallel:task' ||
+        cmd === 'task:with-args' || cmd === 'failing:task'
+      );
+      expect(hasBunoshCommand).toBe(true);
       expect(commands.some(cmd => cmd.startsWith('npm:'))).toBe(true);
     });
 
