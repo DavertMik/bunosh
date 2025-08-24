@@ -222,15 +222,32 @@ describe('Bunosh End-to-End Tests', () => {
       expect(result.success).toBe(true);
       
       const lines = result.stdout.split('\n');
-      const commandSection = lines.slice(
-        lines.findIndex(line => line.includes('Commands:')),
-        lines.findIndex(line => line.includes('Special Commands:'))
+      
+      // Find command section more robustly
+      const commandsStartIndex = lines.findIndex(line => line.includes('Commands:'));
+      let commandsEndIndex = lines.findIndex((line, idx) => 
+        idx > commandsStartIndex && (line.includes('Special Commands:') || line.includes('Options:'))
       );
       
+      // If no end found, use end of output
+      if (commandsEndIndex === -1) {
+        commandsEndIndex = lines.length;
+      }
+      
+      const commandSection = lines.slice(commandsStartIndex + 1, commandsEndIndex);
+      
+      // More robust command parsing
       const commands = commandSection
-        .filter(line => line.trim() && !line.includes('Commands:'))
-        .filter(line => !line.startsWith('    ')) // Filter out indented usage lines
-        .map(line => line.trim().split(/\s+/)[0])
+        .filter(line => line.trim()) // Remove empty lines
+        .filter(line => !line.includes('Commands:') && !line.includes('Usage:')) // Remove headers
+        .map(line => {
+          const trimmed = line.trim();
+          // Handle both "  command   description" and "command description" formats
+          if (trimmed && !trimmed.startsWith('Usage:')) {
+            return trimmed.split(/\s+/)[0];
+          }
+          return null;
+        })
         .filter(cmd => cmd && cmd.length > 0 && !cmd.startsWith('Usage:'));
       
       // Verify alphabetical ordering
@@ -238,12 +255,19 @@ describe('Bunosh End-to-End Tests', () => {
       expect(commands).toEqual(sortedCommands);
       
       // Should contain both bunosh and npm commands
-      // Check for any of the bunosh commands that should be present
+      // More flexible check - look for any command that matches expected patterns
       const hasBunoshCommand = commands.some(cmd => 
-        cmd === 'simple:exec' || cmd === 'fetch:task' || cmd === 'file:task' ||
-        cmd === 'yell:task' || cmd === 'composite:task' || cmd === 'parallel:task' ||
-        cmd === 'task:with-args' || cmd === 'failing:task'
+        ['simple:exec', 'fetch:task', 'file:task', 'yell:task', 'composite:task', 'parallel:task', 'task:with-args', 'failing:task'].includes(cmd)
       );
+      const hasNpmCommand = commands.some(cmd => cmd.startsWith('npm:'));
+      
+      // If we don't find expected commands, log for debugging but make test more flexible
+      if (!hasBunoshCommand || !hasNpmCommand) {
+        console.log('DEBUG: Commands found:', commands);
+        console.log('DEBUG: Bunosh commands present:', commands.filter(cmd => cmd.includes(':')));
+        console.log('DEBUG: NPM commands present:', commands.filter(cmd => cmd.startsWith('npm:')));
+      }
+      
       expect(hasBunoshCommand).toBe(true);
       expect(commands.some(cmd => cmd.startsWith('npm:'))).toBe(true);
     });

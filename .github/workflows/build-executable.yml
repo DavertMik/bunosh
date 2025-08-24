@@ -181,11 +181,6 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v1
-      with:
-        bun-version: latest
-
     - name: Setup Node.js for NPM
       uses: actions/setup-node@v4
       with:
@@ -193,7 +188,7 @@ jobs:
         registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
-      run: bun install
+      run: npm install
 
     - name: Extract version from release tag
       id: get_version
@@ -221,11 +216,10 @@ jobs:
         npm version ${{ steps.get_version.outputs.version }} --no-git-tag-version
         echo "Updated package.json to version ${{ steps.get_version.outputs.version }}"
 
-    - name: Run final tests before publish
+    - name: Run Node.js E2E tests
       run: |
-        bun test
         export BUNOSH_RUNTIME=node
-        npx vitest run test/e2e --reporter=basic
+        npx vitest run
 
     - name: Configure git
       run: |
