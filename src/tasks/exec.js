@@ -6,7 +6,7 @@ const isBun = typeof Bun !== 'undefined';
 export default function exec(strings, ...values) {
   const cmd = strings.reduce((accumulator, str, i) => {
     return accumulator + str + (values[i] || '');
-  });
+  }, '');
 
   let envs = null;
   let cwd = null;

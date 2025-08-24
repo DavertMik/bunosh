@@ -15,6 +15,9 @@ export default function bunosh(commands, source) {
   program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
 
   const internalCommands = [];
+  
+  // Load npm scripts from package.json
+  const npmScripts = loadNpmScripts();
 
   program.configureHelp({
     commandDescription: _cmd => `${banner}\n  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`,
@@ -23,8 +26,8 @@ export default function bunosh(commands, source) {
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
     visibleCommands: cmd => cmd.commands.filter(c => !internalCommands.includes(c)),
-    subcommandTerm: (cmd) => pickColorForColorName(cmd.name()),
-    subcommandDescription: (cmd) => cmd.description(),
+    subcommandTerm: (cmd) => color.white.bold(cmd.name()),
+    subcommandDescription: (cmd) => color.gray(cmd.description()),
   });
 
   program.showHelpAfterError();
@@ -41,143 +44,188 @@ export default function bunosh(commands, source) {
 
   const comments = fetchComments();
 
+  // Collect all commands (bunosh + npm scripts) and sort them
+  const allCommands = [];
+  
+  // Add bunosh commands
   Object.keys(commands).forEach((fnName) => {
-    const fnBody = commands[fnName].toString();
+    allCommands.push({ type: 'bunosh', name: fnName, data: commands[fnName] });
+  });
+  
+  // Add npm scripts
+  Object.entries(npmScripts).forEach(([scriptName, scriptCommand]) => {
+    allCommands.push({ type: 'npm', name: `npm:${scriptName}`, data: { scriptName, scriptCommand } });
+  });
+  
+  // Sort all commands alphabetically by name
+  allCommands.sort((a, b) => a.name.localeCompare(b.name));
+  
+  // Process all commands in sorted order
+  allCommands.forEach((cmdData) => {
+    if (cmdData.type === 'bunosh') {
+      const fnName = cmdData.name;
+      const fnBody = commands[fnName].toString();
 
-    const ast = fetchFnAst();
-    const args = parseArgs();
-    const opts = parseOpts();
+      const ast = fetchFnAst();
+      const args = parseArgs();
+      const opts = parseOpts();
 
-    const comment = comments[fnName];
+      const comment = comments[fnName];
 
-    const commandName = prepareCommandName(fnName);
+      const commandName = prepareCommandName(fnName);
 
-    const command = program.command(commandName);
-    command.hook('preAction', (_thisCommand) => {
-      process.env.BUNOSH_COMMAND_STARTED = true;
-    })
-    
-    let argsAndOptsDescription = [];
-
-    Object.entries(args).forEach(([arg, value]) => {
-      if (value === undefined) {
-        argsAndOptsDescription.push(`<${arg}>`);
-        return command.argument(`<${arg}>`);
-      }
-
-      if (value === null) {
-        argsAndOptsDescription.push(`[${arg}]`);
-        return command.argument(`[${arg}]`, '', null);
-      }
+      const command = program.command(commandName);
+      command.hook('preAction', (_thisCommand) => {
+        process.env.BUNOSH_COMMAND_STARTED = true;
+      })
       
-      argsAndOptsDescription.push(`[${arg}=${value}]`);
-      command.argument(`[${arg}]`, ``, value);
-    });
+      let argsAndOptsDescription = [];
 
-    Object.entries(opts).forEach(([opt, value]) => {
-      if (value === false || value === null) {
-        argsAndOptsDescription.push(`--${opt}`);
-        return command.option(`--${opt}`);
-      }
-      
-      argsAndOptsDescription.push(`--${opt}=${value}`);
-      command.option(`--${opt} [${opt}]`, "", value);
+      Object.entries(args).forEach(([arg, value]) => {
+        if (value === undefined) {
+          argsAndOptsDescription.push(`<${arg}>`);
+          return command.argument(`<${arg}>`);
+        }
 
-    });
-
-    let description = comment?.split('\n')[0] || '';  
-
-    if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
-
-    command.description(description);
-    command.action(commands[fnName].bind(commands));
-
-    function fetchFnAst() {
-      let hasFnInSource = false;
-
-      traverse(completeAst, {
-        FunctionDeclaration(path) {
-          if (path.node.id.name == fnName) {
-            hasFnInSource = true;
-            return;
-          }
-        },
+        if (value === null) {
+          argsAndOptsDescription.push(`[${arg}]`);
+          return command.argument(`[${arg}]`, '', null);
+        }
+        
+        argsAndOptsDescription.push(`[${arg}=${value}]`);
+        command.argument(`[${arg}]`, ``, value);
       });
 
-      if (hasFnInSource) return completeAst;
+      Object.entries(opts).forEach(([opt, value]) => {
+        if (value === false || value === null) {
+          argsAndOptsDescription.push(`--${opt}`);
+          return command.option(`--${opt}`);
+        }
+        
+        argsAndOptsDescription.push(`--${opt}=${value}`);
+        command.option(`--${opt} [${opt}]`, "", value);
 
-      return babelParser.parse(fnBody, { comment: true, tokens: true });
-    }
+      });
 
-    function parseArgs() {
-      const functionArguments = {};
+      let description = comment?.split('\n')[0] || '';  
 
-      traverse(ast, {
-        FunctionDeclaration(path) {
-          if (path.node.id.name !== fnName) return;
+      if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
-          const params = path.node.params
-            .filter((node) => {
-              return node?.right?.type !== "ObjectExpression";
-            })
-            .forEach((param) => {
-              if (param.type === "AssignmentPattern") {
-                functionArguments[param.left.name] = param.right.value;
+      command.description(description);
+      command.action(commands[fnName].bind(commands));
+
+      function fetchFnAst() {
+        let hasFnInSource = false;
+
+        traverse(completeAst, {
+          FunctionDeclaration(path) {
+            if (path.node.id.name == fnName) {
+              hasFnInSource = true;
+              return;
+            }
+          },
+        });
+
+        if (hasFnInSource) return completeAst;
+
+        return babelParser.parse(fnBody, { comment: true, tokens: true });
+      }
+
+      function parseArgs() {
+        const functionArguments = {};
+
+        traverse(ast, {
+          FunctionDeclaration(path) {
+            if (path.node.id.name !== fnName) return;
+
+            const params = path.node.params
+              .filter((node) => {
+                return node?.right?.type !== "ObjectExpression";
+              })
+              .forEach((param) => {
+                if (param.type === "AssignmentPattern") {
+                  functionArguments[param.left.name] = param.right.value;
+                  return;
+                }
+                if (!param.name) return;
+
+                return functionArguments[param.name] = null;
+              });
+
+          },
+        });
+
+        return functionArguments;
+      }
+
+      function parseOpts() {
+        let functionOpts = {};
+
+        traverse(ast, {
+          FunctionDeclaration(path) {
+            if (path.node.id.name !== fnName) return;
+
+            const node = path.node.params.pop();
+            if (!node) return;
+            if (
+              !node.type === "AssignmentPattern" &&
+              node.right.type === "ObjectExpression"
+            )
+              return;
+
+            node?.right?.properties?.forEach((p) => {
+              if (
+                ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
+                  p.value.type,
+                )
+              ) {
+                functionOpts[camelToDasherize(p.key.name)] = p.value.value;
                 return;
               }
-              if (!param.name) return;
 
-              return functionArguments[param.name] = null;
+              if (p.value.type === "NullLiteral") {
+                functionOpts[camelToDasherize(p.key.name)] = null;
+                return;
+              }
+
+              if (p.value.type == "UnaryExpression" && p.value.operator == "!") {
+                functionOpts[camelToDasherize(p.key.name)] =
+                  !p.value.argument.value;
+                return;
+              }
             });
+          },
+        });
 
-        },
-      });
-
-      return functionArguments;
-    }
-
-    function parseOpts() {
-      let functionOpts = {};
-
-      traverse(ast, {
-        FunctionDeclaration(path) {
-          if (path.node.id.name !== fnName) return;
-
-          const node = path.node.params.pop();
-          if (!node) return;
-          if (
-            !node.type === "AssignmentPattern" &&
-            node.right.type === "ObjectExpression"
-          )
-            return;
-
-          node?.right?.properties?.forEach((p) => {
-            if (
-              ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
-                p.value.type,
-              )
-            ) {
-              functionOpts[camelToDasherize(p.key.name)] = p.value.value;
-              return;
-            }
-
-            if (p.value.type === "NullLiteral") {
-              functionOpts[camelToDasherize(p.key.name)] = null;
-              return;
-            }
-
-            if (p.value.type == "UnaryExpression" && p.value.operator == "!") {
-              functionOpts[camelToDasherize(p.key.name)] =
-                !p.value.argument.value;
-              return;
-            }
-          });
-        },
-      });
-
-      return functionOpts;
+        return functionOpts;
+      }
+    } else if (cmdData.type === 'npm') {
+      // Handle npm scripts
+      const { scriptName, scriptCommand } = cmdData.data;
+      const commandName = `npm:${scriptName}`;
+      const command = program.command(commandName);
+      command.description(color.gray(scriptCommand)); // Use script command as description
+      
+      // Create action with proper closure to capture scriptName
+      command.action(createNpmScriptAction(scriptName));
     }
   });
+  
+  // Helper function to create npm script action with proper closure
+  function createNpmScriptAction(scriptName) {
+    return async () => {
+      // Execute npm script using Bunosh's exec task
+      const { exec } = await import('../index.js');
+      try {
+        // Call exec with proper template literal simulation
+        const result = await exec(['npm run ', ''], scriptName);
+        return result;
+      } catch (error) {
+        console.error(`Failed to run npm script: ${scriptName}`);
+        process.exit(1);
+      }
+    };
+  }
 
   const editCmd = program.command('edit')
     .description('Open the bunosh file in your editor. $EDITOR or \'code\' is used.')
@@ -265,25 +313,6 @@ function camelToDasherize(camelCaseString) {
   return camelCaseString.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
-function pickColorForColorName(commandName) {
-  const colors = [
-    color.red,
-    color.green,
-    color.yellow,
-    color.blue,
-    color.magenta,
-    color.cyan,
-  ];
-
-  const prefixName = camelToDasherize(commandName).split("-")[0];
-
-  const index =
-    prefixName.split("").reduce((acc, char) => {
-      return acc + char.charCodeAt(0);
-    }, 0) % colors.length;
-
-  return color.bold(colors[index](commandName));
-}
 
 function parseDocBlock(funcName, code) {
   const regex = new RegExp(
@@ -336,4 +365,28 @@ function exportFn(commands) {
   console.log('package.json updated');
   console.log(`${Object.keys(scripts).length} scripts exported`);
   return true;
+}
+
+function loadNpmScripts() {
+  try {
+    if (!fs.existsSync('package.json')) {
+      return {};
+    }
+
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    const scripts = pkg.scripts || {};
+
+    // Filter out bunosh scripts (scripts that contain "bunosh")
+    const npmScripts = {};
+    Object.entries(scripts).forEach(([name, command]) => {
+      if (!command.includes('bunosh')) {
+        npmScripts[name] = command;
+      }
+    });
+
+    return npmScripts;
+  } catch (error) {
+    console.warn('Warning: Could not load npm scripts from package.json:', error.message);
+    return {};
+  }
 }
