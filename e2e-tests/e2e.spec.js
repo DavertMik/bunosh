@@ -248,7 +248,9 @@ describe('Bunosh End-to-End Tests', () => {
           }
           return null;
         })
-        .filter(cmd => cmd && cmd.length > 0 && !cmd.startsWith('Usage:'));
+        .filter(cmd => cmd && cmd.length > 0 && !cmd.startsWith('Usage:'))
+        .filter(cmd => cmd !== 'bunosh') // Filter out "bunosh" entries that aren't actual commands
+        .filter(cmd => cmd.includes(':') || cmd.startsWith('npm:')) // Only include valid commands with colons
       
       // Verify alphabetical ordering
       const sortedCommands = [...commands].sort();

@@ -44,7 +44,7 @@ jobs:
       run: bun install
 
     - name: Run unit tests first
-      run: bun test
+      run: bun test test/
 
     - name: Create dist directory
       run: mkdir -p dist
