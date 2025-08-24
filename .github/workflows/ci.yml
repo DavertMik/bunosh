@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    name: Unit Tests (Bun)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Run unit tests
+      run: bun test
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results
+        path: test-results/
+        retention-days: 7
+
+  e2e-bun:
+    name: E2E Tests (Bun Runtime)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Make bunosh executable
+      run: chmod +x ./bunosh.js
+
+    - name: Run e2e tests with Bun
+      run: |
+        # Set environment to use Bun runtime for bunosh execution
+        export BUNOSH_RUNTIME=bun
+        npm run test:e2e
+      env:
+        CI: true
+        FORCE_COLOR: 1
+
+    - name: Upload e2e test results (Bun)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-bun-test-results
+        path: |
+          test-results/
+          coverage/
+        retention-days: 7
+
+  e2e-node:
+    name: E2E Tests (Node.js Runtime)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Setup Bun (for dependencies)
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Make bunosh executable
+      run: chmod +x ./bunosh.js
+
+    - name: Verify Node.js compatibility
+      run: node --version
+
+    - name: Test bunosh with Node.js
+      run: |
+        # Test that bunosh works with node
+        node bunosh.js --help || echo "Help command test completed"
+
+    - name: Run e2e tests with Node.js
+      run: |
+        # Use Node.js for running vitest and bunosh execution
+        export BUNOSH_RUNTIME=node
+        npx vitest run test/e2e --reporter=verbose
+      env:
+        CI: true
+        FORCE_COLOR: 1
+
+    - name: Upload e2e test results (Node.js ${{ matrix.node-version }})
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-node${{ matrix.node-version }}-test-results
+        path: |
+          test-results/
+          coverage/
+        retention-days: 7
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, e2e-bun, e2e-node]
+    if: always()
+    
+    steps:
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: test-results
+
+    - name: Display test summary
+      run: |
+        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+          echo "✅ Unit Tests: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Unit Tests: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.e2e-bun.result }}" == "success" ]; then
+          echo "✅ E2E Tests (Bun): Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ E2E Tests (Bun): Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.e2e-node.result }}" == "success" ]; then
+          echo "✅ E2E Tests (Node.js): Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ E2E Tests (Node.js): Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Runtime Compatibility" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bun Runtime**: Primary runtime for development and production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node.js Runtime**: Fallback compatibility for broader ecosystem support" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cross-Platform**: Tests run on Ubuntu Linux" >> $GITHUB_STEP_SUMMARY

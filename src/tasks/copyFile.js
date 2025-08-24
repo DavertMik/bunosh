@@ -1,4 +1,5 @@
-const { copySync } = require('fs-extra');
+import fsExtra from 'fs-extra';
+const { copySync } = fsExtra;
 import Printer from '../printer.js';
 import { createTaskInfo, finishTaskInfo } from '../task.js';
 

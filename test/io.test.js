@@ -22,19 +22,17 @@ describe('IO Functions', () => {
     mockConsoleLog.mockRestore();
   });
 
-  test('yell function outputs uppercase with formatting', () => {
+  test('yell function outputs uppercase with cfonts formatting', () => {
     const mockConsoleLog = spyOn(console, 'log').mockImplementation(() => {});
     
     yell('test message');
     
-    // Should call console.log 3 times (empty line, message, empty line)
-    expect(mockConsoleLog).toHaveBeenCalledTimes(3);
+    // cfonts.say() outputs formatted text, so we should have some console.log calls
+    expect(mockConsoleLog).toHaveBeenCalled();
     
-    // Check that the middle call contains the uppercase message
-    const calls = mockConsoleLog.mock.calls;
-    expect(calls[0].length).toBe(0); // First empty line (no arguments)
-    expect(calls[1][0]).toContain('TEST MESSAGE'); // Uppercase message
-    expect(calls[2].length).toBe(0); // Last empty line (no arguments)
+    // Since cfonts outputs ASCII art, we can't easily predict the exact output,
+    // but we can verify that console.log was called at least once
+    expect(mockConsoleLog.mock.calls.length).toBeGreaterThan(0);
     
     mockConsoleLog.mockRestore();
   });

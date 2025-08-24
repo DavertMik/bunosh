@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { exec, fetch, task, ignoreFail, ask, say, yell, writeToFile } from "./index";
+import { exec, fetch, task, ignoreFail, ask, say, yell, writeToFile } from "./index.js";
 import fs from "fs";
 
 /**

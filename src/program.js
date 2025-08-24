@@ -1,10 +1,11 @@
-const { Command } = require("commander");
+import { Command } from "commander";
 import babelParser from "@babel/parser";
-import traverse from "@babel/traverse";
+import traverseDefault from "@babel/traverse";
+const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
 import fs from 'fs';
 import openEditor from 'open-editor';
-import banner from '../templates/banner';
+import banner from '../templates/banner.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 

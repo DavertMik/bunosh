@@ -1,5 +1,6 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import cfonts from 'cfonts';
 
 export function say(...args) {
   console.log('!', ...args);
@@ -11,7 +12,18 @@ export async function ask(question, opts = {}) {
 }
 
 export function yell(text) {
-  console.log();
-  console.log(chalk.bold.yellow(text.toUpperCase()));
-  console.log();
+  cfonts.say(text.toUpperCase(), {
+    font: 'block',
+    align: 'left',
+    colors: ['yellow'],
+    background: 'transparent',
+    letterSpacing: 1,
+    lineHeight: 1,
+    space: true,
+    maxLength: '0',
+    gradient: false,
+    independentGradient: false,
+    transitionGradient: false,
+    env: 'node'
+  });
 }

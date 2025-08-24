@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import program, { BUNOSHFILE, banner }  from "./src/program.js";
 import { existsSync, readFileSync, statSync } from "fs";
-import init from "./src/init";
+import init from "./src/init.js";
 import path from "path";
-import './index';
+import './index.js';
 
 // Parse --bunoshfile flag before importing tasks
 const bunoshfileIndex = process.argv.indexOf('--bunoshfile');

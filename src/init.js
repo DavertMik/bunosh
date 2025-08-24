@@ -36,7 +36,12 @@ export async function helloWorld() {
 
 export default function init() {
   if (!fs.existsSync(BUNOSHFILE)) {
-    Bun.write(BUNOSHFILE, template);
+    // Use fs.writeFileSync for Node.js compatibility instead of Bun.write
+    if (typeof Bun !== 'undefined') {
+      Bun.write(BUNOSHFILE, template);
+    } else {
+      fs.writeFileSync(BUNOSHFILE, template, 'utf8');
+    }
     console.log(color.bold(`🎉 Bunosh ${BUNOSHFILE} file created`));
     console.log('   Edit it with "bunosh edit" command');
     console.log('   Or open it in your favorite editor');

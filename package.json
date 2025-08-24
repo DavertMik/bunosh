@@ -1,6 +1,7 @@
 {
   "name": "bunosh",
   "version": "0.1.5",
+  "type": "module",
   "module": "index.js",
   "bin": {
     "bunosh": "./bunosh.js"
@@ -8,7 +9,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "lint-staged": "^16.1.2",
-    "prettier": "^3.4.3"
+    "prettier": "^3.4.3",
+    "vitest": "^3.2.4"
   },
   "types": "types.d.ts",
   "dependencies": {
@@ -37,6 +39,8 @@
   "scripts": {
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "test:e2e": "vitest run test/e2e",
+    "test:e2e:watch": "vitest test/e2e",
     "hello:other": "bunosh hello:other",
     "hello:world": "bunosh hello:world",
     "update:to-production": "bunosh update:to-production",
