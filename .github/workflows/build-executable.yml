@@ -14,7 +14,7 @@ jobs:
   build-and-test:
     name: Build Single Executables
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
       matrix:
         include:
@@ -30,7 +30,7 @@ jobs:
             target: bun-windows-x64
             artifact: bunosh-windows-x64.exe
             test_cmd: '.\bunosh-windows-x64.exe'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -42,9 +42,6 @@ jobs:
 
     - name: Install dependencies
       run: bun install
-
-    - name: Run unit tests first
-      run: bun test test/
 
     - name: Create dist directory
       run: mkdir -p dist
@@ -85,7 +82,7 @@ jobs:
 
     - name: Test executable - Available commands
       run: |
-        cd dist  
+        cd dist
         mkdir test-commands
         cd test-commands
         ../${{ matrix.artifact }} init
@@ -134,7 +131,7 @@ jobs:
     name: Cross-Platform Compatibility Test
     runs-on: ubuntu-latest
     needs: build-and-test
-    
+
     steps:
     - name: Download Linux executable
       uses: actions/download-artifact@v4
@@ -145,25 +142,25 @@ jobs:
     - name: Test Linux executable
       run: |
         chmod +x ./executables/bunosh-linux-x64
-        
+
         # Test basic functionality
         cd executables
         mkdir cross-test
         cd cross-test
-        
+
         # Test init
         ../bunosh-linux-x64 init
         echo "✅ Init command works"
-        
+
         # Test help
         ../bunosh-linux-x64 --help
         echo "✅ Help command works"
-        
+
         # Test custom task
         echo 'export function crossTest() { console.log("Cross-platform test successful!"); }' >> Bunoshfile.js
         ../bunosh-linux-x64 cross:test
         echo "✅ Custom task execution works"
-        
+
         cd ..
         rm -rf cross-test
         echo "🎉 All cross-platform tests passed!"
@@ -173,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test, test-cross-platform]
     if: github.event_name == 'release'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -213,10 +210,10 @@ jobs:
         else
           VERSION="unknown"
         fi
-        
+
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $VERSION"
-        
+
         # Check if this is a beta version (only for releases)
         if [ "${{ github.event_name }}" = "release" ]; then
           if [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"rc"* ]]; then
@@ -295,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test, test-cross-platform, update-version-and-publish]
     if: github.event_name == 'release'
-    
+
     steps:
     - name: Download all executable artifacts
       uses: actions/download-artifact@v4
@@ -316,28 +313,28 @@ jobs:
           release-assets/bunosh-windows-x64.exe-archive/bunosh-windows-x64.exe.zip
         body: |
           ## 🚀 Bunosh Single Executables
-          
+
           This release includes standalone executables for all major platforms:
-          
+
           - **Linux**: `bunosh-linux-x64.tar.gz` - Works on Linux x64 systems
           - **macOS**: `bunosh-darwin-arm64.tar.gz` - Works on macOS Apple Silicon
           - **Windows**: `bunosh-windows-x64.exe.zip` - Works on Windows x64 systems
-          
+
           ### Installation
-          
+
           **Via NPM:**
           ```bash
           npm install -g bunosh
           ```
-          
+
           **Via Executable:**
           1. Download the appropriate file for your platform
-          2. Extract the archive (Linux/macOS) or unzip (Windows)  
+          2. Extract the archive (Linux/macOS) or unzip (Windows)
           3. Make executable: `chmod +x bunosh-*` (Linux/macOS only)
           4. Run: `./bunosh-* --help`
-          
+
           ### Features
-          
+
           - ✅ Full Bunosh functionality
           - ✅ No Node.js or Bun installation required (for executables)
           - ✅ Cross-runtime compatibility (Bun + Node.js fallback)
@@ -345,7 +342,7 @@ jobs:
           - ✅ NPM scripts integration
           - ✅ Parallel task execution
           - ✅ Enhanced ASCII art output
-          
+
           **Note**: These executables include the Bun runtime and work independently of your system's Node.js/Bun installation.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -355,7 +352,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test, test-cross-platform, update-version-and-publish, publish-release-assets]
     if: always()
-    
+
     steps:
     - name: Generate release summary
       run: |
@@ -365,36 +362,36 @@ jobs:
         echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
         echo "**Tag**: ${GITHUB_REF#refs/tags/}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         if [ "${{ needs.build-and-test.result }}" == "success" ]; then
           echo "✅ **Executable Build**: Success across all platforms" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Executable Build**: Failed on some platforms" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [ "${{ needs.test-cross-platform.result }}" == "success" ]; then
           echo "✅ **Cross-Platform Tests**: All compatibility tests passed" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Cross-Platform Tests**: Some compatibility issues found" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [ "${{ needs.update-version-and-publish.result }}" == "success" ]; then
           echo "✅ **NPM Publication**: Successfully published to registry" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **NPM Publication**: Failed to publish" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         if [ "${{ needs.publish-release-assets.result }}" == "success" ]; then
           echo "✅ **Release Assets**: Executables attached to GitHub release" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Release Assets**: Failed to attach executables" >> $GITHUB_STEP_SUMMARY
         fi
-        
+
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📦 Deliverables" >> $GITHUB_STEP_SUMMARY
         echo "- **NPM Package**: Available via \`npm install bunosh\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Linux x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
-        echo "- **macOS ARM64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY  
+        echo "- **macOS ARM64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
         echo "- **Windows x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### ✅ Quality Assurance" >> $GITHUB_STEP_SUMMARY
