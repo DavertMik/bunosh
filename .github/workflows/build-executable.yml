@@ -6,9 +6,9 @@ on:
   workflow_dispatch: # Allow manual trigger for testing
     inputs:
       version:
-        description: 'Version tag for the build'
+        description: 'Version tag for the build (leave empty for commit SHA)'
         required: false
-        default: 'dev'
+        default: ''
 
 jobs:
   build-and-test:
@@ -23,9 +23,9 @@ jobs:
             artifact: bunosh-linux-x64
             test_cmd: './bunosh-linux-x64'
           - os: macos-latest
-            target: bun-darwin-x64
-            artifact: bunosh-darwin-x64
-            test_cmd: './bunosh-darwin-x64'
+            target: bun-darwin-arm64
+            artifact: bunosh-darwin-arm64
+            test_cmd: './bunosh-darwin-arm64'
           - os: windows-latest
             target: bun-windows-x64
             artifact: bunosh-windows-x64.exe
@@ -190,29 +190,55 @@ jobs:
     - name: Install dependencies
       run: npm install
 
-    - name: Extract version from release tag
+    - name: Extract version from release tag or input
       id: get_version
       run: |
-        # Remove 'v' prefix from tag name if present
-        VERSION=${GITHUB_REF#refs/tags/}
-        VERSION=${VERSION#v}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Version: $VERSION"
-        
-        # Check if this is a beta version
-        if [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"rc"* ]]; then
-          echo "is_prerelease=true" >> $GITHUB_OUTPUT
-          echo "npm_tag=beta" >> $GITHUB_OUTPUT
-          echo "This is a pre-release version"
+        if [ "${{ github.event_name }}" = "release" ]; then
+          # Release trigger - extract from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+          echo "Version from release tag: $VERSION"
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Manual trigger
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            # Use provided version
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Version from input: $VERSION"
+          else
+            # Use commit SHA
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:8}"  # First 8 characters of SHA
+            echo "Version from commit SHA: $VERSION"
+          fi
         else
-          echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          echo "npm_tag=latest" >> $GITHUB_OUTPUT
-          echo "This is a stable release"
+          VERSION="unknown"
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Final version: $VERSION"
+        
+        # Check if this is a beta version (only for releases)
+        if [ "${{ github.event_name }}" = "release" ]; then
+          if [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"rc"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "npm_tag=beta" >> $GITHUB_OUTPUT
+            echo "This is a pre-release version"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+            echo "This is a stable release"
+          fi
+        else
+          # Manual builds are always considered dev builds
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          echo "npm_tag=dev" >> $GITHUB_OUTPUT
+          echo "This is a dev build"
         fi
 
     - name: Update package.json version
+      if: github.event_name == 'release'
       run: |
-        # Update version in package.json
+        # Update version in package.json (only for releases)
         npm version ${{ steps.get_version.outputs.version }} --no-git-tag-version
         echo "Updated package.json to version ${{ steps.get_version.outputs.version }}"
 
@@ -222,24 +248,26 @@ jobs:
         npx vitest run
 
     - name: Configure git
+      if: github.event_name == 'release'
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Commit version update
+      if: github.event_name == 'release'
       run: |
         git add package.json
         git commit -m "🔖 Bump version to ${{ steps.get_version.outputs.version }}"
         git push origin HEAD:main
 
     - name: Publish to NPM (Latest)
-      if: steps.get_version.outputs.is_prerelease == 'false'
+      if: github.event_name == 'release' && steps.get_version.outputs.is_prerelease == 'false'
       run: npm publish --tag latest
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Publish to NPM (Beta)
-      if: steps.get_version.outputs.is_prerelease == 'true'
+      if: github.event_name == 'release' && steps.get_version.outputs.is_prerelease == 'true'
       run: npm publish --tag beta
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -284,7 +312,7 @@ jobs:
       with:
         files: |
           release-assets/bunosh-linux-x64-archive/bunosh-linux-x64.tar.gz
-          release-assets/bunosh-darwin-x64-archive/bunosh-darwin-x64.tar.gz
+          release-assets/bunosh-darwin-arm64-archive/bunosh-darwin-arm64.tar.gz
           release-assets/bunosh-windows-x64.exe-archive/bunosh-windows-x64.exe.zip
         body: |
           ## 🚀 Bunosh Single Executables
@@ -292,7 +320,7 @@ jobs:
           This release includes standalone executables for all major platforms:
           
           - **Linux**: `bunosh-linux-x64.tar.gz` - Works on Linux x64 systems
-          - **macOS**: `bunosh-darwin-x64.tar.gz` - Works on macOS Intel/Apple Silicon
+          - **macOS**: `bunosh-darwin-arm64.tar.gz` - Works on macOS Apple Silicon
           - **Windows**: `bunosh-windows-x64.exe.zip` - Works on Windows x64 systems
           
           ### Installation
@@ -366,7 +394,7 @@ jobs:
         echo "### 📦 Deliverables" >> $GITHUB_STEP_SUMMARY
         echo "- **NPM Package**: Available via \`npm install bunosh\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Linux x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
-        echo "- **macOS x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY  
+        echo "- **macOS ARM64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY  
         echo "- **Windows x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### ✅ Quality Assurance" >> $GITHUB_STEP_SUMMARY
