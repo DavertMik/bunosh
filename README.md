@@ -3,134 +3,401 @@
 > *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients such as mushrooms, cheese, sour cream*
 
 <p align="center">
-  <img src="assets/logo.png" alt="Logo">
+  <img src="assets/logo.png" alt="Logo" width="150">
 </p>
 
 ## What is Bunosh?
 
-Bunosh is a modern task runner that transforms JavaScript functions into CLI commands. Built for [Bun](https://bun.sh) with Node.js fallback compatibility, it combines the power of JavaScript with intuitive command-line interfaces.
+Bunosh is a modern task runner that transforms JavaScript functions into CLI commands. Write your build, deploy, and automation tasks in JavaScript and run them directly from the command line.
 
 **Why Bunosh?**
 - ✨ **Zero Configuration**: Write functions, get CLI commands
-- 🚀 **Fast Execution**: Optimized for Bun runtime with Node.js fallback
-- 🎨 **Rich Output**: Beautiful terminal formatting with CI/CD integration
+- 🚀 **Fast Execution**: Built for speed with beautiful terminal output
+- 🎨 **Rich Output**: Colored formatting with progress indicators
 - 📦 **Built-in Tasks**: Shell execution, HTTP requests, file operations
 - 🔧 **Cross-Platform**: Works on macOS, Linux, and Windows
 
-## Quick Start
+## Installation
 
-### Installation
+### Option 1: Single Executable (Recommended)
 
-Install [Bun](https://bun.sh) (recommended) or ensure Node.js is available:
+Download and install the standalone executable - no Node.js or Bun required:
 
+**macOS:**
 ```bash
-# Install Bunosh globally
-bun install -g bunosh
-
-# Create a new tasks file
-bunosh init
+curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-darwin-arm64.tar.gz | tar -xz
+sudo mv bunosh-darwin-arm64 /usr/local/bin/bunosh
 ```
 
-### Your First Task
+**Linux:**
+```bash
+curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-linux-x64.tar.gz | tar -xz
+sudo mv bunosh-linux-x64 /usr/local/bin/bunosh
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://github.com/davertmik/bunosh/releases/latest/download/bunosh-windows-x64.exe.zip" -OutFile "bunosh.zip"
+Expand-Archive -Path "bunosh.zip" -DestinationPath .
+Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
+# Add bunosh.exe to your PATH
+```
+
+### Option 2: NPM Package
+
+```bash
+npm install -g bunosh
+```
+
+## Quick Start
+
+### Create Your First Task File
+
+```bash
+# Initialize a new Bunoshfile
+bunosh init
+
+# This creates Bunoshfile.js with sample tasks
+```
+
+### Example: Web Development Tasks
 
 Create a `Bunoshfile.js`:
 
 ```javascript
+// Import Bunosh functions from global object
+const { exec, fetch, writeToFile, say, ask, yell } = global.bunosh;
+
 /**
- * Builds the project
+ * Installs project dependencies
  */
-export async function build(opts = { production: false }) {
+export async function install() {
+  await exec`npm install`;
+  say('📦 Dependencies installed!');
+}
+
+/**
+ * Starts development server
+ */
+export async function dev() {
+  say('🚀 Starting development server...');
+  await exec`npm run dev`;
+}
+
+/**
+ * Builds project for production
+ */
+export async function build(target = 'production') {
+  say(`🔨 Building for ${target}...`);
   await exec`npm run build`;
 
-  if (opts.production) {
+  if (target === 'production') {
     await exec`npm run optimize`;
+    yell('BUILD COMPLETE!');
   }
 }
 
 /**
- * Deploys to environment
+ * Deploys to specified environment
  */
-export async function deploy(env = 'staging') {
-  await build({ production: true });
-  await exec`docker build -t myapp .`;
+export async function deploy(env = 'staging', options = { skipTests: false }) {
+  if (!options.skipTests) {
+    say('🧪 Running tests...');
+    await exec`npm test`;
+  }
+
+  say(`🚀 Deploying to ${env}...`);
+  await build('production');
+  await exec`docker build -t myapp:${env} .`;
   await exec`docker push myapp:${env}`;
+
+  yell(`DEPLOYED TO ${env.toUpperCase()}!`);
 }
 
 /**
- * Cleans temporary files
+ * Cleans up temporary files
  */
 export async function clean() {
-  await exec`rm -rf dist tmp logs`;
+  await exec`rm -rf dist node_modules/.cache tmp`;
   say('✨ All clean!');
+}
+
+/**
+ * Setup new project environment
+ */
+export async function setup() {
+  const projectName = await ask('What is your project name?');
+  const useTypescript = await ask('Use TypeScript? (y/n)') === 'y';
+
+  say('🏗️ Setting up project...');
+
+  // Create package.json
+  writeToFile('package.json', (line) => {
+    line`{`;
+    line`  "name": "${projectName}",`;
+    line`  "version": "1.0.0",`;
+    line`  "type": "module"`;
+    if (useTypescript) {
+      line`,  "devDependencies": {`;
+      line`    "typescript": "^5.0.0"`;
+      line`  }`;
+    }
+    line`}`;
+  });
+
+  if (useTypescript) {
+    await exec`npm install typescript --save-dev`;
+  }
+
+  yell('PROJECT READY!');
 }
 ```
 
 ### Run Your Tasks
 
 ```bash
-# List available commands
+# List all available commands
 bunosh
 
-# Run tasks
+# Run individual tasks
+bunosh install
+bunosh dev
 bunosh build
-bunosh build --production
-bunosh deploy production
+bunosh build staging
+bunosh deploy production --skip-tests
 bunosh clean
+bunosh setup
 ```
 
-## Architecture
+**Bunosh will display your tasks like this:**
 
-### Task System
-- **Function → Command**: Each exported function becomes a CLI command
-- **Smart Naming**: `helloWorld` → `bunosh hello:world`
-- **Auto-Arguments**: Function parameters become command arguments
-- **Options Support**: Last object parameter becomes CLI options
-- **Documentation**: JSDoc comments become command descriptions
+```
+🍲 Your exceptional task runner
 
-### Output System
-Bunosh features a sophisticated output system with multiple formatters:
+Usage: bunosh <command> <args> [options]
 
-- **Console Formatter**: Colored terminal output with icons (▶ ✓ ✗)
-- **GitHub Actions Formatter**: Specialized CI output with collapsible groups
-- **Smart Detection**: Automatically switches based on environment
-- **Delayed Start**: Quick tasks show only completion for cleaner output
+  Commands are loaded from exported functions in Bunoshfile.js
 
-### Runtime Compatibility
-- **Primary**: Bun runtime with real-time streaming output
-- **Fallback**: Node.js compatibility with basic command execution
-- **Auto-Detection**: Seamlessly switches between runtimes
+Commands:
+  build                 Builds project for production
+                          bunosh build [target]
+  clean                 Cleans up temporary files
+  deploy                Deploys to specified environment
+                          bunosh deploy [env] --skip-tests
+  dev                   Starts development server
+  install               Installs project dependencies
+  setup                 Setup new project environment
+```
+
+## Example: DevOps Tasks
+
+```javascript
+const { exec, fetch, writeToFile, say, task } = global.bunosh;
+
+/**
+ * Checks service health across environments
+ */
+export async function healthCheck(env = 'production') {
+  const services = ['api', 'web', 'database'];
+
+  for (const service of services) {
+    const url = `https://${service}.${env}.example.com/health`;
+    await task(`Checking ${service}`, async () => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${service} is down!`);
+    });
+  }
+
+  say('✅ All services healthy!');
+}
+
+/**
+ * Backup database with compression
+ */
+export async function backup(database = 'main') {
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `backup-${database}-${timestamp}.sql.gz`;
+
+  await exec`pg_dump ${database} | gzip > ${filename}`;
+  await exec`aws s3 cp ${filename} s3://backups/${filename}`;
+  await exec`rm ${filename}`;
+
+  say(`📦 Backup saved: ${filename}`);
+}
+
+/**
+ * Updates SSL certificates
+ */
+export async function updateCerts() {
+  await exec`certbot renew`;
+  await exec`nginx -s reload`;
+  say('🔒 Certificates updated!');
+}
+
+/**
+ * Deploys application with health checks
+ */
+export async function deployWithChecks(env = 'staging') {
+  await exec`kubectl apply -f k8s/${env}/`;
+  await exec`kubectl rollout status deployment/myapp`;
+  await healthCheck(env);
+  say(`🚀 Successfully deployed to ${env}!`);
+}
+
+/**
+ * Scales application instances
+ */
+export async function scale(replicas = 3, service = 'myapp') {
+  await exec`kubectl scale deployment/${service} --replicas=${replicas}`;
+  say(`⚖️ Scaled ${service} to ${replicas} replicas`);
+}
+```
+
+**Bunosh displays these as:**
+
+```
+Usage: bunosh <command> <args> [options]
+
+  Commands are loaded from exported functions in Bunoshfile.js
+
+Commands:
+  backup                Backup database with compression
+                          bunosh backup [database]
+  deploy:with-checks    Deploys application with health checks
+                          bunosh deploy:with-checks [env]
+  health:check          Checks service health across environments
+                          bunosh health:check [env]
+  scale                 Scales application instances
+                          bunosh scale [replicas] [service]
+  update:certs          Updates SSL certificates
+
+```
+
+## Example: Content Management
+
+```javascript
+const { exec, writeToFile, ask, say } = global.bunosh;
+
+/**
+ * Creates new blog post template
+ */
+export async function newPost() {
+  const title = await ask('Post title:');
+  const slug = title.toLowerCase().replace(/\s+/g, '-');
+  const date = new Date().toISOString().split('T')[0];
+
+  writeToFile(`posts/${date}-${slug}.md`, (line) => {
+    line`---`;
+    line`title: "${title}"`;
+    line`date: ${date}`;
+    line`draft: true`;
+    line`---`;
+    line``;
+    line`# ${title}`;
+    line``;
+    line`Your content here...`;
+  });
+
+  say(`📝 Created: posts/${date}-${slug}.md`);
+}
+
+/**
+ * Optimizes and compresses images
+ */
+export async function optimizeImages() {
+  await exec`find ./images -name "*.jpg" -exec jpegoptim --max=80 {} \\;`;
+  await exec`find ./images -name "*.png" -exec optipng -o2 {} \\;`;
+  say('🖼️ Images optimized!');
+}
+
+/**
+ * Creates new page template
+ */
+export async function newPage(name) {
+  const slug = name.toLowerCase().replace(/\s+/g, '-');
+
+  writeToFile(`content/pages/${slug}.md`, (line) => {
+    line`---`;
+    line`title: "${name}"`;
+    line`type: "page"`;
+    line`---`;
+    line``;
+    line`# ${name}`;
+    line``;
+    line`Page content here...`;
+  });
+
+  say(`📄 Created: content/pages/${slug}.md`);
+}
+
+/**
+ * Generates site and deploys
+ */
+export async function publish() {
+  await exec`hugo --minify`;
+  await exec`rsync -avz public/ user@server:/var/www/site/`;
+  say('🌐 Site published!');
+}
+
+/**
+ * Builds and serves development site
+ */
+export async function serve(port = 1313) {
+  await exec`hugo server --port ${port} --buildDrafts`;
+}
+```
+
+**Bunosh displays these as:**
+
+```
+Usage: bunosh <command> <args> [options]
+
+  Commands are loaded from exported functions in Bunoshfile.js
+
+Commands:
+  new:page              Creates new page template
+                          bunosh new:page <name>
+  new:post              Creates new blog post template
+  optimize:images       Optimizes and compresses images
+  publish               Generates site and deploys
+  serve                 Builds and serves development site
+                          bunosh serve [port]
+
+```
 
 ## Built-in Functions
 
-### Shell Execution
-```javascript
-import { exec } from 'bunosh';
+All Bunosh functions are available via `global.bunosh`:
 
-// Simple command
+```javascript
+const { exec, fetch, writeToFile, copyFile, say, ask, yell, task } = global.bunosh;
+```
+
+### Shell Execution (`exec`)
+```javascript
+// Simple commands
 await exec`echo "Hello World"`;
+await exec`npm install`;
 
 // With environment variables
 await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 
 // With working directory
-await exec`pwd`.cwd('/tmp');
+await exec`ls -la`.cwd('/tmp');
 
 // Complex shell commands
-await exec`ls -la | grep ".js" | wc -l`;
+await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
 ```
 
-### HTTP Requests
+### HTTP Requests (`fetch`)
 ```javascript
-import { fetch } from 'bunosh';
-
-// GET request with streaming output
+// GET request with progress indicator
 const response = await fetch('https://api.github.com/repos/user/repo');
+const data = await response.json();
 ```
 
 ### File Operations
 ```javascript
-import { writeToFile, copyFile } from 'bunosh';
-
 // Write file with template builder
 writeToFile('config.json', (line) => {
   line`{`;
@@ -140,68 +407,89 @@ writeToFile('config.json', (line) => {
 });
 
 // Copy files
-copyFile('src/config.template.js', 'dist/config.js');
+copyFile('template.js', 'output.js');
 ```
 
 ### User Interaction
 ```javascript
-import { ask, say, yell } from 'bunosh';
-
 // Get user input
 const name = await ask('What is your name?');
 
 // Output messages
-say('Building project...');
-yell('Build completed!'); // Emphasized output
+say('Building project...');          // Normal output
+yell('BUILD COMPLETE!');             // Emphasized output
+
+// Wrap long operations
+await task('Installing dependencies', async () => {
+  await exec`npm install`;
+});
 ```
 
-## Development
+## Command Features
 
-### Testing
+### Automatic CLI Generation
+- `functionName` → `bunosh function:name`
+- Function parameters become command arguments
+- Last object parameter becomes CLI options
+- JSDoc comments become help descriptions
 
-Bunosh includes a comprehensive test suite using Bun's native test runner:
+### Smart Argument Handling
+```javascript
+// Function definition
+export function deploy(env = 'staging', options = { force: false, verbose: false }) {
+  // ...
+}
 
+// CLI usage
+bunosh deploy production --force --verbose
+```
+
+### Help and Documentation
 ```bash
-# Run all tests
-bun test
+# List all commands
+bunosh
 
-# Run specific test file
-bun test formatters.test.js
-
-# Run with timeout
-bun test --timeout 10000
+# Get help for specific command
+bunosh deploy --help
 ```
 
-## Environment Integration
+## Advanced Usage
 
-### GitHub Actions
-Bunosh automatically detects GitHub Actions environment and provides specialized output:
-
-```yaml
-- name: Run build tasks
-  run: bunosh build --production
+### Parallel Task Execution
+```javascript
+const results = await Promise.all([
+  task('Task 1', () => exec`sleep 2 && echo "Done 1"`),
+  task('Task 2', () => exec`sleep 2 && echo "Done 2"`),
+  task('Task 3', () => exec`sleep 2 && echo "Done 3"`)
+]);
 ```
 
-Output includes:
-- Collapsible task groups
-- Status indicators (✅ ❌)
-- Execution timing
-- Clean error reporting
+### Error Handling
+```javascript
+export async function deployWithRollback(env) {
+  try {
+    await deploy(env);
+  } catch (error) {
+    say('❌ Deployment failed, rolling back...');
+    await exec`kubectl rollout undo deployment/myapp`;
+    throw error;
+  }
+}
+```
 
-### Local Development
-Rich terminal experience with:
-- Real-time command output streaming
-- Colored status indicators
-- Full-width progress lines
-- Task execution counting
+### NPM Scripts Integration
+Bunosh automatically includes your package.json scripts:
+```bash
+bunosh npm:test    # runs npm run test
+bunosh npm:build   # runs npm run build
+```
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Write tests for new functionality
-4. Ensure all tests pass: `bun test`
-5. Submit a pull request
+4. Submit a pull request
 
 ## License
 
@@ -209,4 +497,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-Built with ❤️ using [Bun](https://bun.sh)
+Built with ❤️ for modern JavaScript development
