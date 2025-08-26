@@ -21,7 +21,7 @@ Bunosh is a modern task runner that transforms JavaScript functions into CLI com
 
 ### Option 1: Single Executable (Recommended)
 
-Download and install the standalone executable - no Node.js or Bun required:
+Download and install the standalone executable - no Node.js or Bun required. Includes built-in upgrade functionality:
 
 **macOS:**
 ```bash
@@ -451,6 +451,44 @@ bunosh
 
 # Get help for specific command
 bunosh deploy --help
+```
+
+### Shell Auto-Completion
+Enable tab completion for faster command typing:
+
+```bash
+# 🚀 Auto-setup (recommended) - detects your shell and installs completion
+bunosh setup-completion
+
+# Manual setup if needed
+bunosh completion bash > ~/.bunosh-completion.bash
+echo "source ~/.bunosh-completion.bash" >> ~/.bashrc
+source ~/.bashrc
+
+# Now use tab completion
+bunosh dep<TAB>    # Completes to 'deploy'
+bunosh <TAB><TAB>  # Shows all available commands
+```
+
+**Supported shells:** bash, zsh, fish. The `setup-completion` command automatically detects your shell and handles installation. See [COMPLETION.md](COMPLETION.md) for detailed setup.
+
+### Staying Up to Date
+
+**Single Executable:**
+```bash
+# Check for updates
+bunosh upgrade --check
+
+# Upgrade to latest version
+bunosh upgrade
+
+# Force reinstall current version
+bunosh upgrade --force
+```
+
+**NPM Installation:**
+```bash
+npm update -g bunosh
 ```
 
 ## Advanced Usage

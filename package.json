@@ -30,7 +30,9 @@
     "bunosh.js",
     "types.d.ts",
     "src",
-    "templates"
+    "templates",
+    "COMPLETION.md",
+    "UPGRADE.md"
   ],
   "lint-staged": {
     "*.{js,css,md}": "prettier --write"

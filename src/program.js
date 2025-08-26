@@ -7,6 +7,8 @@ import fs from 'fs';
 import openEditor from 'open-editor';
 import { yell } from './io.js';
 import cprint from "./font.js";
+import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
+import { upgradeExecutable, isExecutable, getCurrentVersion } from './upgrade.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
@@ -257,11 +259,178 @@ export default function bunosh(commands, source) {
 
   internalCommands.push(exoprtCmd);
 
+  const completionCmd = program.command('completion <shell>')
+    .description('Generate shell completion scripts')
+    .argument('<shell>', 'Shell type: bash, zsh, or fish')
+    .action((shell) => {
+      try {
+        const completionScript = handleCompletion(shell);
+        console.log(completionScript);
+      } catch (error) {
+        console.error(error.message);
+        process.exit(1);
+      }
+    });
+
+  internalCommands.push(completionCmd);
+
+  const setupCompletionCmd = program.command('setup-completion')
+    .description('Automatically setup shell completion for your current shell')
+    .option('-f, --force', 'Overwrite existing completion setup')
+    .option('-s, --shell <shell>', 'Specify shell instead of auto-detection (bash, zsh, fish)')
+    .action((options) => {
+      try {
+        // Detect current shell or use specified shell
+        const shell = options.shell || detectCurrentShell();
+        
+        if (!shell) {
+          console.error('❌ Could not detect your shell. Please specify one:');
+          console.log('   bunosh setup-completion --shell bash');
+          console.log('   bunosh setup-completion --shell zsh'); 
+          console.log('   bunosh setup-completion --shell fish');
+          process.exit(1);
+        }
+
+        console.log(`🐚 Detected shell: ${color.bold(shell)}`);
+        console.log();
+
+        // Get paths for this shell
+        const paths = getCompletionPaths(shell);
+        
+        // Check if already installed
+        if (!options.force && fs.existsSync(paths.completionFile)) {
+          console.log(`⚠️  Completion already installed at: ${paths.completionFile}`);
+          console.log('   Use --force to overwrite, or run:');
+          console.log(`   ${color.dim('rm')} ${paths.completionFile}`);
+          process.exit(0);
+        }
+
+        // Install completion
+        console.log('🔧 Installing completion...');
+        const result = installCompletion(shell);
+
+        // Report success
+        console.log(`✅ Completion installed: ${color.green(paths.completionFile)}`);
+        
+        if (result.configFile && result.added) {
+          console.log(`📝 Updated shell config: ${color.green(result.configFile)}`);
+          console.log();
+          console.log(`💡 ${color.bold('Restart your terminal')} or run:`);
+          if (shell === 'bash') {
+            console.log(`   ${color.dim('source ~/.bashrc')}`);
+          } else if (shell === 'zsh') {
+            console.log(`   ${color.dim('source ~/.zshrc')}`);
+          }
+        } else if (shell === 'fish') {
+          console.log('🐟 Fish completion is ready! No restart needed.');
+        } else if (result.configFile && !result.added) {
+          console.log(`ℹ️  Shell config already has completion setup: ${result.configFile}`);
+          console.log('   Restart your terminal if completion isn\'t working.');
+        }
+        
+        console.log();
+        console.log('🎯 Test completion by typing: ' + color.bold('bunosh <TAB>'));
+        
+      } catch (error) {
+        console.error(`❌ Setup failed: ${error.message}`);
+        process.exit(1);
+      }
+    });
+
+  internalCommands.push(setupCompletionCmd);
+
+  const upgradeCmd = program.command('upgrade')
+    .description('Upgrade bunosh to the latest version (single executable only)')
+    .option('-f, --force', 'Force upgrade even if already on latest version')
+    .option('--check', 'Check for updates without upgrading')
+    .action(async (options) => {
+      try {
+        if (!isExecutable()) {
+          console.log('📦 Bunosh is installed via npm.');
+          console.log('To upgrade, run: ' + color.bold('npm update -g bunosh'));
+          process.exit(0);
+        }
+
+        const currentVersion = getCurrentVersion();
+        console.log(`📍 Current version: ${color.bold(currentVersion)}`);
+
+        if (options.check) {
+          console.log('🔍 Checking for updates...');
+          try {
+            const { getLatestRelease, isNewerVersion } = await import('./upgrade.js');
+            const release = await getLatestRelease();
+            const latestVersion = release.tag_name;
+            
+            console.log(`📦 Latest version: ${color.bold(latestVersion)}`);
+            
+            if (isNewerVersion(latestVersion, currentVersion)) {
+              console.log(`✨ ${color.green('Update available!')} ${currentVersion} → ${latestVersion}`);
+              console.log('Run ' + color.bold('bunosh upgrade') + ' to update.');
+            } else {
+              console.log(`✅ ${color.green('You are on the latest version!')}`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to check for updates: ${error.message}`);
+            process.exit(1);
+          }
+          return;
+        }
+
+        console.log('⬆️  Starting upgrade process...');
+        console.log();
+
+        let lastMessage = '';
+        const result = await upgradeExecutable({
+          force: options.force,
+          onProgress: (message) => {
+            if (message !== lastMessage) {
+              console.log(`   ${message}`);
+              lastMessage = message;
+            }
+          }
+        });
+
+        console.log();
+        if (result.updated) {
+          console.log(`🎉 ${color.green('Upgrade successful!')}`);
+          console.log(`   ${result.currentVersion} → ${color.bold(result.latestVersion)}`);
+          console.log();
+          console.log(`💡 Run ${color.bold('bunosh --version')} to verify the new version.`);
+        } else {
+          console.log(`✅ ${color.green(result.message)}`);
+          if (!options.force) {
+            console.log(`   Use ${color.bold('--force')} to reinstall the current version.`);
+          }
+        }
+
+      } catch (error) {
+        console.error(`❌ Upgrade failed: ${error.message}`);
+        
+        if (error.message.includes('Unsupported platform')) {
+          console.log();
+          console.log('💡 Supported platforms:');
+          console.log('   • Linux x64');
+          console.log('   • macOS ARM64 (Apple Silicon)');
+          console.log('   • Windows x64');
+        } else if (error.message.includes('GitHub API')) {
+          console.log();
+          console.log('💡 Try again later or check your internet connection.');
+        }
+        
+        process.exit(1);
+      }
+    });
+
+  internalCommands.push(upgradeCmd);
+
   program.addHelpText('after', `
 
 Special Commands:
   📝 Edit bunosh file: ${color.bold('bunosh edit')}
   📥 Export scripts to package.json: ${color.bold('bunosh export:scripts')}
+  🔤 Generate shell completion: ${color.bold('bunosh completion bash|zsh|fish')}
+  ⚡ Auto-setup completion: ${color.bold('bunosh setup-completion')}
+  ⬆️  Upgrade bunosh: ${color.bold('bunosh upgrade')}
 `);
 
   program.on("command:*", (cmd) => {
