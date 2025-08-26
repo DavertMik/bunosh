@@ -43,15 +43,18 @@ Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
 # Add bunosh.exe to your PATH
 ```
 
-### Option 2: NPM Package
+### Option 2: Bun Package Manager
+
+```bash
+bun add -g bunosh
+```
+
+### Option 3: NPM Package
 
 ```bash
 npm install -g bunosh
 ```
 
-## Quick Start
-
-### Create Your First Task File
 
 ```bash
 # Initialize a new Bunoshfile

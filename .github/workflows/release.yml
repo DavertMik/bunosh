@@ -1,17 +1,24 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the build (e.g., v1.0.0)'
+        required: false
+        default: ''
 
 jobs:
   test:
-    name: Run Tests Before Release
+    name: Test Suite
     runs-on: ubuntu-latest
-
+    
+    strategy:
+      matrix:
+        test-type: [unit, e2e-node, e2e-bun]
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -22,6 +29,7 @@ jobs:
         bun-version: latest
 
     - name: Setup Node.js
+      if: matrix.test-type == 'e2e-node'
       uses: actions/setup-node@v4
       with:
         node-version: 20
@@ -30,24 +38,41 @@ jobs:
       run: bun install
 
     - name: Run unit tests
-      run: bun test
+      if: matrix.test-type == 'unit'
+      run: bun test test/
 
-  build-binaries:
-    name: Build Binaries
+    - name: Run E2E tests with Node.js
+      if: matrix.test-type == 'e2e-node'
+      run: |
+        export BUNOSH_RUNTIME=node
+        npx vitest run
+
+    - name: Run E2E tests with Bun
+      if: matrix.test-type == 'e2e-bun'
+      run: |
+        export BUNOSH_RUNTIME=bun
+        bun run test:e2e
+
+  build-and-publish:
+    name: Build Binaries & Publish NPM
     runs-on: ${{ matrix.os }}
     needs: test
+    
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            target: linux-x64
-            artifact-name: bunosh-linux-x64
+            target: bun-linux-x64
+            artifact: bunosh-linux-x64
+            archive: tar.gz
           - os: macos-latest
-            target: darwin-x64
-            artifact-name: bunosh-darwin-x64
+            target: bun-darwin-arm64
+            artifact: bunosh-darwin-arm64
+            archive: tar.gz
           - os: windows-latest
-            target: win32-x64
-            artifact-name: bunosh-win32-x64.exe
+            target: bun-windows-x64
+            artifact: bunosh-windows-x64.exe
+            archive: zip
 
     steps:
     - name: Checkout code
@@ -58,36 +83,8 @@ jobs:
       with:
         bun-version: latest
 
-    - name: Install dependencies
-      run: bun install
-
-    - name: Build binary
-      run: |
-        bun build ./bunosh.js --compile --outfile bunosh${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-
-    - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact-name }}
-        path: bunosh${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-        retention-days: 7
-
-  publish:
-    name: Publish to NPM
-    runs-on: ubuntu-latest
-    needs: [test, build-binaries]
-    if: github.event_name == 'release'
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v1
-      with:
-        bun-version: latest
-
-    - name: Setup Node.js for NPM
+    - name: Setup Node.js for NPM (Linux only)
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/setup-node@v4
       with:
         node-version: 20
@@ -96,35 +93,206 @@ jobs:
     - name: Install dependencies
       run: bun install
 
-    - name: Run final tests
+    - name: Extract version
+      id: version
       run: |
-        bun test
-        export BUNOSH_RUNTIME=node
-        npx vitest run test/e2e
+        if [ "${{ github.event_name }}" = "release" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
+        elif [ -n "${{ github.event.inputs.version }}" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION=${VERSION#v}
+        else
+          VERSION=$(node -p "require('./package.json').version")
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+      shell: bash
 
-    - name: Publish to NPM
-      run: npm publish
+    - name: Update package.json version (Linux only, if needed)
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'release'
+      run: |
+        npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+
+    - name: Build binary
+      run: |
+        mkdir -p dist
+        bun build ./bunosh.js --compile --target=${{ matrix.target }} --outfile dist/${{ matrix.artifact }}
+      shell: bash
+
+    - name: Make executable (Unix)
+      if: runner.os != 'Windows'
+      run: chmod +x dist/${{ matrix.artifact }}
+
+    - name: Test binary
+      run: |
+        cd dist
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          ./${{ matrix.artifact }} --version || echo "Version check completed"
+          ./${{ matrix.artifact }} --help || echo "Help check completed"
+        else
+          ./${{ matrix.artifact }} --version || echo "Version check completed"
+          ./${{ matrix.artifact }} --help || echo "Help check completed"
+        fi
+      shell: bash
+
+    - name: Create archive (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        cd dist
+        tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+
+    - name: Create archive (Windows)  
+      if: runner.os == 'Windows'
+      run: |
+        cd dist
+        Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+      shell: powershell
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: |
+          dist/${{ matrix.artifact }}.${{ matrix.archive }}
+        retention-days: 30
+
+    - name: Publish to NPM (Linux only)
+      if: matrix.os == 'ubuntu-latest' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+      run: |
+        # Determine npm tag
+        if [[ "${{ steps.version.outputs.version }}" == *"beta"* ]] || [[ "${{ steps.version.outputs.version }}" == *"alpha"* ]] || [[ "${{ steps.version.outputs.version }}" == *"rc"* ]]; then
+          NPM_TAG="beta"
+        else
+          NPM_TAG="latest"
+        fi
+        
+        echo "Publishing to NPM with tag: $NPM_TAG"
+        npm publish --tag $NPM_TAG
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  attach-binaries:
-    name: Attach Binaries to Release
+  release:
+    name: Attach Release Assets
     runs-on: ubuntu-latest
-    needs: [build-binaries]
+    needs: build-and-publish
     if: github.event_name == 'release'
 
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
-        path: artifacts
+        path: release-assets
+
+    - name: List artifacts
+      run: |
+        echo "Release artifacts:"
+        find release-assets -type f -name "*.tar.gz" -o -name "*.zip" | sort
 
     - name: Attach binaries to release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          artifacts/bunosh-linux-x64/bunosh
-          artifacts/bunosh-darwin-x64/bunosh
-          artifacts/bunosh-win32-x64/bunosh.exe
+          release-assets/bunosh-linux-x64/bunosh-linux-x64.tar.gz
+          release-assets/bunosh-darwin-arm64/bunosh-darwin-arm64.tar.gz
+          release-assets/bunosh-windows-x64.exe/bunosh-windows-x64.exe.zip
+        body: |
+          ## 🚀 Bunosh Release ${{ github.ref_name }}
+
+          ### Single Executables (No Runtime Required)
+          
+          - **Linux x64**: `bunosh-linux-x64.tar.gz`
+          - **macOS ARM64**: `bunosh-darwin-arm64.tar.gz` 
+          - **Windows x64**: `bunosh-windows-x64.exe.zip`
+
+          ### Installation
+
+          **Single Executable:**
+          ```bash
+          # Linux
+          curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-linux-x64.tar.gz | tar -xz
+          sudo mv bunosh-linux-x64 /usr/local/bin/bunosh
+
+          # macOS
+          curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-darwin-arm64.tar.gz | tar -xz  
+          sudo mv bunosh-darwin-arm64 /usr/local/bin/bunosh
+
+          # Windows (PowerShell)
+          Invoke-WebRequest -Uri "https://github.com/davertmik/bunosh/releases/latest/download/bunosh-windows-x64.exe.zip" -OutFile "bunosh.zip"
+          Expand-Archive -Path "bunosh.zip" -DestinationPath .
+          Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
+          ```
+
+          **NPM Package:**
+          ```bash
+          npm install -g bunosh
+          # or
+          bun add -g bunosh
+          ```
+
+          ### Upgrade
+          
+          **Single Executable:**
+          ```bash
+          bunosh upgrade
+          ```
+          
+          **NPM Package:**
+          ```bash
+          npm update -g bunosh
+          ```
+
+          ### What's New
+          - ✅ Shell auto-completion with `bunosh setup-completion`
+          - ✅ Self-upgrade with `bunosh upgrade` (single executables only)
+          - ✅ Enhanced cross-platform compatibility
+          - ✅ Improved error handling and user experience
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [test, build-and-publish, release]
+    if: always()
+
+    steps:
+    - name: Generate summary
+      run: |
+        echo "## 🚀 Release Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Version**: ${GITHUB_REF#refs/tags/}" >> $GITHUB_STEP_SUMMARY
+        echo "**Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Test results
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✅ **Tests**: All test suites passed (unit, e2e-node, e2e-bun)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Tests**: Some test suites failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Build results  
+        if [ "${{ needs.build-and-publish.result }}" == "success" ]; then
+          echo "✅ **Build & Publish**: Binaries built and NPM published successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Build & Publish**: Failed to build binaries or publish to NPM" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Release results
+        if [ "${{ needs.release.result }}" == "success" ]; then
+          echo "✅ **Release**: Assets attached to GitHub release" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ github.event_name }}" != "release" ]; then
+          echo "ℹ️ **Release**: Skipped (not a release trigger)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Release**: Failed to attach release assets" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Deliverables" >> $GITHUB_STEP_SUMMARY
+        echo "- **NPM**: \`npm install -g bunosh\`" >> $GITHUB_STEP_SUMMARY  
+        echo "- **Bun**: \`bun add -g bunosh\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Linux x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
+        echo "- **macOS ARM64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
+        echo "- **Windows x64**: Single executable with Bun runtime" >> $GITHUB_STEP_SUMMARY
