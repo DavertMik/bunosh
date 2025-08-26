@@ -108,15 +108,19 @@ jobs:
         path: dist/${{ matrix.artifact }}
         retention-days: 30
 
-    - name: Create release archive
+    - name: Create release archive (Unix)
+      if: runner.os != 'Windows'
       run: |
         cd dist
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          zip ${{ matrix.artifact }}.zip ${{ matrix.artifact }}
-        else
-          tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
-        fi
+        tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
       shell: bash
+
+    - name: Create release archive (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cd dist
+        Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+      shell: powershell
 
     - name: Upload release archive
       uses: actions/upload-artifact@v4
