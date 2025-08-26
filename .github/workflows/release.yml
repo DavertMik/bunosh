@@ -10,6 +10,10 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   test:
     name: Test Suite
@@ -167,8 +171,26 @@ jobs:
           NPM_TAG="latest"
         fi
         
-        echo "Publishing to NPM with tag: $NPM_TAG"
-        npm publish --tag $NPM_TAG
+        echo "📦 Publishing to NPM..."
+        echo "   Version: ${{ steps.version.outputs.version }}"
+        echo "   Tag: $NPM_TAG"
+        echo "   Registry: $(npm config get registry)"
+        
+        # Verify package.json
+        echo "   Package name: $(node -p "require('./package.json').name")"
+        echo "   Package version: $(node -p "require('./package.json').version")"
+        
+        # Publish with detailed output
+        npm publish --tag $NPM_TAG --access public
+        
+        echo "✅ Successfully published to NPM!"
+        echo "   Install with: npm install -g bunosh@$NPM_TAG"
+        
+        # Create job summary
+        echo "## 📦 NPM Publication Summary" >> $GITHUB_STEP_SUMMARY
+        echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**NPM Tag**: $NPM_TAG" >> $GITHUB_STEP_SUMMARY
+        echo "**Install Command**: \`npm install -g bunosh@$NPM_TAG\`" >> $GITHUB_STEP_SUMMARY
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -179,6 +201,11 @@ jobs:
     if: github.event_name == 'release'
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
@@ -192,6 +219,7 @@ jobs:
     - name: Attach binaries to release
       uses: softprops/action-gh-release@v1
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         files: |
           release-assets/bunosh-linux-x64/bunosh-linux-x64.tar.gz
           release-assets/bunosh-darwin-arm64/bunosh-darwin-arm64.tar.gz
@@ -247,8 +275,6 @@ jobs:
           - ✅ Self-upgrade with `bunosh upgrade` (single executables only)
           - ✅ Enhanced cross-platform compatibility
           - ✅ Improved error handling and user experience
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
     name: Release Summary
@@ -275,7 +301,7 @@ jobs:
         
         # Build results  
         if [ "${{ needs.build-and-publish.result }}" == "success" ]; then
-          echo "✅ **Build & Publish**: Binaries built and NPM published successfully" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Build & Publish**: Binaries built and NPM published successfully (in parallel)" >> $GITHUB_STEP_SUMMARY
         else
           echo "❌ **Build & Publish**: Failed to build binaries or publish to NPM" >> $GITHUB_STEP_SUMMARY
         fi
