@@ -46,13 +46,20 @@ export default function bunosh(commands, source) {
   program.showSuggestionAfterError(true);
   program.addHelpCommand(false);
 
-  const completeAst = babelParser.parse(source, {
-    sourceType: "module",
-    ranges: true,
-    tokens: true,
-    comments: true,
-    attachComment: true,
-  });
+  let completeAst;
+  try {
+    completeAst = babelParser.parse(source, {
+      sourceType: "module",
+      ranges: true,
+      tokens: true,
+      comments: true,
+      attachComment: true,
+    });
+  } catch (parseError) {
+    // Re-throw with more specific error information
+    parseError.code = 'BABEL_PARSER_SYNTAX_ERROR';
+    throw parseError;
+  }
 
   const comments = fetchComments();
 

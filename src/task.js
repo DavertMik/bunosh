@@ -138,6 +138,14 @@ export class TaskResult {
     this.output = output;
   }
 
+  get hasFailed() {
+    return this.status === TaskStatus.FAIL;
+  }
+
+  get hasSucceeded() {
+    return this.status === TaskStatus.SUCCESS;
+  }
+
   static fail(output = null) {
     return new TaskResult({ status: TaskStatus.FAIL, output });
   }

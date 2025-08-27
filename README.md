@@ -377,6 +377,9 @@ const { exec, fetch, writeToFile, copyFile, say, ask, yell, task } = global.buno
 ```
 
 ### Shell Execution (`exec`)
+
+The `exec` function runs shell commands and returns a `TaskResult` object with the command output and status.
+
 ```javascript
 // Simple commands
 await exec`echo "Hello World"`;
@@ -390,6 +393,63 @@ await exec`ls -la`.cwd('/tmp');
 
 // Complex shell commands
 await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
+```
+
+#### TaskResult Object
+
+The `exec` function returns a `TaskResult` object with the following properties and methods:
+
+```javascript
+const result = await exec`ls -la`;
+
+// Properties
+result.status   // 'success' or 'fail' 
+result.output   // Combined stdout/stderr as string
+
+// Getters (boolean)
+result.hasFailed     // true if command failed (non-zero exit code)
+result.hasSucceeded  // true if command succeeded (exit code 0)
+```
+
+#### Error Handling Examples
+
+```javascript
+// Check command success
+const result = await exec`npm test`;
+if (result.hasSucceeded) {
+  say('✅ Tests passed!');
+} else {
+  yell('❌ Tests failed!');
+  console.log(result.output); // Show error details
+}
+
+// Get command output
+const result = await exec`git rev-parse HEAD`;
+if (result.hasSucceeded) {
+  const commitHash = result.output.trim();
+  say(`Current commit: ${commitHash}`);
+}
+
+// Handle failures gracefully
+const result = await exec`optional-command-that-might-fail`;
+if (result.hasFailed) {
+  say('Command failed, but continuing...');
+  console.log('Error output:', result.output);
+}
+
+// Old vs New style comparison
+// ❌ Old: Commands throw on failure
+try {
+  await someOtherTaskRunner('failing-command');
+} catch (error) {
+  // Handle error
+}
+
+// ✅ New: Explicit success/failure handling
+const result = await exec`failing-command`;
+if (result.hasFailed) {
+  // Handle failure explicitly
+}
 ```
 
 ### HTTP Requests (`fetch`)
