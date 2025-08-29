@@ -37,7 +37,10 @@ export default function bunosh(commands, source) {
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
-    visibleCommands: cmd => cmd.commands.filter(c => !internalCommands.includes(c)),
+    visibleCommands: cmd => {
+      const commands = cmd.commands.filter(c => !internalCommands.includes(c));
+      return commands.filter(c => !c.name().startsWith('npm:'));
+    },
     subcommandTerm: (cmd) => color.white.bold(cmd.name()),
     subcommandDescription: (cmd) => color.gray(cmd.description()),
   });
@@ -289,11 +292,11 @@ export default function bunosh(commands, source) {
       try {
         // Detect current shell or use specified shell
         const shell = options.shell || detectCurrentShell();
-        
+
         if (!shell) {
           console.error('❌ Could not detect your shell. Please specify one:');
           console.log('   bunosh setup-completion --shell bash');
-          console.log('   bunosh setup-completion --shell zsh'); 
+          console.log('   bunosh setup-completion --shell zsh');
           console.log('   bunosh setup-completion --shell fish');
           process.exit(1);
         }
@@ -303,7 +306,7 @@ export default function bunosh(commands, source) {
 
         // Get paths for this shell
         const paths = getCompletionPaths(shell);
-        
+
         // Check if already installed
         if (!options.force && fs.existsSync(paths.completionFile)) {
           console.log(`⚠️  Completion already installed at: ${paths.completionFile}`);
@@ -318,7 +321,7 @@ export default function bunosh(commands, source) {
 
         // Report success
         console.log(`✅ Completion installed: ${color.green(paths.completionFile)}`);
-        
+
         if (result.configFile && result.added) {
           console.log(`📝 Updated shell config: ${color.green(result.configFile)}`);
           console.log();
@@ -334,10 +337,10 @@ export default function bunosh(commands, source) {
           console.log(`ℹ️  Shell config already has completion setup: ${result.configFile}`);
           console.log('   Restart your terminal if completion isn\'t working.');
         }
-        
+
         console.log();
         console.log('🎯 Test completion by typing: ' + color.bold('bunosh <TAB>'));
-        
+
       } catch (error) {
         console.error(`❌ Setup failed: ${error.message}`);
         process.exit(1);
@@ -367,9 +370,9 @@ export default function bunosh(commands, source) {
             const { getLatestRelease, isNewerVersion } = await import('./upgrade.js');
             const release = await getLatestRelease();
             const latestVersion = release.tag_name;
-            
+
             console.log(`📦 Latest version: ${color.bold(latestVersion)}`);
-            
+
             if (isNewerVersion(latestVersion, currentVersion)) {
               console.log(`✨ ${color.green('Update available!')} ${currentVersion} → ${latestVersion}`);
               console.log('Run ' + color.bold('bunosh upgrade') + ' to update.');
@@ -412,7 +415,7 @@ export default function bunosh(commands, source) {
 
       } catch (error) {
         console.error(`❌ Upgrade failed: ${error.message}`);
-        
+
         if (error.message.includes('Unsupported platform')) {
           console.log();
           console.log('💡 Supported platforms:');
@@ -423,21 +426,36 @@ export default function bunosh(commands, source) {
           console.log();
           console.log('💡 Try again later or check your internet connection.');
         }
-        
+
         process.exit(1);
       }
     });
 
   internalCommands.push(upgradeCmd);
 
+  // Add npm scripts help section if npm scripts exist
+  const npmScriptNamesForHelp = Object.keys(npmScripts);
+  if (npmScriptNamesForHelp.length > 0) {
+    const npmCommandsList = npmScriptNamesForHelp.sort().map(scriptName => {
+      const commandName = `npm:${scriptName}`;
+      const scriptCommand = npmScripts[scriptName];
+      return `  ${color.white.bold(commandName.padEnd(18))} ${color.gray(scriptCommand)}`;
+    }).join('\n');
+
+    program.addHelpText('after', `
+
+NPM Scripts:
+${npmCommandsList}
+`);
+  }
+
   program.addHelpText('after', `
 
 Special Commands:
+
   📝 Edit bunosh file: ${color.bold('bunosh edit')}
-  📥 Export scripts to package.json: ${color.bold('bunosh export:scripts')}
-  🔤 Generate shell completion: ${color.bold('bunosh completion bash|zsh|fish')}
-  ⚡ Auto-setup completion: ${color.bold('bunosh setup-completion')}
-  ⬆️  Upgrade bunosh: ${color.bold('bunosh upgrade')}
+  📥 Export commands as scripts to package.json: ${color.bold('bunosh export:scripts')}
+  🦾 Upgrade bunosh: ${color.bold('bunosh upgrade')}
 `);
 
   program.on("command:*", (cmd) => {

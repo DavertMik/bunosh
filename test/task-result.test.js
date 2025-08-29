@@ -63,13 +63,13 @@ describe('TaskResult', () => {
   test('getters are read-only properties', () => {
     const result = TaskResult.success('test');
     
-    // Try to set the getter (should not work)
+    // Try to set the getter (should throw or be ignored)
     expect(() => {
       result.hasFailed = true;
     }).toThrow();
     
     expect(() => {
-      result.hasSucceeded = false; 
+      result.hasSucceeded = false;  
     }).toThrow();
     
     // Original values should remain unchanged
