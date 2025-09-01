@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { exec, fetch, task, ignoreFail, ask, say, yell, writeToFile } from "./index.js";
+import { exec, fetch, ai, task, ignoreFail, ask, say, yell, writeToFile } from "./index.js";
 import fs from "fs";
 
 /**
@@ -92,6 +92,17 @@ export async function updateToStaging() {
 export async function testStreaming() {
   // Command that produces output over time
   await exec`sh -c 'for i in 1 2 3 4 5; do echo "Line $i"; sleep 0.5; done'`;
+}
+
+export async function aiSummary() {
+  const res = await ai('Summarize this projet ' + fs.readFileSync('README.md').toString(), {
+    summary: '1 line summary',
+    keywords: 'popular keywords',
+    motto: 'motivational post',
+    alternatives: 'what are comparable alternatives',
+    features: 'list of features uniq to this project'   
+  })
+  console.log(res);
 }
 
 /**

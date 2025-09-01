@@ -3,8 +3,10 @@ import color from "chalk";
 import fs from 'fs';
 
 const template = `
-// tasks
-const { exec, fetch, writeToFile, task } = global.bunosh;
+// Bunosh CLI required to execute tasks from this file
+// Get it here -> https://github.com/DavertMik/bunosh/releases
+
+const { exec, fetch, writeToFile, task, ai } = global.bunosh;
 
 // input/output
 const { say, ask, yell } = global.bunosh;
@@ -22,12 +24,18 @@ export async function helloWorld() {
   // use fetch() to make HTTP requests
   // await fetch('https://reqres.in/api/users')
 
+  // use ai() to make AI requests with structured output:
+  // REQUIRED env vars: AI_MODEL and any of: OPENAI_API_KEY, ANTHROPIC_API_KEY, or GROQ_API_KEY
+  // await ai('Summarize this text: JavaScript is awesome', {
+  //   summary: 'Brief summary of the text',
+  //   sentiment: 'Sentiment of the text (positive/negative/neutral)',
+  //   keyWords: 'Main keywords from the text'
+  // });
+
   // add arguments and options to this function if needed
   // export async function helloWorld(userName, opts = { force: false })
   //
   // bunosh hello:world 'bob' --force
-
-  // use ignoreFail(true) to prevent the command from stopping on error
 
   yell('Heloo Bunosh!');
   say('Edit me with bunosh edit');

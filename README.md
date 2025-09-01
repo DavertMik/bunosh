@@ -488,6 +488,275 @@ await task('Installing dependencies', async () => {
 });
 ```
 
+## 🤖 AI-Powered Tasks
+
+Bunosh now supports AI integration with structured outputs! Connect to popular AI providers and generate content, analyze data, or automate text processing with simple function calls.
+
+### Quick Setup
+
+Set your AI provider credentials:
+```bash
+# Required: Choose your model
+export AI_MODEL=gpt-4o                         # or claude-3-5-sonnet-20241022, llama-3.3-70b-versatile, etc.
+
+# Required: Set API key for your chosen provider
+export OPENAI_API_KEY=your_key_here           # for OpenAI models
+# export ANTHROPIC_API_KEY=your_key_here       # for Claude models
+# export GROQ_API_KEY=your_key_here            # for Groq models
+```
+
+### Built-in AI Providers
+
+- **OpenAI** - GPT-4o, GPT-4o-mini, GPT-3.5-turbo (via `OPENAI_API_KEY`)
+- **Anthropic** - Claude 3.5 Sonnet, Claude 3 Haiku (via `ANTHROPIC_API_KEY`)
+- **Groq** - Llama 3.3, Mixtral, Gemma models (via `GROQ_API_KEY` or `GROQ_KEY`)
+
+### Custom AI Providers
+
+For enterprise and custom setups, you can import and register any AI provider manually:
+
+```javascript
+const { ai } = global.bunosh;
+
+// Method 1: Direct model configuration (most flexible)
+import { bedrock } from '@ai-sdk/amazon-bedrock';
+const bedrockModel = bedrock('anthropic.claude-3-sonnet-20240229-v1:0', {
+  region: 'us-east-1',
+  credentials: {
+    accessKeyId: 'your-access-key',
+    secretAccessKey: 'your-secret-key'
+  }
+});
+
+ai.configure({ model: bedrockModel });
+
+// Method 2: Register custom provider with environment variable
+import { xai } from '@ai-sdk/xai';
+ai.configure({
+  registerProvider: {
+    envVar: 'XAI_API_KEY',
+    provider: {
+      createInstance: (modelName) => xai(modelName)
+    }
+  }
+});
+
+// Method 3: Register any custom provider (Azure OpenAI, OpenRouter, etc.)
+import { openrouter } from '@openrouter/ai-sdk-provider';
+ai.configure({
+  registerProvider: {
+    envVar: 'OPENROUTER_API_KEY', 
+    provider: {
+      createInstance: (modelName) => openrouter(modelName)
+    }
+  }
+});
+
+// Method 4: Register completely custom provider
+ai.configure({
+  registerProvider: {
+    envVar: 'CUSTOM_AI_API_KEY',
+    provider: {
+      createInstance: (modelName) => {
+        // Your custom provider logic
+        return customAIProvider(modelName, {
+          apiKey: process.env.CUSTOM_AI_API_KEY,
+          endpoint: 'https://custom-ai.company.com/v1'
+        });
+      }
+    }
+  }
+});
+
+// Reset to environment variable configuration
+ai.reset();
+
+// Check current configuration
+const config = ai.getConfig();
+console.log('Current AI config:', config);
+```
+
+### AI Task Examples
+
+```javascript
+const { ai, writeToFile, say } = global.bunosh;
+
+/**
+ * Generate project documentation with AI
+ */
+export async function generateDocs() {
+  const codebase = fs.readFileSync('src/index.js', 'utf8');
+  
+  const result = await ai(
+    `Generate documentation for this code: ${codebase}`,
+    {
+      overview: 'Brief project overview',
+      apiReference: 'API documentation',
+      examples: 'Usage examples',
+      installation: 'Installation instructions'
+    }
+  );
+  
+  writeToFile('README.md', (line) => {
+    line`# ${result.overview}`;
+    line``;
+    line`## Installation`;
+    line`${result.installation}`;
+    line``;
+    line`## API Reference`;
+    line`${result.apiReference}`;
+    line``;
+    line`## Examples`;
+    line`${result.examples}`;
+  });
+  
+  say('📚 Documentation generated!');
+}
+
+/**
+ * Analyze and optimize code with AI suggestions
+ */
+export async function codeReview(filename) {
+  const code = fs.readFileSync(filename, 'utf8');
+  
+  const analysis = await ai(
+    `Review this code for improvements: ${code}`,
+    {
+      issues: 'List of potential issues',
+      suggestions: 'Specific improvement suggestions',  
+      security: 'Security considerations',
+      performance: 'Performance optimization tips',
+      rating: 'Overall code quality rating (1-10)'
+    }
+  );
+  
+  say(`🔍 Code Review for ${filename}:`);
+  console.log(`Rating: ${analysis.rating}/10`);
+  console.log(`Issues: ${analysis.issues}`);
+  console.log(`Suggestions: ${analysis.suggestions}`);
+  console.log(`Security: ${analysis.security}`);
+  console.log(`Performance: ${analysis.performance}`);
+}
+
+/**
+ * Generate test cases from code
+ */
+export async function generateTests(sourceFile) {
+  const code = fs.readFileSync(sourceFile, 'utf8');
+  
+  const tests = await ai(
+    `Generate comprehensive unit tests for this code: ${code}`,
+    {
+      testSuite: 'Complete test suite code',
+      edgeCases: 'List of edge cases covered',
+      mockSetup: 'Required mocks and setup code'
+    }
+  );
+  
+  const testFile = sourceFile.replace('.js', '.test.js');
+  writeToFile(testFile, (line) => {
+    line`${tests.mockSetup}`;
+    line``;
+    line`${tests.testSuite}`;
+  });
+  
+  say(`🧪 Tests generated: ${testFile}`);
+  say(`Edge cases: ${tests.edgeCases}`);
+}
+
+/**
+ * Create commit messages from git diff
+ */
+export async function smartCommit() {
+  const diff = await exec`git diff --staged`;
+  
+  if (diff.hasFailed || !diff.output.trim()) {
+    say('No staged changes found');
+    return;
+  }
+  
+  const commit = await ai(
+    `Generate a commit message for these changes: ${diff.output}`,
+    {
+      title: 'Concise commit title (50 chars max)',
+      body: 'Detailed commit body explaining what and why',
+      type: 'Commit type (feat/fix/docs/refactor/test/chore)'
+    }
+  );
+  
+  const message = `${commit.type}: ${commit.title}\n\n${commit.body}`;
+  await exec`git commit -m "${message}"`;
+  
+  say(`✅ Committed with AI-generated message:`);
+  console.log(message);
+}
+
+/**
+ * Enterprise AI setup with custom provider
+ */
+export async function setupEnterpriseAI() {
+  // Import your enterprise AI provider
+  import { bedrock } from '@ai-sdk/amazon-bedrock';
+  
+  // Configure for enterprise use
+  const enterpriseModel = bedrock('anthropic.claude-3-sonnet-20240229-v1:0', {
+    region: 'us-east-1'
+    // Uses AWS credentials from environment/profile
+  });
+  
+  ai.configure({ model: enterpriseModel });
+  
+  const analysis = await ai(
+    'Analyze our company performance from this quarterly report: [data]',
+    {
+      summary: 'Executive summary of performance',
+      risks: 'Identified business risks',
+      opportunities: 'Growth opportunities',
+      recommendations: 'Strategic recommendations'
+    }
+  );
+  
+  say('📊 Enterprise AI analysis complete');
+  console.log(analysis);
+}
+```
+
+### Simple Text Generation
+
+For quick text generation without structured output:
+
+```javascript
+/**
+ * Generate marketing copy
+ */
+export async function generateCopy(product) {
+  const copy = await ai(`Write compelling marketing copy for: ${product}`);
+  say('📝 Generated copy:');
+  console.log(copy);
+}
+
+/**
+ * Translate content
+ */
+export async function translate(text, language = 'Spanish') {
+  const translation = await ai(`Translate to ${language}: ${text}`);
+  say(`🌐 Translation to ${language}:`);
+  console.log(translation);
+}
+```
+
+### Progressive Enhancement
+
+The AI task features:
+- **🎭 Animated Progress**: Braille spinner animation during generation
+- **📊 Token Tracking**: Shows token usage for cost monitoring  
+- **⚡ Fast Inference**: Optimized for speed with Groq and other providers
+- **🔧 Structured Output**: Get JSON responses with defined schemas
+- **🎯 Provider Auto-Detection**: Automatically detects available API keys
+- **💪 Error Handling**: Graceful handling of API errors and rate limits
+
+Transform your development workflow with AI-powered automation! Generate documentation, analyze code, create tests, write commit messages, and much more.
+
 ## Command Features
 
 ### Automatic CLI Generation
