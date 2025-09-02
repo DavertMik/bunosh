@@ -73,8 +73,8 @@ export default function shell(strings, ...values) {
         }
         
         if (shellError.exitCode !== undefined) {
-          const stderr = shellError.stderr || "";
-          const stdout = shellError.stdout || "";
+          const stderr = shellError.stderr ? Buffer.isBuffer(shellError.stderr) ? shellError.stderr.toString() : shellError.stderr : "";
+          const stdout = shellError.stdout ? Buffer.isBuffer(shellError.stdout) ? shellError.stdout.toString() : shellError.stdout : "";
           const errorOutput = (stderr + stdout).trim() || `Command failed with exit code ${shellError.exitCode}`;
           
           if (errorOutput) {
@@ -92,7 +92,10 @@ export default function shell(strings, ...values) {
           resolve(TaskResult.fail(errorOutput));
           return;
         } else {
-          throw shellError;
+          const errorMessage = shellError.message || shellError.toString();
+          printer.error(cmd, shellError);
+          finishTaskInfo(taskInfo, false, shellError, errorMessage);
+          resolve(TaskResult.fail(errorMessage));
         }
       }
     } catch (error) {
