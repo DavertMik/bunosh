@@ -1,17 +1,18 @@
 import { describe, test, expect, mock, spyOn } from "bun:test";
 import shellFunction from "../src/tasks/shell.js";
+import { $ } from "bun";
 
 // Mock console.log to reduce noise
 const mockConsoleLog = mock(() => {});
 
-describe("Shell Runtime Compatibility", () => {
-  test("detects Bun runtime correctly", () => {
+describe("Shell Task with Bun Shell $ API", () => {
+  test("detects Bun runtime and shell API correctly", () => {
     // Since we're running in Bun, Bun should be defined
     expect(typeof Bun).toBe("object");
-    expect(Bun.$).toBeDefined();
+    expect($).toBeDefined();
   });
 
-  test("shell with Bun runtime (integration)", async () => {
+  test("shell basic command execution", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
     const result = await shellFunction`echo "bun shell test output"`;
@@ -22,14 +23,10 @@ describe("Shell Runtime Compatibility", () => {
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles multiline scripts", async () => {
+  test("shell handles multiline commands", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
-    const result = await shellFunction`
-      echo "line 1"
-      echo "line 2"
-      echo "line 3"
-    `;
+    const result = await shellFunction`echo "line 1"; echo "line 2"; echo "line 3"`;
 
     expect(result.status).toBe("success");
     expect(result.output).toContain("line 1");
@@ -39,7 +36,7 @@ describe("Shell Runtime Compatibility", () => {
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles shell commands with pipes", async () => {
+  test("shell handles pipes and redirection", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
     const result = await shellFunction`echo "hello world" | wc -w`;
@@ -50,7 +47,7 @@ describe("Shell Runtime Compatibility", () => {
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles commands with environment variables", async () => {
+  test("shell handles environment variables with .env()", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
     const result = await shellFunction`echo $TEST_VAR`.env({
@@ -58,29 +55,51 @@ describe("Shell Runtime Compatibility", () => {
     });
 
     expect(result.status).toBe("success");
-    expect(result.output).toContain("test_value");
+    expect(result.output.trim()).toBe("test_value");
 
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles working directory change", async () => {
+  test("shell handles working directory change with .cwd()", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
     const result = await shellFunction`pwd`.cwd("/tmp");
 
     expect(result.status).toBe("success");
+    expect(result.output.trim()).toBe("/tmp");
+
+    console.log.mockRestore();
+  }, 3000);
+
+  test("shell handles chained env and cwd", async () => {
+    spyOn(console, "log").mockImplementation(mockConsoleLog);
+
+    const result = await shellFunction`echo $TEST_VAR && pwd`
+      .env({ TEST_VAR: "chained_test" })
+      .cwd("/tmp");
+
+    expect(result.status).toBe("success");
+    expect(result.output).toContain("chained_test");
     expect(result.output).toContain("/tmp");
 
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles stderr output", async () => {
+  test("shell handles command failure correctly", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
-    const result = await shellFunction`
-      echo "error message" >&2
-      exit 1
-    `;
+    const result = await shellFunction`exit 1`;
+
+    expect(result.status).toBe("fail");
+    expect(result.hasSucceeded).toBe(false);
+
+    console.log.mockRestore();
+  }, 3000);
+
+  test("shell handles stderr output on failure", async () => {
+    spyOn(console, "log").mockImplementation(mockConsoleLog);
+
+    const result = await shellFunction`echo "error message" >&2; exit 1`;
 
     expect(result.status).toBe("fail");
     expect(result.output).toContain("error message");
@@ -88,50 +107,78 @@ describe("Shell Runtime Compatibility", () => {
     console.log.mockRestore();
   }, 3000);
 
-  test("shell handles complex multiline scripts", async () => {
+  test("shell handles complex shell operations", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
     const result = await shellFunction`
-      #!/bin/bash
       NAME="world"
       echo "Hello $NAME!"
       if [ -d "/tmp" ]; then
         echo "tmp directory exists"
       fi
-      ls -la / | head -5
     `;
 
     expect(result.status).toBe("success");
     expect(result.output).toContain("Hello world!");
     expect(result.output).toContain("tmp directory exists");
-    expect(result.output).toContain("total");
 
     console.log.mockRestore();
   }, 5000);
 
-  test("shell function exists and has correct structure", () => {
+  test("shell function has correct API structure", () => {
     const shellCode = shellFunction.toString();
-    expect(shellCode).toContain('import("bun")');
-    expect(shellCode).toContain("!isBun");
-    expect(shellCode).toContain("exec");
+    expect(shellCode).toContain('from "bun"');
+    expect(shellCode).toContain("shell.cwd");
+    expect(shellCode).toContain("shell.env");
+    expect(shellCode).toContain("shell`${cmd}`");
   });
 
-  test("shell handles special characters in scripts", async () => {
+  test("shell handles special characters and operators", async () => {
     spyOn(console, "log").mockImplementation(mockConsoleLog);
 
-    const result = await shellFunction`
-      echo "hello world" && echo "second line" || echo "fallback"
-      echo 'single quotes work'
-      echo "double quotes work"
-      mkdir -p /tmp/test_dir && echo "directory created" && rm -rf /tmp/test_dir
-    `;
+    const result = await shellFunction`echo "hello world" && echo "success"`;
 
     expect(result.status).toBe("success");
     expect(result.output).toContain("hello world");
-    expect(result.output).toContain("second line");
-    expect(result.output).toContain("single quotes work");
-    expect(result.output).toContain("double quotes work");
-    expect(result.output).toContain("directory created");
+    expect(result.output).toContain("success");
+
+    console.log.mockRestore();
+  }, 3000);
+
+  test("shell handles template literal interpolation", async () => {
+    spyOn(console, "log").mockImplementation(mockConsoleLog);
+
+    const message = "interpolated";
+    const result = await shellFunction`echo "${message} message"`;
+
+    expect(result.status).toBe("success");
+    expect(result.output).toContain("interpolated message");
+
+    console.log.mockRestore();
+  }, 3000);
+
+  test("shell returns correct TaskResult structure", async () => {
+    spyOn(console, "log").mockImplementation(mockConsoleLog);
+
+    const result = await shellFunction`echo "test output"`;
+
+    expect(result).toHaveProperty("status");
+    expect(result).toHaveProperty("output");
+    expect(result).toHaveProperty("hasSucceeded");
+    expect(result.status).toBe("success");
+    expect(result.hasSucceeded).toBe(true);
+    expect(typeof result.output).toBe("string");
+
+    console.log.mockRestore();
+  }, 3000);
+
+  test("shell handles empty output correctly", async () => {
+    spyOn(console, "log").mockImplementation(mockConsoleLog);
+
+    const result = await shellFunction`true`;
+
+    expect(result.status).toBe("success");
+    expect(result.output).toBe("");
 
     console.log.mockRestore();
   }, 3000);

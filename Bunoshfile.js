@@ -117,32 +117,38 @@ export async function testLiveOutput() {
 }
 
 /**
- * 🐚 Test shell task with standard Unix commands
+ * 🐚 Test shell task with Bun shell commands
  */
 export async function testShell() {
-  say("🐚 Testing shell task with standard commands");
+  say("🐚 Testing shell task - showcases Bun shell with fallback to exec");
 
-  // Test with working built-in commands
+  // Test basic Bun shell built-ins
   await shell`pwd`;
-  await shell`ls -la`;
+  await shell`echo "Hello from Bun Shell!"`;
 
-  // Create and display a test file using working commands
-  await shell`
-    pwd > /tmp/test.txt
-    ls >> /tmp/test.txt
-  `;
+  // File operations that work well with Bun shell
+  await shell`echo "test content" > /tmp/bunosh-test.txt`;
+  await shell`cat /tmp/bunosh-test.txt`;
 
-  // Show file info
-  await shell`ls -lh /tmp/test.txt`;
+  // Directory operations
+  await shell`ls`;
+  await shell`ls -la /tmp/bunosh-test.txt`;
 
-  // Environment info
-  await shell`pwd`;
+  // Test with pipes (Bun shell supports basic piping)
+  await shell`echo "Line 1\nLine 2\nLine 3" | head -2`;
 
-  // Test working directory
-  await shell`pwd && ls -la | head -5`.cwd("/tmp");
+  // Test working directory change
+  await shell`pwd`.cwd("/tmp");
+
+  // Test with environment variable
+  await shell`echo "Hello $USER_VAR!"`.env({ USER_VAR: "Bunosh" });
+
+  // More complex commands that may fallback to exec
+  await shell`ps aux | grep node | head -3`;
+  await shell`find /tmp -name "*bunosh*" -type f`;
 
   // Cleanup
-  await shell`rm -f /tmp/test.txt`;
+  await shell`rm -f /tmp/bunosh-test.txt`;
 
-  yell("✅ Shell test completed!");
+  yell("✅ Shell test completed! (Uses Bun shell natively, falls back to exec when needed)");
 }

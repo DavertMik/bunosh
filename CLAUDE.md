@@ -43,10 +43,16 @@ Bunosh is a task runner that transforms JavaScript functions into CLI commands. 
 - JSDoc comments or first-line comments become command descriptions
 
 ### Built-in Tasks (`src/tasks/`)
-- `exec.js` - Shell command execution with console output (wraps Bun Shell)
+- `exec.js` - Cross-platform command execution with real-time streaming output
+- `shell.js` - Native Bun shell execution with Node.js fallback to exec
 - `fetch.js` - HTTP requests with progress indicators
 - `writeToFile.js` - File writing with template string builder
 - `copyFile.js` - File copying operations
+
+**Task Usage:**
+- Use `shell` for Bun performance, simple commands
+- Use `exec` for cross-platform compatibility, complex operations, streaming output
+- Both support `.env(object)` and `.cwd(path)` methods
 
 ### Output System
 - Console-based output with pluggable formatter support
@@ -75,7 +81,7 @@ Output formatting is handled by pluggable formatter classes in `src/formatters/`
 - `src/formatters/factory.js` - Auto-detects environment and creates formatter
 - `src/formatters/base.js` - Base class defining formatter interface
 - Each formatter handles start/finish/error/output formatting independently
-- Task counting system tracks all operations (exec, fetch, writeToFile, copyFile)
+- Task counting system tracks all operations (exec, shell, fetch, writeToFile, copyFile)
 
 #### Adding New Formatters
 To add support for new CI systems (GitLab, TeamCity, Azure DevOps):
@@ -94,7 +100,8 @@ The program uses Babel to parse Bunoshfile.js and extract:
 
 ### Global API
 Functions available in tasks via `global.bunosh` or direct imports:
-- `exec` / `$` - Shell execution
+- `exec` / `$` - Cross-platform shell execution with streaming output
+- `shell` - Native Bun shell execution (fastest, with Node.js fallback)
 - `fetch` - HTTP requests
 - `writeToFile` - File operations
 - `copyFile` - File copying

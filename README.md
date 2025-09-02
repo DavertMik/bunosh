@@ -373,34 +373,74 @@ Commands:
 All Bunosh functions are available via `global.bunosh`:
 
 ```javascript
-const { exec, fetch, writeToFile, copyFile, say, ask, yell, task } = global.bunosh;
+const { exec, shell, fetch, writeToFile, copyFile, say, ask, yell, task } = global.bunosh;
 ```
 
-### Shell Execution (`exec`)
+### Shell Execution
 
-The `exec` function runs shell commands and returns a `TaskResult` object with the command output and status.
+Bunosh provides two ways to execute shell commands:
+
+#### `exec` - Universal Shell Execution
+
+Best for complex commands, cross-platform compatibility, and when you need real-time streaming output.
 
 ```javascript
-// Simple commands
-await exec`echo "Hello World"`;
-await exec`npm install`;
+// Complex shell commands with pipes and redirections
+await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
+await exec`npm install --verbose`;  // Shows progress in real-time
+await exec`docker build . | tee build.log`;
+```
 
-// With environment variables
+#### `shell` - Native Bun Shell (with Node.js fallback)
+
+Best for simple commands when running under Bun for maximum performance.
+
+```javascript
+// Simple, fast commands
+await shell`pwd`;
+await shell`echo "Hello World"`;
+await shell`ls -la`;
+await shell`cat package.json`;
+```
+
+#### When to Use Which?
+
+**Use `shell` when:**
+- ✅ Running under Bun for optimal performance  
+- ✅ Executing simple commands (`pwd`, `ls`, `echo`, `cat`)
+- ✅ Want fastest possible execution
+- ✅ Working with basic file operations
+
+**Use `exec` when:**
+- ✅ Need cross-platform compatibility (Node.js + Bun)
+- ✅ Using complex shell features (pipes, redirections, command chaining)
+- ✅ Want real-time streaming output for long-running commands
+- ✅ Running package managers (`npm install`, `docker build`)
+
+Both support the same API and return the same `TaskResult` object:
+
+```javascript
+// Both tasks support environment variables  
+await shell`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 
-// With working directory
+// Both support working directory changes
+await shell`pwd`.cwd('/tmp');
 await exec`ls -la`.cwd('/tmp');
 
-// Complex shell commands
-await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
+// Choose based on complexity and performance needs
+await shell`cat package.json`;              // Simple, fast
+await exec`npm install --verbose`;          // Complex, streaming
 ```
 
 #### TaskResult Object
 
-The `exec` function returns a `TaskResult` object with the following properties and methods:
+Both `exec` and `shell` return a `TaskResult` object with the following properties and methods:
 
 ```javascript
 const result = await exec`ls -la`;
+// or 
+const result = await shell`ls -la`;
 
 // Properties
 result.status   // 'success' or 'fail' 
