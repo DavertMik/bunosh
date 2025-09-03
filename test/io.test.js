@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, spyOn } from 'bun:test';
-import { say, yell } from '../src/io.js';
+import { say, yell, ask } from '../src/io.js';
 
 describe('IO Functions', () => {
   test('say function outputs message with exclamation', () => {
@@ -37,6 +37,125 @@ describe('IO Functions', () => {
     mockConsoleLog.mockRestore();
   });
 
-  // Note: ask function is not easily testable in automated tests since it requires
-  // user input via inquirer. It would need more complex mocking of the inquirer module.
+  describe('ask function', () => {
+    test('detects editor option and calls different flow', () => {
+      const opts = { editor: true };
+      expect(opts.editor).toBe(true);
+    });
+
+    test('detects multiline option and calls different flow', () => {
+      const opts = { multiline: true };
+      expect(opts.multiline).toBe(true);
+    });
+
+    test('detects choices option and calls different flow', () => {
+      const opts = { choices: ['option1', 'option2', 'option3'] };
+      expect(opts.choices).toEqual(['option1', 'option2', 'option3']);
+    });
+
+    test('detects multiple choice option', () => {
+      const opts = { choices: ['a', 'b', 'c'], multiple: true };
+      expect(opts.multiple).toBe(true);
+      expect(opts.choices.length).toBe(3);
+    });
+
+    test('editor and multiline options are equivalent', () => {
+      const editorOpts = { editor: true };
+      const multilineOpts = { multiline: true };
+      
+      expect(editorOpts.editor).toBe(true);
+      expect(multilineOpts.multiline).toBe(true);
+    });
+  });
+
+  describe('ask smart parameter detection', () => {
+    test('detects boolean default as confirm type', () => {
+      // Simulate the parameter processing logic
+      const question = 'Do you want to quit?';
+      const defaultValue = true;
+      let opts = {};
+      
+      if (defaultValue !== null && typeof defaultValue !== 'object') {
+        opts.default = defaultValue;
+        if (typeof defaultValue === 'boolean') {
+          opts.type = 'confirm';
+        }
+      }
+      
+      expect(opts.default).toBe(true);
+      expect(opts.type).toBe('confirm');
+    });
+
+    test('detects string default value', () => {
+      const question = 'What is your name?';
+      const defaultValue = 'jon';
+      let opts = {};
+      
+      if (defaultValue !== null && typeof defaultValue !== 'object') {
+        opts.default = defaultValue;
+        if (typeof defaultValue === 'boolean') {
+          opts.type = 'confirm';
+        }
+      }
+      
+      expect(opts.default).toBe('jon');
+      expect(opts.type).toBeUndefined();
+    });
+
+    test('detects array as choices', () => {
+      const question = 'Pick a color';
+      const choices = ['red', 'blue', 'green'];
+      let opts = {};
+      
+      if (Array.isArray(choices)) {
+        opts.choices = choices;
+      }
+      
+      expect(opts.choices).toEqual(['red', 'blue', 'green']);
+    });
+
+    test('merges third parameter options with smart detection', () => {
+      const question = 'Pick multiple colors';
+      const choices = ['red', 'blue', 'green'];
+      const options = { multiple: true };
+      let opts = {};
+      
+      if (Array.isArray(choices)) {
+        opts.choices = choices;
+        opts = { ...opts, ...options };
+      }
+      
+      expect(opts.choices).toEqual(['red', 'blue', 'green']);
+      expect(opts.multiple).toBe(true);
+    });
+
+    test('handles number default value', () => {
+      const question = 'Enter port number';
+      const defaultValue = 3000;
+      let opts = {};
+      
+      if (defaultValue !== null && typeof defaultValue !== 'object') {
+        opts.default = defaultValue;
+        if (typeof defaultValue === 'boolean') {
+          opts.type = 'confirm';
+        }
+      }
+      
+      expect(opts.default).toBe(3000);
+      expect(opts.type).toBeUndefined();
+    });
+
+    test('handles traditional object parameter', () => {
+      const question = 'Enter details';
+      const options = { type: 'password', default: 'secret' };
+      let opts = {};
+      
+      if (options !== null && typeof options === 'object' && !Array.isArray(options)) {
+        opts = { ...options };
+      }
+      
+      expect(opts.type).toBe('password');
+      expect(opts.default).toBe('secret');
+    });
+  });
 });

@@ -514,15 +514,203 @@ copyFile('template.js', 'output.js');
 ```
 
 ### User Interaction
+
+#### `ask()` - Interactive User Input
+
+The `ask()` function provides flexible ways to get user input with smart parameter detection and multiple modes:
+
 ```javascript
-// Get user input
+// === SIMPLE SYNTAX WITH SMART DETECTION ===
+
+// Basic text input
 const name = await ask('What is your name?');
 
-// Output messages
-say('Building project...');          // Normal output
-yell('BUILD COMPLETE!');             // Emphasized output
+// Text input with default value
+const projectName = await ask('Project name:', 'my-awesome-app');
 
-// Wrap long operations
+// Boolean confirmation (auto-detects confirm type)
+const shouldContinue = await ask('Continue with deployment?', true);
+const forceUpdate = await ask('Force update?', false);
+
+// Number input with default
+const port = await ask('Enter port number:', 3000);
+
+// Single choice selection (auto-detects from array)
+const framework = await ask('Choose your framework:', [
+  'React', 'Vue', 'Angular', 'Svelte'
+]);
+
+// Multiple choice selection (array + options)
+const features = await ask('Select features to include:', [
+  'TypeScript', 'ESLint', 'Prettier', 'Tests', 'CI/CD'
+], { multiple: true });
+
+// === ADVANCED OPTIONS SYNTAX ===
+
+// Multiline text input (opens system editor)
+const description = await ask('Enter project description:', {
+  multiline: true  // Same as editor: true
+});
+
+// Editor input with default content
+const config = await ask('Edit configuration:', {
+  editor: true,
+  default: 'Initial content here...'
+});
+
+// Password input (hidden)
+const password = await ask('Enter password:', {
+  type: 'password'
+});
+
+// Mixed: default value + additional options
+const email = await ask('Email address:', 'user@example.com', {
+  validate: (input) => input.includes('@') || 'Please enter valid email'
+});
+```
+
+#### Ask Function Signatures
+
+```javascript
+// Smart detection syntax
+ask(question, defaultValue, options?)
+ask(question, choices[], options?)  
+ask(question, options)
+
+// Examples:
+ask('Name?', 'John')                    // String default
+ask('Continue?', true)                  // Boolean -> confirm type
+ask('Port?', 3000)                      // Number default  
+ask('Color?', ['red', 'blue'])          // Array -> choices
+ask('Colors?', ['red', 'blue'], { multiple: true })  // Array + options
+```
+
+#### Ask Options Reference
+
+| Parameter/Option | Type | Description | Example |
+|------------------|------|-------------|---------|
+| **Smart Detection** | | |
+| `defaultValue` | String/Number | Sets default value for text/number input | `'John'`, `3000` |
+| `defaultValue` | Boolean | Auto-detects as confirmation prompt | `true`, `false` |
+| `choices` | Array | Auto-detects as selection list | `['A', 'B', 'C']` |
+| **Options Object** | | |
+| `multiple` | Boolean | Enables multiple selections (requires `choices`) | `true` |
+| `multiline` | Boolean | Opens system editor for multi-line input | `true` |
+| `editor` | Boolean | Opens system editor for multi-line input (same as `multiline`) | `true` |
+| `default` | Any | Default value or content (when using options object) | `'default value'` |
+| `type` | String | Input type: `'input'`, `'confirm'`, `'password'`, `'number'` | `'password'` |
+| `validate` | Function | Custom validation function | `(input) => input.length > 0` |
+
+#### Advanced Ask Examples
+
+```javascript
+/**
+ * Interactive project setup with smart syntax
+ */
+export async function setupProject() {
+  // Simple syntax with smart detection
+  const projectName = await ask('Project name:', 'my-awesome-project');
+  
+  const projectType = await ask('Project type:', [
+    'Web App', 'API', 'CLI Tool', 'Library'
+  ]);
+  
+  const dependencies = await ask('Select dependencies:', [
+    'express', 'lodash', 'axios', 'moment', 'uuid'
+  ], { multiple: true });
+  
+  const useTypescript = await ask('Use TypeScript?', false);
+  
+  // Editor input for complex configuration
+  const packageJson = await ask('Customize package.json:', {
+    editor: true,
+    default: JSON.stringify({
+      name: projectName,
+      version: '1.0.0',
+      description: '',
+      dependencies: {}
+    }, null, 2)
+  });
+  
+  say(`Creating ${projectType}: ${projectName}`);
+  say(`Dependencies: ${dependencies.join(', ')}`);
+  say(`TypeScript: ${useTypescript ? 'Yes' : 'No'}`);
+  
+  writeToFile('package.json', packageJson);
+}
+
+/**
+ * Git commit with editor input
+ */
+export async function interactiveCommit() {
+  const message = await ask('Enter commit message:', {
+    editor: true,
+    default: 'feat: \n\n# Write your commit message above\n# First line: brief summary (50 chars max)\n# Blank line, then detailed explanation'
+  });
+  
+  await exec`git commit -m "${message}"`;
+  say('✅ Committed successfully!');
+}
+
+/**
+ * Database migration with smart syntax
+ */
+export async function migrate() {
+  // Smart array detection for choices
+  const action = await ask('Migration action:', [
+    'Run pending migrations', 
+    'Rollback last migration', 
+    'Reset database', 
+    'Create new migration'
+  ]);
+  
+  if (action === 'Reset database') {
+    // Smart boolean detection for confirmation
+    const confirmed = await ask('⚠️  This will DELETE ALL DATA. Are you sure?', false);
+    
+    if (!confirmed) {
+      say('Migration cancelled');
+      return;
+    }
+  }
+  
+  // Execute migration based on selection...
+}
+
+/**
+ * Server configuration with mixed smart syntax
+ */
+export async function configureServer() {
+  // Simple defaults
+  const serverName = await ask('Server name:', 'my-server');
+  const port = await ask('Port number:', 8080);
+  const enableHTTPS = await ask('Enable HTTPS?', true);
+  
+  // Array with additional options
+  const databases = await ask('Select databases to connect:', [
+    'PostgreSQL', 'MongoDB', 'Redis', 'MySQL'
+  ], { multiple: true });
+  
+  // Mix of default + validation
+  const adminEmail = await ask('Admin email:', 'admin@example.com', {
+    validate: (email) => email.includes('@') || 'Please enter a valid email'
+  });
+  
+  say(`Configuring ${serverName} on port ${port}`);
+  say(`HTTPS: ${enableHTTPS ? 'Enabled' : 'Disabled'}`);
+  say(`Databases: ${databases.join(', ')}`);
+  say(`Admin: ${adminEmail}`);
+}
+```
+
+#### Output Functions
+
+```javascript
+// Output messages
+say('Building project...');          // Normal output with !
+yell('BUILD COMPLETE!');             // Emphasized ASCII art output
+
+// Wrap long operations with progress
 await task('Installing dependencies', async () => {
   await exec`npm install`;
 });
