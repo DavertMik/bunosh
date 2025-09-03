@@ -118,6 +118,13 @@ export async function testLiveOutput() {
   console.log("\n--- Test completed ---");
 }
 
+export async function testAsk() {
+
+  const description = await ask('Enter project description:', {
+    multiline: true
+  });
+}
+
 /**
  * 🐚 Test shell task with Bun shell commands
  */

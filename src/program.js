@@ -4,7 +4,7 @@ import traverseDefault from "@babel/traverse";
 const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
 import fs from 'fs';
-import openEditor from 'open-editor';
+import openEditor from './open-editor.js';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
@@ -251,12 +251,16 @@ export default function bunosh(commands, source) {
 
   const editCmd = program.command('edit')
     .description('Open the bunosh file in your editor. $EDITOR or \'code\' is used.')
-    .action(() => {
-      openEditor([{
-        file: BUNOSHFILE,
-      }], {
-        editor: process.env.EDITOR ? null : 'code',
-      });
+    .action(async () => {
+      try {
+        await openEditor([{
+          file: BUNOSHFILE,
+        }]);
+      } catch (error) {
+        console.error(error.message);
+        console.error('Set $EDITOR environment variable to use a different editor');
+        process.exit(1);
+      }
     });
 
   internalCommands.push(editCmd);
