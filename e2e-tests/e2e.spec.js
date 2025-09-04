@@ -123,7 +123,10 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should handle failing task properly', async () => {
-      const result = await runBunoshCommand('failing:task', { cwd: testDir });
+      const result = await runBunoshCommand('failing:task', { 
+        cwd: testDir,
+        env: { NODE_ENV: 'test' }
+      });
       
       // Task should complete but show failures in output
       expect(result.success).toBe(true); // Process succeeds in test mode

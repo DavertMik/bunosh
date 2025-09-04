@@ -14,97 +14,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Runtime Environment
 
-**Primary Runtime**: This project is optimized for Bun JavaScript runtime.
-- **Bun** (recommended): Full functionality with real-time streaming output
-- **Node.js** (fallback): Basic functionality with simple command execution
-- Use `bun <script.js>` or `node <script.js>` to execute JavaScript files
+**Primary Runtime**: Bun JavaScript runtime
+- **Bun**: Full functionality with real-time streaming output
+- **Node.js**: Fallback with simple command execution
 - Bun provides faster startup and built-in TypeScript support
-
-### Runtime Compatibility
-The system automatically detects the runtime environment:
-- **Bun**: Uses `Bun.spawn()` for real-time streaming command output
-- **Node.js**: Falls back to `execSync()` for simple command execution without streaming
 
 ## Core Architecture
 
-Bunosh is a task runner that transforms JavaScript functions into CLI commands. The architecture consists of:
+Bunosh transforms JavaScript functions into CLI commands.
 
 ### Main Components
 - `bunosh.js` - Entry point that loads and executes Bunoshfile.js
-- `src/program.js` - Core CLI program builder using Commander.js and Babel AST parsing
+- `src/program.js` - CLI program builder using Commander.js and Babel AST parsing
 - `index.js` - Exports built-in task functions to global.bunosh object
 - `Bunoshfile.js` - User-defined tasks file (created by `bunosh init`)
 
 ### Task System
-- Each exported function in Bunoshfile.js becomes a CLI command
-- Function names convert to kebab-case commands (e.g., `helloWorld` → `hello:world`)
-- Function parameters become CLI arguments and options
-- Last parameter as object with defaults becomes CLI options
-- JSDoc comments or first-line comments become command descriptions
+- Exported functions become CLI commands
+- Function names convert to kebab-case (e.g., `helloWorld` → `hello:world`)
+- Parameters become CLI arguments and options
+- JSDoc comments become command descriptions
 
-### Built-in Tasks (`src/tasks/`)
-- `exec.js` - Cross-platform command execution with real-time streaming output
-- `shell.js` - Native Bun shell execution with Node.js fallback to exec
-- `fetch.js` - HTTP requests with progress indicators
-- `writeToFile.js` - File writing with template string builder
-- `copyFile.js` - File copying operations
+## Global API
 
-**Task Usage:**
-- Use `shell` for Bun performance, simple commands
-- Use `exec` for cross-platform compatibility, complex operations, streaming output
-- Both support `.env(object)` and `.cwd(path)` methods
+Functions available via `global.bunosh` or direct imports:
 
-### Output System
-- Console-based output with pluggable formatter support
-- `src/io.js` - User interaction functions (ask, say, yell)
-- `src/task.js` - Task execution wrapper with status tracking and counter
-- `src/printer.js` - Central output controller with formatter delegation
-- Real-time streaming output for long-running commands
-
-#### Output Formatters
-Output formatting is handled by pluggable formatter classes in `src/formatters/`:
-
-**ConsoleFormatter** (`src/formatters/console.js`):
-- Default formatter for local development
-- Colored terminal output with icons (▶ ✓ ✗)
-- Full-width lines with background colors
-- Delayed start printing (50ms) - quick tasks show only completion
-- Auto-detected when `!process.env.CI`
-
-**GitHubActionsFormatter** (`src/formatters/github-actions.js`):
-- Specialized output for GitHub Actions CI
-- Uses `::group::`, `::notice::`, `::error::` commands
-- Creates collapsible sections for long-running tasks
-- Auto-detected when `process.env.GITHUB_ACTIONS === 'true'`
-
-**Architecture**:
-- `src/formatters/factory.js` - Auto-detects environment and creates formatter
-- `src/formatters/base.js` - Base class defining formatter interface
-- Each formatter handles start/finish/error/output formatting independently
-- Task counting system tracks all operations (exec, shell, fetch, writeToFile, copyFile)
-
-#### Adding New Formatters
-To add support for new CI systems (GitLab, TeamCity, Azure DevOps):
-1. Create formatter class extending `BaseFormatter`
-2. Implement `format(taskName, status, taskType, extra)` method
-3. Implement `formatOutput(line, isError)` method
-4. Add static `detect()` method for environment detection
-5. Register in `factory.js` FORMATTERS array
-
-### AST Processing
-The program uses Babel to parse Bunoshfile.js and extract:
-- Function signatures to generate CLI interfaces
-- JSDoc comments for command descriptions
-- Default parameter values for option defaults
-- Object destructuring patterns for CLI options
-
-### Global API
-Functions available in tasks via `global.bunosh` or direct imports:
+### Core Functions
 - `exec` / `$` - Cross-platform shell execution with streaming output
 - `shell` - Native Bun shell execution (fastest, with Node.js fallback)
 - `fetch` - HTTP requests
 - `writeToFile` - File operations
 - `copyFile` - File copying
 - `ask`, `say`, `yell` - User interaction
-- `task` - Task execution wrapper with console output
-- `stopOnFail`, `ignoreFail` - Error handling control
+
+### Task Control
+- `task(name, fn)` - Wrap function with task tracking and logging
+- `task.try(fn)` or `task.try(name, fn)` - Returns true/false on success/failure
+- `task.stopOnFailures()` - Exit immediately on any task failure
+- `task.ignoreFailures()` - Continue on task failures (default)
+- `task.silence()` - Globally disable task output
+- `task.prints()` - Globally enable task output (default)
+- `task.silent()` - Wrapper for executing tasks without output
+
+### Task Usage
+```javascript
+// Basic task
+await task('Build', () => shell`npm run build`);
+
+// Try operation
+const success = await task.try(() => shell`test -f file.txt`);
+
+// Failure control
+task.stopOnFailures();  // Exit on failure
+task.ignoreFailures();  // Continue on failure
+
+// Output control
+task.silence();  // Disable output
+await task.silent().task('Silent task', () => doSomething());
+```
+
+### Built-in Tasks (`src/tasks/`)
+- `exec.js` - Cross-platform command execution with streaming
+- `shell.js` - Native Bun shell with Node.js fallback
+- `fetch.js` - HTTP requests with progress
+- `writeToFile.js` - File writing with template builder
+- `copyFile.js` - File copying
+
+**Task Usage:**
+- Use `shell` for Bun performance, simple commands
+- Use `exec` for cross-platform compatibility, complex operations
+- Both support `.env(object)` and `.cwd(path)` methods
+
+## Important Implementation Details
+
+### Exit Code Behavior
+- Default: Exit code 1 if any tasks fail
+- Test mode (NODE_ENV=test): Exit code 0 regardless of failures
+- `stopOnFailures()`: Exit immediately with code 1 on failure
+- `ignoreFailures()`: Exit with code 0 regardless of failures
+
+### Output Formatters
+- ConsoleFormatter (default) - Colored terminal output
+- GitHubActionsFormatter - CI-specific formatting
+- Auto-detected based on environment
+
+### AST Processing
+Uses Babel to parse Bunoshfile.js and extract:
+- Function signatures for CLI generation
+- JSDoc comments for command descriptions
+- Default parameter values for option defaults

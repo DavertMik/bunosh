@@ -368,12 +368,125 @@ Commands:
 
 ```
 
-## Built-in Functions
+### Error Handling
 
-All Bunosh functions are available via `global.bunosh`:
+Bunosh provides flexible error handling to suit different scenarios:
 
 ```javascript
-const { exec, shell, fetch, writeToFile, copyFile, say, ask, yell, task } = global.bunosh;
+// Option 1: Try operations that might fail
+export async function checkConnection() {
+  const success = await task.try('Database connection', () => {
+    return shell`nc -z db 5432`;
+  });
+
+  if (success) {
+    say('✅ Database is reachable');
+  } else {
+    say('⚠️ Database unreachable, using fallback');
+    await useFallbackDatabase();
+  }
+}
+
+// Option 2: Continue on failures
+export async function cleanup() {
+  task.ignoreFailures();  // Don't exit if cleanup fails
+
+  await task('Remove temp files', () => shell`rm -rf tmp/*`);
+  await task('Clear logs', () => shell`rm -f logs/*.log`);
+  // Script continues even if some operations fail
+}
+
+// Option 3: Stop immediately on failure
+export async function deploy() {
+  task.stopOnFailures();  // Exit immediately if any task fails
+
+  await task('Run tests', () => shell`npm test`);
+  await task('Build', () => shell`npm run build`);
+  await task('Deploy', () => shell`deploy-script`);
+  // If any task fails, script exits immediately
+}
+
+// Option 4: Traditional try/catch for critical operations
+export async function deployWithRollback(env) {
+  try {
+    await deploy(env);
+  } catch (error) {
+    say('❌ Deployment failed, rolling back...');
+    await exec`kubectl rollout undo deployment/myapp`;
+    throw error;
+  }
+}
+```
+
+### Output Control
+
+Control when tasks print to the console - perfect for background operations, CI/CD pipelines, or reducing noise.
+
+```javascript
+// Globally disable all task output
+task.silence();
+await task('Background cleanup', () => shell`rm -rf temp-files`);
+
+// Restore output printing
+task.prints();
+
+// Execute specific tasks silently
+await task.silent().task('Silent operation', () => {
+  // This task won't print any output
+  doSomethingQuietly();
+});
+
+// Silent try operations
+const success = await task.silent().try('Risky operation', () => {
+  return attemptSomethingRisky();
+});
+```
+
+**Use cases:**
+- CI/CD pipelines with noisy tasks
+- Background cleanup operations
+- Reducing output noise in automated workflows
+- Running optional checks without cluttering output
+
+### Handle Task Failures
+
+Choose how your script behaves when tasks fail - stop immediately or continue and handle failures gracefully.
+
+```javascript
+// Stop immediately on any failure (strict mode)
+task.stopOnFailures();
+await task('Deploy', () => shell`deploy-script`);
+// If deploy fails, script exits immediately
+
+// Continue on failures (permissive mode)
+task.ignoreFailures();
+await task('Optional checks', () => shell`might-fail-command`);
+// Script continues even if checks fail
+
+// Try operations that might fail
+const success = await task.try('Test connection', () => {
+  return shell`nc -z localhost 3000`;
+});
+
+if (success) {
+  say('✅ Connection successful');
+} else {
+  say('⚠️ Connection failed, but continuing...');
+}
+```
+
+**Failure behaviors:**
+- **Default**: Continue running, show error, exit with code 1 at end
+- **`stopOnFailures()`**: Exit immediately with code 1 on any failure
+- **`ignoreFailures()`**: Continue running, exit with code 0 regardless of failures
+- **`task.try()`**: Returns true/false, never exits, logs as warning
+
+## Tasks
+
+All Bunosh tasks are available via `global.bunosh`:
+
+```javascript
+const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
 ```
 
 ### Shell Execution
@@ -403,24 +516,17 @@ await shell`ls -la`;
 await shell`cat package.json`;
 ```
 
-#### When to Use Which?
+Comparison: `shell` vs `exec`
 
-**Use `shell` when:**
-- ✅ Running under Bun for optimal performance  
-- ✅ Executing simple commands (`pwd`, `ls`, `echo`, `cat`)
-- ✅ Want fastest possible execution
-- ✅ Working with basic file operations
-
-**Use `exec` when:**
-- ✅ Need cross-platform compatibility (Node.js + Bun)
-- ✅ Using complex shell features (pipes, redirections, command chaining)
-- ✅ Want real-time streaming output for long-running commands
-- ✅ Running package managers (`npm install`, `docker build`)
+| Command | Best For | Use Cases |
+|---------|----------|-----------|
+| `shell` | Simple, fast commands under Bun | `pwd`, `ls`, `echo`, `cat`, basic file ops |
+| `exec` | Complex, cross-platform commands | Pipes, redirections, streaming output, package managers |
 
 Both support the same API and return the same `TaskResult` object:
 
 ```javascript
-// Both tasks support environment variables  
+// Both tasks support environment variables
 await shell`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 
@@ -439,11 +545,11 @@ Both `exec` and `shell` return a `TaskResult` object with the following properti
 
 ```javascript
 const result = await exec`ls -la`;
-// or 
+// or
 const result = await shell`ls -la`;
 
 // Properties
-result.status   // 'success' or 'fail' 
+result.status   // 'success' or 'fail'
 result.output   // Combined stdout/stderr as string
 
 // Getters (boolean)
@@ -574,13 +680,13 @@ const email = await ask('Email address:', 'user@example.com', {
 ```javascript
 // Smart detection syntax
 ask(question, defaultValue, options?)
-ask(question, choices[], options?)  
+ask(question, choices[], options?)
 ask(question, options)
 
 // Examples:
 ask('Name?', 'John')                    // String default
 ask('Continue?', true)                  // Boolean -> confirm type
-ask('Port?', 3000)                      // Number default  
+ask('Port?', 3000)                      // Number default
 ask('Color?', ['red', 'blue'])          // Array -> choices
 ask('Colors?', ['red', 'blue'], { multiple: true })  // Array + options
 ```
@@ -610,17 +716,17 @@ ask('Colors?', ['red', 'blue'], { multiple: true })  // Array + options
 export async function setupProject() {
   // Simple syntax with smart detection
   const projectName = await ask('Project name:', 'my-awesome-project');
-  
+
   const projectType = await ask('Project type:', [
     'Web App', 'API', 'CLI Tool', 'Library'
   ]);
-  
+
   const dependencies = await ask('Select dependencies:', [
     'express', 'lodash', 'axios', 'moment', 'uuid'
   ], { multiple: true });
-  
+
   const useTypescript = await ask('Use TypeScript?', false);
-  
+
   // Editor input for complex configuration
   const packageJson = await ask('Customize package.json:', {
     editor: true,
@@ -631,11 +737,11 @@ export async function setupProject() {
       dependencies: {}
     }, null, 2)
   });
-  
+
   say(`Creating ${projectType}: ${projectName}`);
   say(`Dependencies: ${dependencies.join(', ')}`);
   say(`TypeScript: ${useTypescript ? 'Yes' : 'No'}`);
-  
+
   writeToFile('package.json', packageJson);
 }
 
@@ -647,7 +753,7 @@ export async function interactiveCommit() {
     editor: true,
     default: 'feat: \n\n# Write your commit message above\n# First line: brief summary (50 chars max)\n# Blank line, then detailed explanation'
   });
-  
+
   await exec`git commit -m "${message}"`;
   say('✅ Committed successfully!');
 }
@@ -658,22 +764,22 @@ export async function interactiveCommit() {
 export async function migrate() {
   // Smart array detection for choices
   const action = await ask('Migration action:', [
-    'Run pending migrations', 
-    'Rollback last migration', 
-    'Reset database', 
+    'Run pending migrations',
+    'Rollback last migration',
+    'Reset database',
     'Create new migration'
   ]);
-  
+
   if (action === 'Reset database') {
     // Smart boolean detection for confirmation
     const confirmed = await ask('⚠️  This will DELETE ALL DATA. Are you sure?', false);
-    
+
     if (!confirmed) {
       say('Migration cancelled');
       return;
     }
   }
-  
+
   // Execute migration based on selection...
 }
 
@@ -685,17 +791,17 @@ export async function configureServer() {
   const serverName = await ask('Server name:', 'my-server');
   const port = await ask('Port number:', 8080);
   const enableHTTPS = await ask('Enable HTTPS?', true);
-  
+
   // Array with additional options
   const databases = await ask('Select databases to connect:', [
     'PostgreSQL', 'MongoDB', 'Redis', 'MySQL'
   ], { multiple: true });
-  
+
   // Mix of default + validation
   const adminEmail = await ask('Admin email:', 'admin@example.com', {
     validate: (email) => email.includes('@') || 'Please enter a valid email'
   });
-  
+
   say(`Configuring ${serverName} on port ${port}`);
   say(`HTTPS: ${enableHTTPS ? 'Enabled' : 'Disabled'}`);
   say(`Databases: ${databases.join(', ')}`);
@@ -706,11 +812,11 @@ export async function configureServer() {
 #### Output Functions
 
 ```javascript
-// Output messages
+// Simple output messages
 say('Building project...');          // Normal output with !
 yell('BUILD COMPLETE!');             // Emphasized ASCII art output
 
-// Wrap long operations with progress
+// Wrap operations with progress tracking
 await task('Installing dependencies', async () => {
   await exec`npm install`;
 });
@@ -773,7 +879,7 @@ ai.configure({
 import { openrouter } from '@openrouter/ai-sdk-provider';
 ai.configure({
   registerProvider: {
-    envVar: 'OPENROUTER_API_KEY', 
+    envVar: 'OPENROUTER_API_KEY',
     provider: {
       createInstance: (modelName) => openrouter(modelName)
     }
@@ -814,7 +920,7 @@ const { ai, writeToFile, say } = global.bunosh;
  */
 export async function generateDocs() {
   const codebase = fs.readFileSync('src/index.js', 'utf8');
-  
+
   const result = await ai(
     `Generate documentation for this code: ${codebase}`,
     {
@@ -824,7 +930,7 @@ export async function generateDocs() {
       installation: 'Installation instructions'
     }
   );
-  
+
   writeToFile('README.md', (line) => {
     line`# ${result.overview}`;
     line``;
@@ -837,7 +943,7 @@ export async function generateDocs() {
     line`## Examples`;
     line`${result.examples}`;
   });
-  
+
   say('📚 Documentation generated!');
 }
 
@@ -846,18 +952,18 @@ export async function generateDocs() {
  */
 export async function codeReview(filename) {
   const code = fs.readFileSync(filename, 'utf8');
-  
+
   const analysis = await ai(
     `Review this code for improvements: ${code}`,
     {
       issues: 'List of potential issues',
-      suggestions: 'Specific improvement suggestions',  
+      suggestions: 'Specific improvement suggestions',
       security: 'Security considerations',
       performance: 'Performance optimization tips',
       rating: 'Overall code quality rating (1-10)'
     }
   );
-  
+
   say(`🔍 Code Review for ${filename}:`);
   console.log(`Rating: ${analysis.rating}/10`);
   console.log(`Issues: ${analysis.issues}`);
@@ -871,7 +977,7 @@ export async function codeReview(filename) {
  */
 export async function generateTests(sourceFile) {
   const code = fs.readFileSync(sourceFile, 'utf8');
-  
+
   const tests = await ai(
     `Generate comprehensive unit tests for this code: ${code}`,
     {
@@ -880,14 +986,14 @@ export async function generateTests(sourceFile) {
       mockSetup: 'Required mocks and setup code'
     }
   );
-  
+
   const testFile = sourceFile.replace('.js', '.test.js');
   writeToFile(testFile, (line) => {
     line`${tests.mockSetup}`;
     line``;
     line`${tests.testSuite}`;
   });
-  
+
   say(`🧪 Tests generated: ${testFile}`);
   say(`Edge cases: ${tests.edgeCases}`);
 }
@@ -897,12 +1003,12 @@ export async function generateTests(sourceFile) {
  */
 export async function smartCommit() {
   const diff = await exec`git diff --staged`;
-  
+
   if (diff.hasFailed || !diff.output.trim()) {
     say('No staged changes found');
     return;
   }
-  
+
   const commit = await ai(
     `Generate a commit message for these changes: ${diff.output}`,
     {
@@ -911,10 +1017,10 @@ export async function smartCommit() {
       type: 'Commit type (feat/fix/docs/refactor/test/chore)'
     }
   );
-  
+
   const message = `${commit.type}: ${commit.title}\n\n${commit.body}`;
   await exec`git commit -m "${message}"`;
-  
+
   say(`✅ Committed with AI-generated message:`);
   console.log(message);
 }
@@ -925,15 +1031,15 @@ export async function smartCommit() {
 export async function setupEnterpriseAI() {
   // Import your enterprise AI provider
   import { bedrock } from '@ai-sdk/amazon-bedrock';
-  
+
   // Configure for enterprise use
   const enterpriseModel = bedrock('anthropic.claude-3-sonnet-20240229-v1:0', {
     region: 'us-east-1'
     // Uses AWS credentials from environment/profile
   });
-  
+
   ai.configure({ model: enterpriseModel });
-  
+
   const analysis = await ai(
     'Analyze our company performance from this quarterly report: [data]',
     {
@@ -943,7 +1049,7 @@ export async function setupEnterpriseAI() {
       recommendations: 'Strategic recommendations'
     }
   );
-  
+
   say('📊 Enterprise AI analysis complete');
   console.log(analysis);
 }
@@ -977,7 +1083,7 @@ export async function translate(text, language = 'Spanish') {
 
 The AI task features:
 - **🎭 Animated Progress**: Braille spinner animation during generation
-- **📊 Token Tracking**: Shows token usage for cost monitoring  
+- **📊 Token Tracking**: Shows token usage for cost monitoring
 - **⚡ Fast Inference**: Optimized for speed with Groq and other providers
 - **🔧 Structured Output**: Get JSON responses with defined schemas
 - **🎯 Provider Auto-Detection**: Automatically detects available API keys
@@ -1062,18 +1168,7 @@ const results = await Promise.all([
 ]);
 ```
 
-### Error Handling
-```javascript
-export async function deployWithRollback(env) {
-  try {
-    await deploy(env);
-  } catch (error) {
-    say('❌ Deployment failed, rolling back...');
-    await exec`kubectl rollout undo deployment/myapp`;
-    throw error;
-  }
-}
-```
+
 
 ### NPM Scripts Integration
 Bunosh automatically includes your package.json scripts:

@@ -1,5 +1,5 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
-import { task, TaskStatus, tasksExecuted, createTaskInfo, finishTaskInfo } from '../src/task.js';
+import { describe, test, expect, mock, spyOn } from 'bun/test';
+import { task, tryTask, TaskStatus, tasksExecuted, createTaskInfo, finishTaskInfo } from '../src/task.js';
 import execFunction from '../src/tasks/exec.js';
 import fetchFunction from '../src/tasks/fetch.js';
 import writeToFileFunction from '../src/tasks/writeToFile.js';
@@ -13,6 +13,7 @@ describe('Task System', () => {
     expect(TaskStatus.RUNNING).toBe('running');
     expect(TaskStatus.FAIL).toBe('fail');
     expect(TaskStatus.SUCCESS).toBe('success');
+    expect(TaskStatus.WARNING).toBe('warning');
   });
 
   test('createTaskInfo and finishTaskInfo manage task lifecycle', () => {
@@ -193,5 +194,106 @@ describe('CopyFile Task', () => {
     require('fs').unlinkSync(destFile);
     
     console.log.mockRestore();
+  });
+});
+
+describe('Task Try Function', () => {
+  test('tryTask returns true for successful execution', async () => {
+    spyOn(console, 'log').mockImplementation(mockConsoleLog);
+    
+    const result = await tryTask('successful task', () => {
+      return 'success';
+    });
+    
+    expect(result).toBe(true);
+    
+    const lastTask = tasksExecuted[tasksExecuted.length - 1];
+    expect(lastTask.status).toBe(TaskStatus.SUCCESS);
+    
+    console.log.mockRestore();
+  });
+
+  test('tryTask returns false for failed execution', async () => {
+    spyOn(console, 'log').mockImplementation(mockConsoleLog);
+    
+    const result = await tryTask('failing task', () => {
+      throw new Error('test error');
+    });
+    
+    expect(result).toBe(false);
+    
+    const lastTask = tasksExecuted[tasksExecuted.length - 1];
+    expect(lastTask.status).toBe(TaskStatus.WARNING);
+    expect(lastTask.result.output).toBe('test error');
+    
+    console.log.mockRestore();
+  });
+
+  test('tryTask can infer name from function', async () => {
+    spyOn(console, 'log').mockImplementation(mockConsoleLog);
+    
+    const namedFunction = function testFunction() {
+      return 'result';
+    };
+    
+    await tryTask(namedFunction);
+    
+    const lastTask = tasksExecuted[tasksExecuted.length - 1];
+    expect(lastTask.name).toContain('testFunction');
+    
+    console.log.mockRestore();
+  });
+});
+
+describe('Failure Handling Modes', () => {
+
+  test('ignoreFailures allows task failures without exit', async () => {
+    spyOn(console, 'log').mockImplementation(mockConsoleLog);
+    spyOn(process, 'exit').mockImplementation(() => {});
+    
+    // Reset failure handling mode
+    const { ignoreFailures } = await import('../src/task.js');
+    ignoreFailures();
+    
+    try {
+      await task('failing task', () => {
+        throw new Error('test error');
+      });
+      // Should reach here without exiting
+      expect(true).toBe(true);
+    } catch (error) {
+      // task() should not throw
+      expect(true).toBe(false);
+    }
+    
+    expect(process.exit).not.toHaveBeenCalled();
+    
+    console.log.mockRestore();
+    process.exit.mockRestore();
+  });
+
+  test('stopOnFailures exits immediately on task failure', async () => {
+    spyOn(console, 'log').mockImplementation(mockConsoleLog);
+    spyOn(process, 'exit').mockImplementation(() => {});
+    
+    // Reset and set stop on failures mode
+    const { stopOnFailures, ignoreFailures } = await import('../src/task.js');
+    ignoreFailures(); // Reset first
+    stopOnFailures();
+    
+    try {
+      await task('failing task', () => {
+        throw new Error('test error');
+      });
+      expect(true).toBe(false); // Should not reach here
+    } catch (error) {
+      // task() should not throw even in stopOnFailures mode
+      expect(true).toBe(false);
+    }
+    
+    expect(process.exit).toHaveBeenCalledWith(1);
+    
+    console.log.mockRestore();
+    process.exit.mockRestore();
   });
 });
