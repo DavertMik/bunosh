@@ -31,25 +31,18 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 ## Why Choose Bunosh?
 
-### Over Bash Scripts
-
-- **Readable** syntax if you already know JavaScript (no cryptic bash symbol)
-- **Cross-platform** without compatibility headaches
-- **Rich ecosystem** - use any npm package
-
-### Over npm scripts
-
-- **Real programming** - loops, conditions, async/await
-- **Interactive** - outputs, prompts, confirmations, selections
-- **Composable** - one file for everything! Call functions from other functions
-- **Arguments & options** - full CLI parameter support
-
-### Over Traditional Task Runners
-
-- **No configuration files** - just export functions
-- **No DSL to learn** - it's just JavaScript
-- **Native speed** - runs on Bun or Node.js
-- **Modern DX** - auto-completion, beautiful output
+| Comparison | 🐚 Bash Scripts | 📦 npm scripts | 🛠️ Traditional Task Runners | 🍲 **Bunosh** |
+|------------|-----------------|----------------|------------------------------|----------------|
+| **Syntax** | 😵 Cryptic bash symbols | ✅ Simple commands | 📚 Custom DSL to learn | ✅ 🎯 Pure JavaScript |
+| **Cross-platform** | ❌ Compatibility headaches | ✅ Works everywhere | ⚠️ Depends on runner | ✅ 🌍 Seamless compatibility |
+| **Ecosystem** | ⚠️ Limited tools | ✅ npm packages | ⚠️ Plugin dependent | ✅ 📚 Full npm ecosystem |
+| **Programming Features** | ❌ Basic scripting | ❌ No real programming | ✅ Some support | ✅ 🚀 Full JavaScript power |
+| **Interactivity** | ⚠️ Basic input/output | ❌ Static commands | ⚠️ Limited | ✅ 🎨 Rich prompts & outputs |
+| **Composability** | ⚠️ Function calls | ❌ Separate scripts | ⚠️ Task dependencies | ✅ 🔗 One file, call anything |
+| **CLI Features** | ❌ Manual parsing | ❌ No argument support | ✅ Good support | ✅ ⚡ Auto arguments & options |
+| **Configuration** | ❌ Manual setup | ❌ package.json required | ❌ Config files needed | ✅ 🎯 Zero configuration |
+| **Performance** | ✅ Native speed | ⚠️ Node.js overhead | ⚠️ Varies by runner | ✅ ⚡ Bun/Node.js native speed |
+| **Developer Experience** | ❌ Basic tooling | ❌ No help system | ⚠️ Depends on runner | ✅ 🎨 Auto-completion & beautiful output |
 
 ## Table of Contents
 
