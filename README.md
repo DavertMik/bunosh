@@ -38,22 +38,20 @@ No nore words, just code:
 // bunosh hello:world
 
 export async function helloWorld(name = 'person') {
-  name = ask("What's your name?", name);
+  name = await ask("What's your name?", name);
   say(`👋 Hello, ${name}!`);
-  const city = ask('Which city do you live in?')
-  const result = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric`)
-  const weather = JSON.parse(result.output)
-  say(`Weather in your city ${weather.weather[0].description}, ${weather.main.temp}°C`)
+  const city = await ask('Which city do you live in?')
+  const result = await fetch(`https://wttr.in/${city}?format=3`)
+  say(`Weather in your city ${result.output}`)
 
-  const toCleanup = ask('Do you want me to cleanup tmp for you?', true);
+  const toCleanup = await ask('Do you want me to cleanup tmp for you?', true);
 
   if (!toCleanup) {
     say('Bye, then!');
     return;
   }
 
-  const tmpDir = require('os').tmpdir();
-  await shell`rm -rf ${tmpDir}/*`;
+  await shell`rm -rf ${require('os').tmpdir()}/*`;
   say('🧹 Cleaned up!');
 }
 ````
