@@ -85,6 +85,22 @@ await task.silent().task('Silent task', () => doSomething());
 - Use `exec` for cross-platform compatibility, complex operations
 - Both support `.env(object)` and `.cwd(path)` methods
 
+## Testing
+
+The project uses two different test frameworks:
+
+### Unit Tests (Bun Test)
+- **Command**: `bun test` - Run all unit tests
+- **Location**: `test/` directory
+- **Framework**: Bun's built-in test framework (`bun:test`)
+- **Usage**: For testing core functionality, task system, and individual modules
+
+### End-to-End Tests (Vitest)
+- **Command**: `npm run test:e2e` - Run all e2e tests
+- **Location**: `e2e-tests/` directory  
+- **Framework**: Vitest
+- **Usage**: For testing CLI behavior, command execution, and integration scenarios
+
 ## Important Implementation Details
 
 ### Exit Code Behavior
