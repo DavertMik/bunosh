@@ -23,28 +23,53 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 ### ✨ Key Features
 
 - **🚀 Zero Configuration** - Write functions, get CLI commands automatically
-- **🎨 pure JavaScript** - write commands as JavaScript functions
+- **🎨 Pure JavaScript** - write commands as JavaScript functions
 - **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
 - **🤖 AI-Powered** - integrate LLM calls into your daily tasks
 - **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
 - **🎯 Smart CLI** - Auto-completion, help generation, and intuitive argument handling
 
+## Hello World
+
+No nore words, just code:
+
+```js
+// this is a command in Bunoshfile.js
+// bunosh hello:world
+
+export async function helloWorld(name = 'person') {
+  name = ask("What's your name?", name);
+  say(`👋 Hello, ${name}!`);
+  const city = ask('Which city do you live in?')
+  const result = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric`)
+  const weather = JSON.parse(result.output)
+  say(`Weather in your city ${weather.weather[0].description}, ${weather.main.temp}°C`)
+
+  const toCleanup = ask('Do you want me to cleanup tmp for you?', true);
+
+  if (!toCleanup) {
+    say('Bye, then!');
+    return;
+  }
+
+  const tmpDir = require('os').tmpdir();
+  await shell`rm -rf ${tmpDir}/*`;
+  say('🧹 Cleaned up!');
+}
+````
+
 ## Why Choose Bunosh?
 
-| Comparison | 🐚 Bash Scripts | 📦 npm scripts | 🛠️ Traditional Task Runners | 🍲 **Bunosh** |
+| Comparison | 🐚 Bash Scripts | 📦 npm scripts | 🛠️ Task Runners | 🍲 **Bunosh** |
 |------------|-----------------|----------------|------------------------------|----------------|
-| **Syntax** | 😵 Cryptic bash symbols | ✅ Simple commands | 📚 Custom DSL to learn | ✅ 🎯 Pure JavaScript |
-| **Cross-platform** | ❌ Compatibility headaches | ✅ Works everywhere | ⚠️ Depends on runner | ✅ 🌍 Seamless compatibility |
-| **Ecosystem** | ⚠️ Limited tools | ✅ npm packages | ⚠️ Plugin dependent | ✅ 📚 Full npm ecosystem |
-| **Programming Features** | ❌ Basic scripting | ❌ No real programming | ✅ Some support | ✅ 🚀 Full JavaScript power |
-| **Interactivity** | ⚠️ Basic input/output | ❌ Static commands | ⚠️ Limited | ✅ 🎨 Rich prompts & outputs |
-| **Composability** | ⚠️ Function calls | ❌ Separate scripts | ⚠️ Task dependencies | ✅ 🔗 One file, call anything |
-| **CLI Features** | ❌ Manual parsing | ❌ No argument support | ✅ Good support | ✅ ⚡ Auto arguments & options |
-| **Configuration** | ❌ Manual setup | ❌ package.json required | ❌ Config files needed | ✅ 🎯 Zero configuration |
-| **Performance** | ✅ Native speed | ⚠️ Node.js overhead | ⚠️ Varies by runner | ✅ ⚡ Bun/Node.js native speed |
-| **Developer Experience** | ❌ Basic tooling | ❌ No help system | ⚠️ Depends on runner | ✅ 🎨 Auto-completion & beautiful output |
+| **Syntax** | bash/zsh  | Simple commands | Custom DSL | ✅Pure JavaScript |
+| **Cross-platform** | ❌ Compatibility headaches | Works everywhere | Depends on runner | ✅ Seamless compatibility |
+| **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + full npm ecosystem |
+| **Programming Features** | Basic scripting | Basic scripting | DSL only | ✅  JavaScript |
+| **Composability** | Function calls | Separate scripts | Task dependencies | ✅ import & call any JS code |
+| **Performance** | ✅ Native speed | ⚠️ Node.js overhead | ⚠️ Varies by runner | ✅ ⚡ fast as Bun |
 
-## Table of Contents
+## TOC
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
