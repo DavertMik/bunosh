@@ -52,7 +52,7 @@ export async function helloWorld(name = 'person') {
   }
 
   await shell`rm -rf ${require('os').tmpdir()}/*`;
-  say('🧹 Cleaned up!');
+  say('🧹 Cleaned up! Have a great day!');
 }
 ````
 
@@ -64,8 +64,8 @@ export async function helloWorld(name = 'person') {
 | **Cross-platform** | ❌ Compatibility headaches | Works everywhere | Depends on runner | ✅ Seamless compatibility |
 | **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + full npm ecosystem |
 | **Programming Features** | Basic scripting | Basic scripting | DSL only | ✅  JavaScript |
-| **Composability** | Function calls | Separate scripts | Task dependencies | ✅ import & call any JS code |
-| **Performance** | ✅ Native speed | ⚠️ Node.js overhead | ⚠️ Varies by runner | ✅ ⚡ fast as Bun |
+| **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import & call any JS code |
+| **Performance** | Native speed | Node.js overhead | Varies by runner | ✅ Fast as Bun |
 
 ## TOC
 
