@@ -400,9 +400,9 @@ No magic here. Use `Promise.all()` to run tasks in parallel:
 ```javascript
 // Parallel tasks
 const results = await Promise.all([
-  task('Build frontend', () => exec`npm run build:frontend`),
-  task('Build backend', () => exec`npm run build:backend`),
-  task('Build docs', () => exec`npm run build:docs`)
+  exec`npm run build:frontend`,
+  exec`npm run build:backend`,
+  exec`npm run build:docs`
 ]);
 ```
 
@@ -429,9 +429,9 @@ By default bunosh executes all tasks event if they fail. To stop execution immed
 export async function deployStrict() {
   task.stopOnFailures();  // Exit immediately on any task failure
 
-  await task('Run tests', () => exec`npm test`);
-  await task('Build', () => exec`npm run build`);
-  await task('Deploy', () => exec`deploy-script`);
+  await exec`npm test`;
+  await exec`npm run build`;
+  await exec`deploy-script`;
   // If any task fails, script exits immediately
 }
 
@@ -512,7 +512,7 @@ const { ai, writeToFile } = global.bunosh;
 /**
  * Generate commit message from staged changes
  */
-export async function smartCommit() {
+export async function commit() {
   const diff = await exec`git diff --staged`;
 
   if (!diff.output.trim()) {
@@ -539,7 +539,7 @@ export async function smartCommit() {
 }
 ```
 
-See more ai usage examples below
+See more ai usage examples below:
 
 ## Examples
 
@@ -626,12 +626,8 @@ export async function generateReleaseNotes(fromTag = '', toTag = 'HEAD') {
 
     Group changes logically and write user-friendly descriptions.`,
     {
-      highlights: 'Top 3-5 highlights for this release',
       features: 'New features (bullet points with emoji)',
-      improvements: 'Improvements and enhancements',
       fixes: 'Bug fixes',
-      breaking: 'Breaking changes (if any)',
-      migration: 'Migration guide (if breaking changes)',
       acknowledgments: 'Contributors and acknowledgments'
     }
   );
@@ -641,27 +637,11 @@ export async function generateReleaseNotes(fromTag = '', toTag = 'HEAD') {
     line`# Release v${version}`;
     line`*${new Date().toLocaleDateString()}*`;
     line``;
-    line`## 🎯 Highlights`;
-    line`${releaseNotes.highlights}`;
-    line``;
     line`## ✨ New Features`;
     line`${releaseNotes.features}`;
     line``;
-    line`## 💪 Improvements`;
-    line`${releaseNotes.improvements}`;
-    line``;
     line`## 🐛 Bug Fixes`;
     line`${releaseNotes.fixes}`;
-
-    if (releaseNotes.breaking) {
-      line``;
-      line`## ⚠️ Breaking Changes`;
-      line`${releaseNotes.breaking}`;
-      line``;
-      line`## 📋 Migration Guide`;
-      line`${releaseNotes.migration}`;
-    }
-
     line``;
     line`## 🙏 Acknowledgments`;
     line`${releaseNotes.acknowledgments}`;
@@ -685,111 +665,6 @@ const analysis = await ai(`Analyze this error log ${fileContents.output}`, {
   preventionTips: "how to avoid this"
 });
 ```
-
-#### Development Environment Setup
-
-```javascript
-/**
- * Setup complete development environment
- */
-export async function setupDev() {
-  const { exec, ask, say, task, writeToFile } = global.bunosh;
-
-  // Project configuration
-  const config = {
-    name: await ask('Project name:', 'my-awesome-project'),
-    type: await ask('Project type:', ['Web App', 'API', 'CLI Tool', 'Library']),
-    features: await ask('Select features:', [
-      'TypeScript',
-      'ESLint',
-      'Prettier',
-      'Jest',
-      'Husky',
-      'Docker',
-      'CI/CD'
-    ], { multiple: true }),
-    database: await ask('Database:', ['PostgreSQL', 'MongoDB', 'MySQL', 'None'])
-  };
-
-  // Initialize git
-  await task('Initialize Git', () => exec`git init`);
-
-  // Create package.json
-  await task('Create package.json', () => {
-    writeToFile('package.json', (line) => {
-      line`{`;
-      line`  "name": "${config.name}",`;
-      line`  "version": "0.0.1",`;
-      line`  "type": "module",`;
-      line`  "scripts": {`;
-      line`    "dev": "nodemon src/index.js",`;
-      line`    "build": "node build.js",`;
-      line`    "test": "jest"`;
-      line`  }`;
-      line`}`;
-    });
-  });
-
-  // Install dependencies
-  const deps = [];
-  if (config.features.includes('TypeScript')) deps.push('typescript', '@types/node');
-  if (config.features.includes('ESLint')) deps.push('eslint');
-  if (config.features.includes('Prettier')) deps.push('prettier');
-  if (config.features.includes('Jest')) deps.push('jest', '@types/jest');
-
-  if (deps.length > 0) {
-    await task('Install dependencies', () =>
-      exec`npm install --save-dev ${deps.join(' ')}`
-    );
-  }
-
-  // Setup Docker if selected
-  if (config.features.includes('Docker')) {
-    await task('Create Dockerfile', () => {
-      writeToFile('Dockerfile', (line) => {
-        line`FROM node:20-alpine`;
-        line`WORKDIR /app`;
-        line`COPY package*.json ./`;
-        line`RUN npm ci --only=production`;
-        line`COPY . .`;
-        line`EXPOSE 3000`;
-        line`CMD ["node", "src/index.js"]`;
-      });
-    });
-
-    writeToFile('.dockerignore', (line) => {
-      line`node_modules`;
-      line`npm-debug.log`;
-      line`.git`;
-      line`.env`;
-    });
-  }
-
-  // Setup CI/CD
-  if (config.features.includes('CI/CD')) {
-    await task('Setup GitHub Actions', () => {
-      exec`mkdir -p .github/workflows`;
-      writeToFile('.github/workflows/ci.yml', (line) => {
-        line`name: CI`;
-        line`on: [push, pull_request]`;
-        line`jobs:`;
-        line`  test:`;
-        line`    runs-on: ubuntu-latest`;
-        line`    steps:`;
-        line`      - uses: actions/checkout@v3`;
-        line`      - uses: actions/setup-node@v3`;
-        line`      - run: npm ci`;
-        line`      - run: npm test`;
-      });
-    });
-  }
-
-  yell('PROJECT READY!');
-  say(`✅ ${config.name} is set up with: ${config.features.join(', ')}`);
-}
-```
-
-### Deployment Examples
 
 #### Build and Publish Containers in Parallel
 
@@ -998,3 +873,12 @@ export async function cloudflareSetup(domain, ipAddress) {
 
   say(`✅ DNS configured: ${domain} → ${ipAddress}`);
 }
+
+
+## License
+
+MIT License - see LICENSE file for details.
+
+---
+
+Cooked with ❤️ from Ukraine 🇺🇦
