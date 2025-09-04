@@ -18,12 +18,31 @@ export async function buildDocker() {
   await exec`docker build .`.cwd("/home/davert/projects/testomatio/frontend");
 }
 
+export async function helloWorld(name = 'person') {
+  name = await ask("What's your name?", name);
+  say(`👋 Hello, ${name}!`);
+  const city = await ask('Which city do you live in?')
+  const result = await fetch(`https://wttr.in/${city}?format=3`)
+  say(`Weather in your city ${result.output}`)
+
+  const toCleanup = await ask('Do you want me to cleanup tmp for you?', true);
+
+  if (!toCleanup) {
+    say('Bye, then!');
+    return;
+  }
+
+  const tmpDir = require('os').tmpdir();
+  await shell`rm -rf ${tmpDir}/*`;
+  say('🧹 Cleaned up!');
+}
+
 /**
- * 🎉 Hello world
+ * 🎉 Test
  * @param {*} arg1
  * @param {*} opts
  */
-export async function helloWorld(
+export async function testEverything(
   arg1,
   opts = { user: null, val: "ok", flag: false },
 ) {
@@ -101,7 +120,7 @@ export async function aiSummary() {
     keywords: 'popular keywords',
     motto: 'motivational post',
     alternatives: 'what are comparable alternatives',
-    features: 'list of features uniq to this project'   
+    features: 'list of features uniq to this project'
   })
   console.log(res);
 }
