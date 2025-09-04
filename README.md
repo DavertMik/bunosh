@@ -60,11 +60,10 @@ export async function helloWorld(name = 'person') {
 
 | Comparison | 🐚 Bash Scripts | 📦 npm scripts | 🛠️ Task Runners | 🍲 **Bunosh** |
 |------------|-----------------|----------------|------------------------------|----------------|
-| **Syntax** | bash/zsh  | Simple commands | Custom DSL | ✅Pure JavaScript |
+| **Syntax** | bash/zsh  | Simple commands | Custom DSL | ✅ JavaScript |
 | **Cross-platform** | No | Yes | Yes | ✅ Yes |
-| **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + full npm ecosystem |
-| **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import & call any JS code |
-| **Performance** | Native speed | Node.js overhead | Varies by runner | ✅ Fast as Bun |
+| **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
+| **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
 
 ## TOC
 
