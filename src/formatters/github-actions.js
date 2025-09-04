@@ -22,6 +22,10 @@ export class GitHubActionsFormatter extends BaseFormatter {
         const errorDetails = extra.error ? ` - ${extra.error}` : '';
         return `::endgroup::\n::error::❌ ${fullTaskName}${errorDetails}`;
         
+      case 'warning':
+        const warningDetails = extra.error ? ` - ${extra.error}` : '';
+        return `::endgroup::\n::warning::⚠️ ${fullTaskName}${warningDetails}`;
+        
       case 'output':
         return taskName;
         

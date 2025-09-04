@@ -4,7 +4,8 @@ import Printer from './printer.js';
 export const TaskStatus = {
   RUNNING: 'running',
   FAIL: 'fail',
-  SUCCESS: 'success'
+  SUCCESS: 'success',
+  WARNING: 'warning'
 };
 
 export const tasksExecuted = [];
@@ -12,6 +13,7 @@ export const runningTasks = new Map();
 
 let taskCounter = 0;
 let stopFailToggle = true;
+let globalSilenceMode = false;
 const asyncLocalStorage = new AsyncLocalStorage();
 
 
@@ -23,16 +25,50 @@ export function ignoreFail(enable = true) {
   stopFailToggle = !enable;
 }
 
+// Global failure mode control
+// true = stop on failures (exit with code 1), false = continue on failures
+let stopOnFailuresMode = false;
+
+export function ignoreFailures() {
+  stopOnFailuresMode = false;
+}
+
+export function stopOnFailures() {
+  stopOnFailuresMode = true;
+}
+
+export function silence() {
+  globalSilenceMode = true;
+}
+
+export function prints() {
+  globalSilenceMode = false;
+}
+
 const startTime = Date.now();
 
 process.on('exit', (code) => {
   if (!process.env.BUNOSH_COMMAND_STARTED) return;
 
   const totalTime = Date.now() - startTime;
-  const success = code === 0;
   const tasksFailed = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.FAIL).length;
+  const tasksWarning = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.WARNING).length;
+  
+  // Check if we're in test environment
+  const isTestEnvironment = process.env.NODE_ENV === 'test' ||
+                            typeof Bun?.jest !== 'undefined' ||
+                            process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
+  
+  // Set exit code to 1 if any tasks failed AND we're not in ignoreFailures mode AND not in test environment
+  // Note: if stopOnFailuresMode is true, we would have already exited immediately
+  if (tasksFailed > 0 && !stopOnFailuresMode && !isTestEnvironment) {
+    process.exitCode = 1;
+  }
+  
+  const finalExitCode = (tasksFailed > 0 && !stopOnFailuresMode && !isTestEnvironment) ? 1 : code;
+  const success = finalExitCode === 0;
 
-  console.log(`\n🍲 ${success ? '' : 'FAIL '}Exit Code: ${code} | Tasks: ${tasksExecuted.length}${tasksFailed ? ` | Failed: ${tasksFailed}` : ''} | Time: ${totalTime}ms`);
+  console.log(`\n🍲 ${success ? '' : 'FAIL '}Exit Code: ${finalExitCode} | Tasks: ${tasksExecuted.length}${tasksFailed ? ` | Failed: ${tasksFailed}` : ''}${tasksWarning ? ` | Warnings: ${tasksWarning}` : ''} | Time: ${totalTime}ms`);
 });
 
 export function getRunningTaskCount() {
@@ -78,7 +114,7 @@ export class TaskInfo {
   }
 }
 
-export async function task(name, fn) {
+export async function tryTask(name, fn, isSilent = false) {
   if (!fn) {
     fn = name;
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
@@ -89,8 +125,9 @@ export async function task(name, fn) {
   tasksExecuted.push(taskInfo);
   runningTasks.set(taskInfo.id, taskInfo);
 
+  const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);
-  printer.start(name);
+  if (shouldPrint) printer.start(name);
 
   try {
     const result = await asyncLocalStorage.run(taskInfo.id, async () => {
@@ -104,7 +141,53 @@ export async function task(name, fn) {
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
 
-    printer.finish(name);
+    if (shouldPrint) printer.finish(name);
+    runningTasks.delete(taskInfo.id);
+
+    return true;
+  } catch (err) {
+    const endTime = Date.now();
+    const duration = endTime - taskInfo.startTime;
+
+    taskInfo.status = TaskStatus.WARNING;
+    taskInfo.duration = duration;
+    taskInfo.result = { status: TaskStatus.WARNING, output: err.message };
+
+    if (shouldPrint) printer.warning(name, err);
+    runningTasks.delete(taskInfo.id);
+
+    return false;
+  }
+}
+
+export async function task(name, fn, isSilent = false) {
+  if (!fn) {
+    fn = name;
+    name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
+  }
+
+  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
+
+  tasksExecuted.push(taskInfo);
+  runningTasks.set(taskInfo.id, taskInfo);
+
+  const shouldPrint = !globalSilenceMode && !isSilent;
+  const printer = new Printer('task', taskInfo.id);
+  if (shouldPrint) printer.start(name);
+
+  try {
+    const result = await asyncLocalStorage.run(taskInfo.id, async () => {
+      return await Promise.resolve(fn());
+    });
+
+    const endTime = Date.now();
+    const duration = endTime - taskInfo.startTime;
+
+    taskInfo.status = TaskStatus.SUCCESS;
+    taskInfo.duration = duration;
+    taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
+
+    if (shouldPrint) printer.finish(name);
     runningTasks.delete(taskInfo.id);
 
     return result;
@@ -116,20 +199,52 @@ export async function task(name, fn) {
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.FAIL, output: err.message };
 
-    printer.error(name, err);
+    if (shouldPrint) printer.error(name, err);
     runningTasks.delete(taskInfo.id);
 
     // Don't exit during testing
     const isTestEnvironment = process.env.NODE_ENV === 'test' ||
                               typeof Bun?.jest !== 'undefined' ||
-                              process.argv.some(arg => arg.includes('test'));
+                              process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
 
+    // Exit immediately if stopOnFailures mode is enabled
+    if (stopOnFailuresMode && !isTestEnvironment) {
+      process.exit(1);
+    }
+    
+    // Also exit if stopFailToggle is enabled (legacy behavior)
     if (stopFailToggle && !isTestEnvironment) {
       process.exit(1);
     }
 
     throw err;
   }
+}
+
+export class SilentTaskWrapper {
+  constructor() {
+    this.silent = true;
+  }
+
+  async try(name, fn) {
+    if (!fn) {
+      fn = name;
+      name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
+    }
+    return await tryTask(name, fn, true);
+  }
+
+  async task(name, fn) {
+    if (!fn) {
+      fn = name;
+      name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
+    }
+    return await task(name, fn, true);
+  }
+}
+
+export function silent() {
+  return new SilentTaskWrapper();
 }
 
 export class TaskResult {
@@ -146,11 +261,19 @@ export class TaskResult {
     return this.status === TaskStatus.SUCCESS;
   }
 
+  get hasWarning() {
+    return this.status === TaskStatus.WARNING;
+  }
+
   static fail(output = null) {
     return new TaskResult({ status: TaskStatus.FAIL, output });
   }
 
   static success(output = null) {
     return new TaskResult({ status: TaskStatus.SUCCESS, output });
+  }
+
+  static warning(output = null) {
+    return new TaskResult({ status: TaskStatus.WARNING, output });
   }
 }
