@@ -676,13 +676,11 @@ export async function publishContainers(registry = 'docker.io/myorg') {
 
   say(`🐳 Building ${services.length} containers...`);
 
+  task.stopOnFailures();
   // Build all containers in parallel
   const buildResults = await Promise.all(
     services.map(service =>
-      task(`Building ${service}`, async () => {
-        await exec`docker build -t ${registry}/${service}:${version} -f ${service}/Dockerfile ${service}`;
-        return service;
-      })
+      exec`docker build -t ${registry}/${service}:${version} -f ${service}/Dockerfile ${service}`
     )
   );
 
@@ -693,10 +691,7 @@ export async function publishContainers(registry = 'docker.io/myorg') {
 
   const pushResults = await Promise.all(
     services.map(service =>
-      task(`Publishing ${service}`, async () => {
-        await exec`docker push ${registry}/${service}:${version}`;
-        return service;
-      })
+      exec`docker push ${registry}/${service}:${version}`
     )
   );
 
@@ -869,7 +864,7 @@ export async function cloudflareSetup(domain, ipAddress) {
 
   say(`✅ DNS configured: ${domain} → ${ipAddress}`);
 }
-
+```
 
 ## License
 
