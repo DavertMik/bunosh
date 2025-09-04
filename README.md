@@ -457,9 +457,7 @@ Gracefully handle operations that might fail:
  * Check service availability
  */
 export async function checkServices() {
-  const dbConnected = await task.try('Database connection', () => {
-    return shell`nc -z localhost 5432`;
-  });
+  const dbConnected = await task.try(shell`nc -z localhost 5432`);
 
   if (dbConnected) {
     say('✅ Database connected');
@@ -468,9 +466,7 @@ export async function checkServices() {
     await useFallbackDatabase();
   }
 
-  const apiHealthy = await task.try('API health check', () => {
-    return fetch('http://localhost:3000/health');
-  });
+  const apiHealthy = await task.try(() => fetch('http://localhost:3000/health');
 
   if (!apiHealthy) {
     yell('API IS DOWN!');
