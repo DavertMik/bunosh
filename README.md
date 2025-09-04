@@ -1,27 +1,72 @@
 # 🍲 Bunosh
 
-> *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients such as mushrooms, cheese, sour cream*
-
 <p align="center">
   <img src="assets/logo.png" alt="Logo" width="150">
 </p>
 
+<p align="center">
+  <strong>ONE TOOL TO SCRIPT THEM ALL</strong>
+</p>
+
+<p align="center">
+  Transform JavaScript functions into powerful CLI commands. Write once, run anywhere.
+</p>
+
+---
+
 ## What is Bunosh?
 
-Bunosh is a modern task runner that transforms JavaScript functions into CLI commands. Write your build, deploy, and automation tasks in JavaScript and run them directly from the command line.
+Bunosh is a modern task runner that turns your JavaScript functions into CLI commands instantly. No configuration, no boilerplate - just write functions and run them from the terminal.
 
-**Why Bunosh?**
-- ✨ **Zero Configuration**: Write functions, get CLI commands
-- 🚀 **Fast Execution**: Built for speed with beautiful terminal output
-- 🎨 **Rich Output**: Colored formatting with progress indicators
-- 📦 **Built-in Tasks**: Shell execution, HTTP requests, file operations
-- 🔧 **Cross-Platform**: Works on macOS, Linux, and Windows
+> *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients*
+
+### ✨ Key Features
+
+- **🚀 Zero Configuration** - Write functions, get CLI commands automatically
+- **🎨 pure JavaScript** - write commands as JavaScript functions
+- **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
+- **🤖 AI-Powered** - integrate LLM calls into your daily tasks
+- **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
+- **🎯 Smart CLI** - Auto-completion, help generation, and intuitive argument handling
+
+## Why Choose Bunosh?
+
+### Over Bash Scripts
+
+- **Readable** syntax if you already know JavaScript (no cryptic bash symbol)
+- **Cross-platform** without compatibility headaches
+- **Rich ecosystem** - use any npm package
+
+### Over npm scripts
+
+- **Real programming** - loops, conditions, async/await
+- **Interactive** - outputs, prompts, confirmations, selections
+- **Composable** - one file for everything! Call functions from other functions
+- **Arguments & options** - full CLI parameter support
+
+### Over Traditional Task Runners
+
+- **No configuration files** - just export functions
+- **No DSL to learn** - it's just JavaScript
+- **Native speed** - runs on Bun or Node.js
+- **Modern DX** - auto-completion, beautiful output
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Commands](#commands)
+- [Tasks](#tasks)
+- [Input/Output](#inputoutput)
+- [Task Control](#task-control)
+- [AI Integration](#ai-integration)
+- [Examples](#examples)
 
 ## Installation
 
 ### Option 1: Single Executable (Recommended)
 
-Download and install the standalone executable - no Node.js or Bun required. Includes built-in upgrade functionality:
+Download the standalone executable - no Node.js or Bun required:
 
 **macOS:**
 ```bash
@@ -40,658 +85,269 @@ sudo mv bunosh-linux-x64 /usr/local/bin/bunosh
 Invoke-WebRequest -Uri "https://github.com/davertmik/bunosh/releases/latest/download/bunosh-windows-x64.exe.zip" -OutFile "bunosh.zip"
 Expand-Archive -Path "bunosh.zip" -DestinationPath .
 Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
-# Add bunosh.exe to your PATH
 ```
 
-### Option 2: Bun Package Manager
+### Option 2: Package Managers
 
 ```bash
+# Using Bun
 bun add -g bunosh
-```
 
-### Option 3: NPM Package
-
-```bash
+# Using npm
 npm install -g bunosh
 ```
 
+## Quickstart
 
+1. **Initialize your Bunoshfile:**
 ```bash
-# Initialize a new Bunoshfile
 bunosh init
-
-# This creates Bunoshfile.js with sample tasks
 ```
 
-### Example: Web Development Tasks
-
-Create a `Bunoshfile.js`:
-
+2. **Write your first command:**
 ```javascript
-// Import Bunosh functions from global object
-const { exec, fetch, writeToFile, say, ask, yell } = global.bunosh;
+// Bunoshfile.js
+const { exec, say } = global.bunosh;
 
 /**
- * Installs project dependencies
+ * Builds the project for production
  */
-export async function install() {
-  await exec`npm install`;
-  say('📦 Dependencies installed!');
-}
-
-/**
- * Starts development server
- */
-export async function dev() {
-  say('🚀 Starting development server...');
-  await exec`npm run dev`;
-}
-
-/**
- * Builds project for production
- */
-export async function build(target = 'production') {
-  say(`🔨 Building for ${target}...`);
-  await exec`npm run build`;
-
-  if (target === 'production') {
-    await exec`npm run optimize`;
-    yell('BUILD COMPLETE!');
-  }
-}
-
-/**
- * Deploys to specified environment
- */
-export async function deploy(env = 'staging', options = { skipTests: false }) {
-  if (!options.skipTests) {
-    say('🧪 Running tests...');
-    await exec`npm test`;
-  }
-
-  say(`🚀 Deploying to ${env}...`);
-  await build('production');
-  await exec`docker build -t myapp:${env} .`;
-  await exec`docker push myapp:${env}`;
-
-  yell(`DEPLOYED TO ${env.toUpperCase()}!`);
-}
-
-/**
- * Cleans up temporary files
- */
-export async function clean() {
-  await exec`rm -rf dist node_modules/.cache tmp`;
-  say('✨ All clean!');
-}
-
-/**
- * Setup new project environment
- */
-export async function setup() {
-  const projectName = await ask('What is your project name?');
-  const useTypescript = await ask('Use TypeScript? (y/n)') === 'y';
-
-  say('🏗️ Setting up project...');
-
-  // Create package.json
-  writeToFile('package.json', (line) => {
-    line`{`;
-    line`  "name": "${projectName}",`;
-    line`  "version": "1.0.0",`;
-    line`  "type": "module"`;
-    if (useTypescript) {
-      line`,  "devDependencies": {`;
-      line`    "typescript": "^5.0.0"`;
-      line`  }`;
-    }
-    line`}`;
-  });
-
-  if (useTypescript) {
-    await exec`npm install typescript --save-dev`;
-  }
-
-  yell('PROJECT READY!');
+export async function build(env = 'production') {
+  say(`🔨 Building for ${env}...`);
+  await exec`npm run build`.env({ NODE_ENV: env });
+  say('✅ Build complete!');
 }
 ```
 
-### Run Your Tasks
+That's it! Your function is now a CLI command.
 
+3. **Run it:**
 ```bash
-# List all available commands
-bunosh
-
-# Run individual tasks
-bunosh install
-bunosh dev
+# build for production
 bunosh build
+
+# build for staging
 bunosh build staging
-bunosh deploy production --skip-tests
-bunosh clean
-bunosh setup
+
+# build for development
+bunosh build development
 ```
 
-**Bunosh will display your tasks like this:**
+## Commands
 
-```
-🍲 Your exceptional task runner
+### Creating Commands
 
-Usage: bunosh <command> <args> [options]
-
-  Commands are loaded from exported functions in Bunoshfile.js
-
-Commands:
-  build                 Builds project for production
-                          bunosh build [target]
-  clean                 Cleans up temporary files
-  deploy                Deploys to specified environment
-                          bunosh deploy [env] --skip-tests
-  dev                   Starts development server
-  install               Installs project dependencies
-  setup                 Setup new project environment
-```
-
-## Example: DevOps Tasks
+Every exported function in `Bunoshfile.js` becomes a CLI command:
 
 ```javascript
-const { exec, fetch, writeToFile, say, task } = global.bunosh;
-
-/**
- * Checks service health across environments
- */
-export async function healthCheck(env = 'production') {
-  const services = ['api', 'web', 'database'];
-
-  for (const service of services) {
-    const url = `https://${service}.${env}.example.com/health`;
-    await task(`Checking ${service}`, async () => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`${service} is down!`);
-    });
-  }
-
-  say('✅ All services healthy!');
+// Simple command
+export function hello() {
+  console.log('Hello, World!');
 }
 
-/**
- * Backup database with compression
- */
-export async function backup(database = 'main') {
-  const timestamp = new Date().toISOString().split('T')[0];
-  const filename = `backup-${database}-${timestamp}.sql.gz`;
-
-  await exec`pg_dump ${database} | gzip > ${filename}`;
-  await exec`aws s3 cp ${filename} s3://backups/${filename}`;
-  await exec`rm ${filename}`;
-
-  say(`📦 Backup saved: ${filename}`);
+// Command with parameters
+export function greet(name = 'friend') {
+  console.log(`Hello, ${name}!`);
 }
 
-/**
- * Updates SSL certificates
- */
-export async function updateCerts() {
-  await exec`certbot renew`;
-  await exec`nginx -s reload`;
-  say('🔒 Certificates updated!');
-}
-
-/**
- * Deploys application with health checks
- */
-export async function deployWithChecks(env = 'staging') {
-  await exec`kubectl apply -f k8s/${env}/`;
-  await exec`kubectl rollout status deployment/myapp`;
-  await healthCheck(env);
-  say(`🚀 Successfully deployed to ${env}!`);
-}
-
-/**
- * Scales application instances
- */
-export async function scale(replicas = 3, service = 'myapp') {
-  await exec`kubectl scale deployment/${service} --replicas=${replicas}`;
-  say(`⚖️ Scaled ${service} to ${replicas} replicas`);
+// Command with options
+export function deploy(env = 'staging', options = { force: false, verbose: false }) {
+  if (options.verbose) console.log('Verbose mode enabled');
+  console.log(`Deploying to ${env}${options.force ? ' (forced)' : ''}`);
 }
 ```
 
-**Bunosh displays these as:**
-
-```
-Usage: bunosh <command> <args> [options]
-
-  Commands are loaded from exported functions in Bunoshfile.js
-
-Commands:
-  backup                Backup database with compression
-                          bunosh backup [database]
-  deploy:with-checks    Deploys application with health checks
-                          bunosh deploy:with-checks [env]
-  health:check          Checks service health across environments
-                          bunosh health:check [env]
-  scale                 Scales application instances
-                          bunosh scale [replicas] [service]
-  update:certs          Updates SSL certificates
-
+**CLI Usage:**
+```bash
+bunosh hello
+bunosh greet John
+bunosh deploy production --force --verbose
 ```
 
-## Example: Content Management
+### Arguments and Options
+
+Bunosh automatically maps function parameters to CLI arguments:
 
 ```javascript
-const { exec, writeToFile, ask, say } = global.bunosh;
-
 /**
- * Creates new blog post template
+ * Create a new feature branch
+ * @param {string} name - Feature name (required)
+ * @param {string} base - Base branch (optional, defaults to 'main')
+ * @param {object} options - CLI options
+ * @param {boolean} options.push - Push to remote after creation
  */
-export async function newPost() {
-  const title = await ask('Post title:');
-  const slug = title.toLowerCase().replace(/\s+/g, '-');
-  const date = new Date().toISOString().split('T')[0];
+export async function feature(name, base = 'main', options = { push: false }) {
+  await exec`git checkout -b feature/${name} ${base}`;
 
-  writeToFile(`posts/${date}-${slug}.md`, (line) => {
-    line`---`;
-    line`title: "${title}"`;
-    line`date: ${date}`;
-    line`draft: true`;
-    line`---`;
-    line``;
-    line`# ${title}`;
-    line``;
-    line`Your content here...`;
-  });
-
-  say(`📝 Created: posts/${date}-${slug}.md`);
-}
-
-/**
- * Optimizes and compresses images
- */
-export async function optimizeImages() {
-  await exec`find ./images -name "*.jpg" -exec jpegoptim --max=80 {} \\;`;
-  await exec`find ./images -name "*.png" -exec optipng -o2 {} \\;`;
-  say('🖼️ Images optimized!');
-}
-
-/**
- * Creates new page template
- */
-export async function newPage(name) {
-  const slug = name.toLowerCase().replace(/\s+/g, '-');
-
-  writeToFile(`content/pages/${slug}.md`, (line) => {
-    line`---`;
-    line`title: "${name}"`;
-    line`type: "page"`;
-    line`---`;
-    line``;
-    line`# ${name}`;
-    line``;
-    line`Page content here...`;
-  });
-
-  say(`📄 Created: content/pages/${slug}.md`);
-}
-
-/**
- * Generates site and deploys
- */
-export async function publish() {
-  await exec`hugo --minify`;
-  await exec`rsync -avz public/ user@server:/var/www/site/`;
-  say('🌐 Site published!');
-}
-
-/**
- * Builds and serves development site
- */
-export async function serve(port = 1313) {
-  await exec`hugo server --port ${port} --buildDrafts`;
-}
-```
-
-**Bunosh displays these as:**
-
-```
-Usage: bunosh <command> <args> [options]
-
-  Commands are loaded from exported functions in Bunoshfile.js
-
-Commands:
-  new:page              Creates new page template
-                          bunosh new:page <name>
-  new:post              Creates new blog post template
-  optimize:images       Optimizes and compresses images
-  publish               Generates site and deploys
-  serve                 Builds and serves development site
-                          bunosh serve [port]
-
-```
-
-### Error Handling
-
-Bunosh provides flexible error handling to suit different scenarios:
-
-```javascript
-// Option 1: Try operations that might fail
-export async function checkConnection() {
-  const success = await task.try('Database connection', () => {
-    return shell`nc -z db 5432`;
-  });
-
-  if (success) {
-    say('✅ Database is reachable');
-  } else {
-    say('⚠️ Database unreachable, using fallback');
-    await useFallbackDatabase();
-  }
-}
-
-// Option 2: Continue on failures
-export async function cleanup() {
-  task.ignoreFailures();  // Don't exit if cleanup fails
-
-  await task('Remove temp files', () => shell`rm -rf tmp/*`);
-  await task('Clear logs', () => shell`rm -f logs/*.log`);
-  // Script continues even if some operations fail
-}
-
-// Option 3: Stop immediately on failure
-export async function deploy() {
-  task.stopOnFailures();  // Exit immediately if any task fails
-
-  await task('Run tests', () => shell`npm test`);
-  await task('Build', () => shell`npm run build`);
-  await task('Deploy', () => shell`deploy-script`);
-  // If any task fails, script exits immediately
-}
-
-// Option 4: Traditional try/catch for critical operations
-export async function deployWithRollback(env) {
-  try {
-    await deploy(env);
-  } catch (error) {
-    say('❌ Deployment failed, rolling back...');
-    await exec`kubectl rollout undo deployment/myapp`;
-    throw error;
+  if (options.push) {
+    await exec`git push -u origin feature/${name}`;
   }
 }
 ```
 
-### Output Control
-
-Control when tasks print to the console - perfect for background operations, CI/CD pipelines, or reducing noise.
-
-```javascript
-// Globally disable all task output
-task.silence();
-await task('Background cleanup', () => shell`rm -rf temp-files`);
-
-// Restore output printing
-task.prints();
-
-// Execute specific tasks silently
-await task.silent().task('Silent operation', () => {
-  // This task won't print any output
-  doSomethingQuietly();
-});
-
-// Silent try operations
-const success = await task.silent().try('Risky operation', () => {
-  return attemptSomethingRisky();
-});
+**Generated CLI:**
+```bash
+bunosh feature my-feature           # Creates from main
+bunosh feature my-feature develop   # Creates from develop
+bunosh feature my-feature --push    # Creates and pushes
 ```
 
-**Use cases:**
-- CI/CD pipelines with noisy tasks
-- Background cleanup operations
-- Reducing output noise in automated workflows
-- Running optional checks without cluttering output
+### Command Naming
 
-### Handle Task Failures
+Functions are automatically converted to kebab-case commands:
 
-Choose how your script behaves when tasks fail - stop immediately or continue and handle failures gracefully.
-
-```javascript
-// Stop immediately on any failure (strict mode)
-task.stopOnFailures();
-await task('Deploy', () => shell`deploy-script`);
-// If deploy fails, script exits immediately
-
-// Continue on failures (permissive mode)
-task.ignoreFailures();
-await task('Optional checks', () => shell`might-fail-command`);
-// Script continues even if checks fail
-
-// Try operations that might fail
-const success = await task.try('Test connection', () => {
-  return shell`nc -z localhost 3000`;
-});
-
-if (success) {
-  say('✅ Connection successful');
-} else {
-  say('⚠️ Connection failed, but continuing...');
-}
-```
-
-**Failure behaviors:**
-- **Default**: Continue running, show error, exit with code 1 at end
-- **`stopOnFailures()`**: Exit immediately with code 1 on any failure
-- **`ignoreFailures()`**: Continue running, exit with code 0 regardless of failures
-- **`task.try()`**: Returns true/false, never exits, logs as warning
+| Function Name | CLI Command |
+|--------------|-------------|
+| `build` | `bunosh build` |
+| `gitPush` | `bunosh git:push` |
+| `npmInstall` | `bunosh npm:install` |
+| `buildAndDeploy` | `bunosh build:and-deploy` |
 
 ## Tasks
 
-All Bunosh tasks are available via `global.bunosh`:
+All Bunosh utilities are available via `global.bunosh`:
 
 ```javascript
-const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
+const { exec, shell, fetch, writeToFile, copyFile, task, ai, say, ask, yell } = global.bunosh;
 ```
 
-### Shell Execution
+> We use global variables instead of imports to ensure you can use it with bunosh single-executable on any platform.
 
-Bunosh provides two ways to execute shell commands:
 
-#### `exec` - Universal Shell Execution
+#### `exec`
 
-Best for complex commands, cross-platform compatibility, and when you need real-time streaming output.
+Run single command using [child process `spawn`](https://nodejs.org/api/child_process.html#child_processspawncommand-args-options)
 
 ```javascript
-// Complex shell commands with pipes and redirections
-await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
-await exec`npm install --verbose`;  // Shows progress in real-time
+// Complex commands with pipes and streaming output
+await exec`npm install --verbose`;
 await exec`docker build . | tee build.log`;
+await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
+
+// With environment variables
+await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
+
+// In specific directory
+await exec`npm install`.cwd('/tmp/project');
 ```
 
-#### `shell` - Native Bun Shell (with Node.js fallback)
+By default task prints live line-by-line output from stdout and stderr. To disable output, use `silent` method:
 
-Best for simple commands when running under Bun for maximum performance.
+```javascript
+
+// disable printing output
+await task.silent(() => exec`npm install`);
+
+// disable output for all commands
+await task.silence();
+```
+
+See more [#silent](#silent)
+
+#### `shell` - Fast Native Execution
+
+Optimized for simple, fast commands when running under Bun:
 
 ```javascript
 // Simple, fast commands
 await shell`pwd`;
-await shell`echo "Hello World"`;
 await shell`ls -la`;
 await shell`cat package.json`;
 ```
 
-Comparison: `shell` vs `exec`
+For more details see [bun shell](https://bun.sh/docs/runtime/shell) reference
 
-| Command | Best For | Use Cases |
-|---------|----------|-----------|
-| `shell` | Simple, fast commands under Bun | `pwd`, `ls`, `echo`, `cat`, basic file ops |
-| `exec` | Complex, cross-platform commands | Pipes, redirections, streaming output, package managers |
+`shell` vs `exec`
 
-Both support the same API and return the same `TaskResult` object:
+| Command | Best For | Use Cases | Implementation | Compatibility |
+|---------|----------|-----------|----------------|---------------|
+| `exec` | Single command execution | single command | spawn process | NodeJS + Bun but platform dependent |
+| `shell` | Multiple cross-platform shell commands | exec + `pwd`, `ls`, `echo`, `cat`, basic file ops | bun shell | Bun only but Cross-platform |
 
-```javascript
-// Both tasks support environment variables
-await shell`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
-await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
+shell prints output from stdout and stderr. To disable output, [make tasks silent](#silent):
 
-// Both support working directory changes
-await shell`pwd`.cwd('/tmp');
-await exec`ls -la`.cwd('/tmp');
+### HTTP Requests
 
-// Choose based on complexity and performance needs
-await shell`cat package.json`;              // Simple, fast
-await exec`npm install --verbose`;          // Complex, streaming
-```
-
-#### TaskResult Object
-
-Both `exec` and `shell` return a `TaskResult` object with the following properties and methods:
+Built-in fetch with progress indicators:
 
 ```javascript
-const result = await exec`ls -la`;
-// or
-const result = await shell`ls -la`;
+/**
+ * Check service health
+ */
+export async function healthCheck(url) {
+  const response = await fetch(url);
 
-// Properties
-result.status   // 'success' or 'fail'
-result.output   // Combined stdout/stderr as string
-
-// Getters (boolean)
-result.hasFailed     // true if command failed (non-zero exit code)
-result.hasSucceeded  // true if command succeeded (exit code 0)
-```
-
-#### Error Handling Examples
-
-```javascript
-// Check command success
-const result = await exec`npm test`;
-if (result.hasSucceeded) {
-  say('✅ Tests passed!');
-} else {
-  yell('❌ Tests failed!');
-  console.log(result.output); // Show error details
+  if (response.ok) {
+    const data = await response.json();
+    say(`✅ Service healthy: ${data.status}`);
+  } else {
+    yell(`❌ Service down: ${response.status}`);
+  }
 }
-
-// Get command output
-const result = await exec`git rev-parse HEAD`;
-if (result.hasSucceeded) {
-  const commitHash = result.output.trim();
-  say(`Current commit: ${commitHash}`);
-}
-
-// Handle failures gracefully
-const result = await exec`optional-command-that-might-fail`;
-if (result.hasFailed) {
-  say('Command failed, but continuing...');
-  console.log('Error output:', result.output);
-}
-
-// Old vs New style comparison
-// ❌ Old: Commands throw on failure
-try {
-  await someOtherTaskRunner('failing-command');
-} catch (error) {
-  // Handle error
-}
-
-// ✅ New: Explicit success/failure handling
-const result = await exec`failing-command`;
-if (result.hasFailed) {
-  // Handle failure explicitly
-}
-```
-
-### HTTP Requests (`fetch`)
-```javascript
-// GET request with progress indicator
-const response = await fetch('https://api.github.com/repos/user/repo');
-const data = await response.json();
 ```
 
 ### File Operations
+
+Template-based file writing and copying:
+
 ```javascript
-// Write file with template builder
-writeToFile('config.json', (line) => {
-  line`{`;
-  line`  "name": "myapp",`;
-  line`  "version": "1.0.0"`;
-  line`}`;
-});
+/**
+ * Generate configuration file
+ */
+export function generateConfig(name, port = 3000) {
+  writeToFile('config.json', (line) => {
+    line`{`;
+    line`  "name": "${name}",`;
+    line`  "port": ${port},`;
+    line`  "environment": "development"`;
+    line`}`;
+  });
+
+  say('📝 Config file created');
+}
 
 // Copy files
-copyFile('template.js', 'output.js');
+copyFile('template.env', '.env');
 ```
 
-### User Interaction
+## Input/Output
 
-#### `ask()` - Interactive User Input
+### `say` - Normal Output
 
-The `ask()` function provides flexible ways to get user input with smart parameter detection and multiple modes:
+Standard output with visual indicator:
 
 ```javascript
-// === SIMPLE SYNTAX WITH SMART DETECTION ===
-
-// Basic text input
-const name = await ask('What is your name?');
-
-// Text input with default value
-const projectName = await ask('Project name:', 'my-awesome-app');
-
-// Boolean confirmation (auto-detects confirm type)
-const shouldContinue = await ask('Continue with deployment?', true);
-const forceUpdate = await ask('Force update?', false);
-
-// Number input with default
-const port = await ask('Enter port number:', 3000);
-
-// Single choice selection (auto-detects from array)
-const framework = await ask('Choose your framework:', [
-  'React', 'Vue', 'Angular', 'Svelte'
-]);
-
-// Multiple choice selection (array + options)
-const features = await ask('Select features to include:', [
-  'TypeScript', 'ESLint', 'Prettier', 'Tests', 'CI/CD'
-], { multiple: true });
-
-// === ADVANCED OPTIONS SYNTAX ===
-
-// Multiline text input (opens system editor)
-const description = await ask('Enter project description:', {
-  multiline: true  // Same as editor: true
-});
-
-// Editor input with default content
-const config = await ask('Edit configuration:', {
-  editor: true,
-  default: 'Initial content here...'
-});
-
-// Password input (hidden)
-const password = await ask('Enter password:', {
-  type: 'password'
-});
-
-// Mixed: default value + additional options
-const email = await ask('Email address:', 'user@example.com', {
-  validate: (input) => input.includes('@') || 'Please enter valid email'
-});
+say('Building project...');
+say('📦 Dependencies installed');
+say(`Found ${count} files to process`);
 ```
 
-#### Ask Function Signatures
+### `ask` - User Input
+
+Flexible user input with smart parameter detection:
 
 ```javascript
-// Smart detection syntax
-ask(question, defaultValue, options?)
-ask(question, choices[], options?)
-ask(question, options)
+// Text input with default
+const name = await ask('Project name:', 'my-app');
 
-// Examples:
-ask('Name?', 'John')                    // String default
-ask('Continue?', true)                  // Boolean -> confirm type
-ask('Port?', 3000)                      // Number default
-ask('Color?', ['red', 'blue'])          // Array -> choices
-ask('Colors?', ['red', 'blue'], { multiple: true })  // Array + options
+// Boolean confirmation (auto-detects)
+const proceed = await ask('Continue?', true);
+
+// Single selection (auto-detects from array)
+const env = await ask('Select environment:', ['dev', 'staging', 'prod']);
+
+// Multiple selection
+const features = await ask('Select features:',
+  ['TypeScript', 'ESLint', 'Tests'],
+  { multiple: true }
+);
+
+// Password input
+const password = await ask('Enter password:', { type: 'password' });
+
+// Multiline editor input
+const description = await ask('Enter description:', { editor: true });
 ```
-
-#### Ask Options Reference
 
 | Parameter/Option | Type | Description | Example |
 |------------------|------|-------------|---------|
@@ -707,487 +363,638 @@ ask('Colors?', ['red', 'blue'], { multiple: true })  // Array + options
 | `type` | String | Input type: `'input'`, `'confirm'`, `'password'`, `'number'` | `'password'` |
 | `validate` | Function | Custom validation function | `(input) => input.length > 0` |
 
-#### Advanced Ask Examples
+
+### `yell`
+
+Emphasized Output
+
+ASCII art output for important messages:
+
+```javascript
+yell('BUILD COMPLETE!');
+yell('DEPLOYMENT SUCCESSFUL!');
+```
+
+### `silent`
+
+Stop printing realtime output
+
+```javascript
+// Silence all task output
+task.silence();
+await shell`npm build`;
+
+// restore printing output
+task.prints();
+
+// Silent specific task
+const labels = await task.silent(() => shell(`gh api repos/:org/:repo/labels`));
+```
+
+## Task Control
+
+### Parallel Executions
+
+No magic here. Use `Promise.all()` to run tasks in parallel:
+
+```javascript
+// Parallel tasks
+const results = await Promise.all([
+  task('Build frontend', () => exec`npm run build:frontend`),
+  task('Build backend', () => exec`npm run build:backend`),
+  task('Build docs', () => exec`npm run build:docs`)
+]);
+```
+
+### Custom Tasks
+
+Name and group your tasks operations:
+
+```js
+await task('Build', () => {
+  await exec`npm run build:frontend`);
+  await exec`npm run build:docs`);
+});
+````
+
+### Stop on Failure
+
+By default bunosh executes all tasks event if they fail. To stop execution immediately on failure, use the `task.stopOnFailures()` method.
+
 
 ```javascript
 /**
- * Interactive project setup with smart syntax
+ * Strict deployment - stop on any failure
  */
-export async function setupProject() {
-  // Simple syntax with smart detection
-  const projectName = await ask('Project name:', 'my-awesome-project');
+export async function deployStrict() {
+  task.stopOnFailures();  // Exit immediately on any task failure
 
-  const projectType = await ask('Project type:', [
-    'Web App', 'API', 'CLI Tool', 'Library'
-  ]);
-
-  const dependencies = await ask('Select dependencies:', [
-    'express', 'lodash', 'axios', 'moment', 'uuid'
-  ], { multiple: true });
-
-  const useTypescript = await ask('Use TypeScript?', false);
-
-  // Editor input for complex configuration
-  const packageJson = await ask('Customize package.json:', {
-    editor: true,
-    default: JSON.stringify({
-      name: projectName,
-      version: '1.0.0',
-      description: '',
-      dependencies: {}
-    }, null, 2)
-  });
-
-  say(`Creating ${projectType}: ${projectName}`);
-  say(`Dependencies: ${dependencies.join(', ')}`);
-  say(`TypeScript: ${useTypescript ? 'Yes' : 'No'}`);
-
-  writeToFile('package.json', packageJson);
+  await task('Run tests', () => exec`npm test`);
+  await task('Build', () => exec`npm run build`);
+  await task('Deploy', () => exec`deploy-script`);
+  // If any task fails, script exits immediately
 }
 
 /**
- * Git commit with editor input
+ * Cleanup - continue despite failures
  */
-export async function interactiveCommit() {
-  const message = await ask('Enter commit message:', {
-    editor: true,
-    default: 'feat: \n\n# Write your commit message above\n# First line: brief summary (50 chars max)\n# Blank line, then detailed explanation'
+export async function cleanup() {
+  task.ignoreFailures();  // Continue even if tasks fail
+
+  await task('Remove temp files', () => shell`rm -rf tmp/*`);
+  await task('Clear logs', () => shell`rm -f logs/*.log`);
+  await task('Reset cache', () => shell`rm -rf .cache`);
+  // All tasks run regardless of failures
+}
+```
+
+### Try Operations
+
+Gracefully handle operations that might fail:
+
+```javascript
+/**
+ * Check service availability
+ */
+export async function checkServices() {
+  const dbConnected = await task.try('Database connection', () => {
+    return shell`nc -z localhost 5432`;
   });
 
-  await exec`git commit -m "${message}"`;
-  say('✅ Committed successfully!');
-}
-
-/**
- * Database migration with smart syntax
- */
-export async function migrate() {
-  // Smart array detection for choices
-  const action = await ask('Migration action:', [
-    'Run pending migrations',
-    'Rollback last migration',
-    'Reset database',
-    'Create new migration'
-  ]);
-
-  if (action === 'Reset database') {
-    // Smart boolean detection for confirmation
-    const confirmed = await ask('⚠️  This will DELETE ALL DATA. Are you sure?', false);
-
-    if (!confirmed) {
-      say('Migration cancelled');
-      return;
-    }
+  if (dbConnected) {
+    say('✅ Database connected');
+  } else {
+    say('⚠️ Database unavailable, using fallback');
+    await useFallbackDatabase();
   }
 
-  // Execute migration based on selection...
-}
-
-/**
- * Server configuration with mixed smart syntax
- */
-export async function configureServer() {
-  // Simple defaults
-  const serverName = await ask('Server name:', 'my-server');
-  const port = await ask('Port number:', 8080);
-  const enableHTTPS = await ask('Enable HTTPS?', true);
-
-  // Array with additional options
-  const databases = await ask('Select databases to connect:', [
-    'PostgreSQL', 'MongoDB', 'Redis', 'MySQL'
-  ], { multiple: true });
-
-  // Mix of default + validation
-  const adminEmail = await ask('Admin email:', 'admin@example.com', {
-    validate: (email) => email.includes('@') || 'Please enter a valid email'
+  const apiHealthy = await task.try('API health check', () => {
+    return fetch('http://localhost:3000/health');
   });
 
-  say(`Configuring ${serverName} on port ${port}`);
-  say(`HTTPS: ${enableHTTPS ? 'Enabled' : 'Disabled'}`);
-  say(`Databases: ${databases.join(', ')}`);
-  say(`Admin: ${adminEmail}`);
+  if (!apiHealthy) {
+    yell('API IS DOWN!');
+  }
 }
 ```
 
-#### Output Functions
+## 💫 AI Integration
 
-```javascript
-// Simple output messages
-say('Building project...');          // Normal output with !
-yell('BUILD COMPLETE!');             // Emphasized ASCII art output
+Built-in AI support for code generation, documentation, and automation.
+Automatically responds to structured JSON output.
 
-// Wrap operations with progress tracking
-await task('Installing dependencies', async () => {
-  await exec`npm install`;
-});
-```
+AI provider automatically detected, but you need to provide API key and model name.
+Use `.env` file with `AI_MODEL` and `OPENAI_API_KEY` variables.
+In case you use provider other than OpenAI, Anthropic, Groq, you may need to configure it manually in top of Bunoshfile
 
-## 🤖 AI-Powered Tasks
-
-Bunosh now supports AI integration with structured outputs! Connect to popular AI providers and generate content, analyze data, or automate text processing with simple function calls.
-
-### Quick Setup
-
-Set your AI provider credentials:
 ```bash
-# Required: Choose your model
-export AI_MODEL=gpt-4o                         # or claude-3-5-sonnet-20241022, llama-3.3-70b-versatile, etc.
+# Choose your AI model
+export AI_MODEL=gpt-5  # or claude-4-sonnet, llama-3.3-70b, etc.
 
-# Required: Set API key for your chosen provider
-export OPENAI_API_KEY=your_key_here           # for OpenAI models
-# export ANTHROPIC_API_KEY=your_key_here       # for Claude models
-# export GROQ_API_KEY=your_key_here            # for Groq models
+# Set API key for your provider
+export OPENAI_API_KEY=your_key_here      # For OpenAI
+# export ANTHROPIC_API_KEY=your_key_here  # For Claude
+# export GROQ_API_KEY=your_key_here       # For Groq
 ```
 
-### Built-in AI Providers
 
-- **OpenAI** - GPT-4o, GPT-4o-mini, GPT-3.5-turbo (via `OPENAI_API_KEY`)
-- **Anthropic** - Claude 3.5 Sonnet, Claude 3 Haiku (via `ANTHROPIC_API_KEY`)
-- **Groq** - Llama 3.3, Mixtral, Gemma models (via `GROQ_API_KEY` or `GROQ_KEY`)
+Use the `ai` function to interact with the AI.
 
-### Custom AI Providers
-
-For enterprise and custom setups, you can import and register any AI provider manually:
-
-```javascript
-const { ai } = global.bunosh;
-
-// Method 1: Direct model configuration (most flexible)
-import { bedrock } from '@ai-sdk/amazon-bedrock';
-const bedrockModel = bedrock('anthropic.claude-3-sonnet-20240229-v1:0', {
-  region: 'us-east-1',
-  credentials: {
-    accessKeyId: 'your-access-key',
-    secretAccessKey: 'your-secret-key'
-  }
-});
-
-ai.configure({ model: bedrockModel });
-
-// Method 2: Register custom provider with environment variable
-import { xai } from '@ai-sdk/xai';
-ai.configure({
-  registerProvider: {
-    envVar: 'XAI_API_KEY',
-    provider: {
-      createInstance: (modelName) => xai(modelName)
-    }
-  }
-});
-
-// Method 3: Register any custom provider (Azure OpenAI, OpenRouter, etc.)
-import { openrouter } from '@openrouter/ai-sdk-provider';
-ai.configure({
-  registerProvider: {
-    envVar: 'OPENROUTER_API_KEY',
-    provider: {
-      createInstance: (modelName) => openrouter(modelName)
-    }
-  }
-});
-
-// Method 4: Register completely custom provider
-ai.configure({
-  registerProvider: {
-    envVar: 'CUSTOM_AI_API_KEY',
-    provider: {
-      createInstance: (modelName) => {
-        // Your custom provider logic
-        return customAIProvider(modelName, {
-          apiKey: process.env.CUSTOM_AI_API_KEY,
-          endpoint: 'https://custom-ai.company.com/v1'
-        });
-      }
-    }
-  }
-});
-
-// Reset to environment variable configuration
-ai.reset();
-
-// Check current configuration
-const config = ai.getConfig();
-console.log('Current AI config:', config);
+```js
+const resp = await ai(message, { field1: 'what should be there', field2: 'what should be there' })
 ```
 
-### AI Task Examples
+### Usage
 
 ```javascript
-const { ai, writeToFile, say } = global.bunosh;
+const { ai, writeToFile } = global.bunosh;
 
 /**
- * Generate project documentation with AI
- */
-export async function generateDocs() {
-  const codebase = fs.readFileSync('src/index.js', 'utf8');
-
-  const result = await ai(
-    `Generate documentation for this code: ${codebase}`,
-    {
-      overview: 'Brief project overview',
-      apiReference: 'API documentation',
-      examples: 'Usage examples',
-      installation: 'Installation instructions'
-    }
-  );
-
-  writeToFile('README.md', (line) => {
-    line`# ${result.overview}`;
-    line``;
-    line`## Installation`;
-    line`${result.installation}`;
-    line``;
-    line`## API Reference`;
-    line`${result.apiReference}`;
-    line``;
-    line`## Examples`;
-    line`${result.examples}`;
-  });
-
-  say('📚 Documentation generated!');
-}
-
-/**
- * Analyze and optimize code with AI suggestions
- */
-export async function codeReview(filename) {
-  const code = fs.readFileSync(filename, 'utf8');
-
-  const analysis = await ai(
-    `Review this code for improvements: ${code}`,
-    {
-      issues: 'List of potential issues',
-      suggestions: 'Specific improvement suggestions',
-      security: 'Security considerations',
-      performance: 'Performance optimization tips',
-      rating: 'Overall code quality rating (1-10)'
-    }
-  );
-
-  say(`🔍 Code Review for ${filename}:`);
-  console.log(`Rating: ${analysis.rating}/10`);
-  console.log(`Issues: ${analysis.issues}`);
-  console.log(`Suggestions: ${analysis.suggestions}`);
-  console.log(`Security: ${analysis.security}`);
-  console.log(`Performance: ${analysis.performance}`);
-}
-
-/**
- * Generate test cases from code
- */
-export async function generateTests(sourceFile) {
-  const code = fs.readFileSync(sourceFile, 'utf8');
-
-  const tests = await ai(
-    `Generate comprehensive unit tests for this code: ${code}`,
-    {
-      testSuite: 'Complete test suite code',
-      edgeCases: 'List of edge cases covered',
-      mockSetup: 'Required mocks and setup code'
-    }
-  );
-
-  const testFile = sourceFile.replace('.js', '.test.js');
-  writeToFile(testFile, (line) => {
-    line`${tests.mockSetup}`;
-    line``;
-    line`${tests.testSuite}`;
-  });
-
-  say(`🧪 Tests generated: ${testFile}`);
-  say(`Edge cases: ${tests.edgeCases}`);
-}
-
-/**
- * Create commit messages from git diff
+ * Generate commit message from staged changes
  */
 export async function smartCommit() {
   const diff = await exec`git diff --staged`;
 
-  if (diff.hasFailed || !diff.output.trim()) {
-    say('No staged changes found');
+  if (!diff.output.trim()) {
+    say('No staged changes');
     return;
   }
 
   const commit = await ai(
-    `Generate a commit message for these changes: ${diff.output}`,
+    `Generate a conventional commit message for: ${diff.output}`,
     {
-      title: 'Concise commit title (50 chars max)',
-      body: 'Detailed commit body explaining what and why',
-      type: 'Commit type (feat/fix/docs/refactor/test/chore)'
+      type: 'Commit type (feat/fix/docs/chore)',
+      scope: 'Commit scope (optional)',
+      subject: 'Brief subject line (50 chars max)',
+      body: 'Detailed explanation'
     }
   );
 
-  const message = `${commit.type}: ${commit.title}\n\n${commit.body}`;
-  await exec`git commit -m "${message}"`;
+  const message = commit.scope
+    ? `${commit.type}(${commit.scope}): ${commit.subject}\n\n${commit.body}`
+    : `${commit.type}: ${commit.subject}\n\n${commit.body}`;
 
-  say(`✅ Committed with AI-generated message:`);
-  console.log(message);
+  await exec`git commit -m "${message}"`;
+  say('✅ AI-generated commit created');
+}
+```
+
+See more ai usage examples below
+
+## Examples
+
+### Development Examples
+
+#### Feature Branch Workflow
+
+```
+bunosh worktree:create
+bunosh worktree:delete
+```
+
+```javascript
+/**
+ * Create worktree for feature development
+ */
+export async function worktreeCreate(name = '') {
+  const worktreeName = name || await ask('What is feature name?');
+  const newDir = `../app-${worktreeName}`;
+
+  await exec`git worktree add ${newDir}`;
+  say(`Created worktree for feature ${worktreeName} in ${newDir}`);
 }
 
 /**
- * Enterprise AI setup with custom provider
+ * Remove worktree when feature is merged
  */
-export async function setupEnterpriseAI() {
-  // Import your enterprise AI provider
-  import { bedrock } from '@ai-sdk/amazon-bedrock';
+export async function worktreeDelete(worktree = '') {
+  const worktrees = await shell`git worktree list`;
+  const worktreePaths = worktrees.output
+    .split('\n')
+    .map(line => line.split(' ')[0])
+    .filter(path => path !== process.cwd());
 
-  // Configure for enterprise use
-  const enterpriseModel = bedrock('anthropic.claude-3-sonnet-20240229-v1:0', {
-    region: 'us-east-1'
-    // Uses AWS credentials from environment/profile
+  if (worktreePaths.length === 0) {
+    say('No worktrees found');
+    return;
+  }
+
+  const worktreeName = worktree || await ask('Select worktree to delete', worktreePaths);
+  const rmDir = worktreePaths.find(path => path.includes(worktreeName));
+
+  if (!rmDir) {
+    say(`Worktree for feature ${worktreeName} not found`);
+    return;
+  }
+
+  await exec`git worktree remove ${rmDir} --force`;
+  say(`Deleted worktree for feature ${worktreeName} in ${rmDir}`);
+}
+```
+
+#### Generate Release Notes with AI
+
+```javascript
+/**
+ * Generate comprehensive release notes using AI
+ */
+export async function generateReleaseNotes(fromTag = '', toTag = 'HEAD') {
+  const { ai, writeToFile, exec, say, ask } = global.bunosh;
+
+  // Get version
+  const version = await ask('Release version:', '1.0.0');
+
+  // Get commit history
+  const gitLog = fromTag
+    ? await exec`git log ${fromTag}..${toTag} --pretty=format:"%h %s" --no-merges`
+    : await exec`git log -n 50 --pretty=format:"%h %s" --no-merges`;
+
+  // Get diff statistics
+  const stats = fromTag
+    ? await exec`git diff --stat ${fromTag}..${toTag}`
+    : await exec`git diff --stat HEAD~50..HEAD`;
+
+  // Generate release notes with AI
+  const releaseNotes = await ai(
+    `Generate professional release notes for version ${version} based on these commits and changes:
+
+    Commits:
+    ${gitLog.output}
+
+    Statistics:
+    ${stats.output}
+
+    Group changes logically and write user-friendly descriptions.`,
+    {
+      highlights: 'Top 3-5 highlights for this release',
+      features: 'New features (bullet points with emoji)',
+      improvements: 'Improvements and enhancements',
+      fixes: 'Bug fixes',
+      breaking: 'Breaking changes (if any)',
+      migration: 'Migration guide (if breaking changes)',
+      acknowledgments: 'Contributors and acknowledgments'
+    }
+  );
+
+  // Write release notes
+  writeToFile(`CHANGELOG.md`, (line) => {
+    line`# Release v${version}`;
+    line`*${new Date().toLocaleDateString()}*`;
+    line``;
+    line`## 🎯 Highlights`;
+    line`${releaseNotes.highlights}`;
+    line``;
+    line`## ✨ New Features`;
+    line`${releaseNotes.features}`;
+    line``;
+    line`## 💪 Improvements`;
+    line`${releaseNotes.improvements}`;
+    line``;
+    line`## 🐛 Bug Fixes`;
+    line`${releaseNotes.fixes}`;
+
+    if (releaseNotes.breaking) {
+      line``;
+      line`## ⚠️ Breaking Changes`;
+      line`${releaseNotes.breaking}`;
+      line``;
+      line`## 📋 Migration Guide`;
+      line`${releaseNotes.migration}`;
+    }
+
+    line``;
+    line`## 🙏 Acknowledgments`;
+    line`${releaseNotes.acknowledgments}`;
+
+    // append previous contents
+    line.fromFile('CHANGELOG.md');
   });
 
-  ai.configure({ model: enterpriseModel });
+  say(`📝 Release notes generated for v${version}`);
+}
+```
 
-  const analysis = await ai(
-    'Analyze our company performance from this quarterly report: [data]',
-    {
-      summary: 'Executive summary of performance',
-      risks: 'Identified business risks',
-      opportunities: 'Growth opportunities',
-      recommendations: 'Strategic recommendations'
-    }
+### Analyze Logs with AI
+
+```js
+const fileContents = await shell`tail -n 500 error.log`
+const analysis = await ai(`Analyze this error log ${fileContents.output}`, {
+  severity: "critical/high/medium/low",
+  rootCause: "specific issue identified",
+  solution: "step-by-step fix",
+  preventionTips: "how to avoid this"
+});
+```
+
+#### Development Environment Setup
+
+```javascript
+/**
+ * Setup complete development environment
+ */
+export async function setupDev() {
+  const { exec, ask, say, task, writeToFile } = global.bunosh;
+
+  // Project configuration
+  const config = {
+    name: await ask('Project name:', 'my-awesome-project'),
+    type: await ask('Project type:', ['Web App', 'API', 'CLI Tool', 'Library']),
+    features: await ask('Select features:', [
+      'TypeScript',
+      'ESLint',
+      'Prettier',
+      'Jest',
+      'Husky',
+      'Docker',
+      'CI/CD'
+    ], { multiple: true }),
+    database: await ask('Database:', ['PostgreSQL', 'MongoDB', 'MySQL', 'None'])
+  };
+
+  // Initialize git
+  await task('Initialize Git', () => exec`git init`);
+
+  // Create package.json
+  await task('Create package.json', () => {
+    writeToFile('package.json', (line) => {
+      line`{`;
+      line`  "name": "${config.name}",`;
+      line`  "version": "0.0.1",`;
+      line`  "type": "module",`;
+      line`  "scripts": {`;
+      line`    "dev": "nodemon src/index.js",`;
+      line`    "build": "node build.js",`;
+      line`    "test": "jest"`;
+      line`  }`;
+      line`}`;
+    });
+  });
+
+  // Install dependencies
+  const deps = [];
+  if (config.features.includes('TypeScript')) deps.push('typescript', '@types/node');
+  if (config.features.includes('ESLint')) deps.push('eslint');
+  if (config.features.includes('Prettier')) deps.push('prettier');
+  if (config.features.includes('Jest')) deps.push('jest', '@types/jest');
+
+  if (deps.length > 0) {
+    await task('Install dependencies', () =>
+      exec`npm install --save-dev ${deps.join(' ')}`
+    );
+  }
+
+  // Setup Docker if selected
+  if (config.features.includes('Docker')) {
+    await task('Create Dockerfile', () => {
+      writeToFile('Dockerfile', (line) => {
+        line`FROM node:20-alpine`;
+        line`WORKDIR /app`;
+        line`COPY package*.json ./`;
+        line`RUN npm ci --only=production`;
+        line`COPY . .`;
+        line`EXPOSE 3000`;
+        line`CMD ["node", "src/index.js"]`;
+      });
+    });
+
+    writeToFile('.dockerignore', (line) => {
+      line`node_modules`;
+      line`npm-debug.log`;
+      line`.git`;
+      line`.env`;
+    });
+  }
+
+  // Setup CI/CD
+  if (config.features.includes('CI/CD')) {
+    await task('Setup GitHub Actions', () => {
+      exec`mkdir -p .github/workflows`;
+      writeToFile('.github/workflows/ci.yml', (line) => {
+        line`name: CI`;
+        line`on: [push, pull_request]`;
+        line`jobs:`;
+        line`  test:`;
+        line`    runs-on: ubuntu-latest`;
+        line`    steps:`;
+        line`      - uses: actions/checkout@v3`;
+        line`      - uses: actions/setup-node@v3`;
+        line`      - run: npm ci`;
+        line`      - run: npm test`;
+      });
+    });
+  }
+
+  yell('PROJECT READY!');
+  say(`✅ ${config.name} is set up with: ${config.features.join(', ')}`);
+}
+```
+
+### Deployment Examples
+
+#### Build and Publish Containers in Parallel
+
+```javascript
+/**
+ * Build and publish multiple services in parallel
+ */
+export async function publishContainers(registry = 'docker.io/myorg') {
+  const { exec, task, say, yell } = global.bunosh;
+
+  const services = ['api', 'web', 'worker', 'admin'];
+  const version = process.env.VERSION || 'latest';
+
+  say(`🐳 Building ${services.length} containers...`);
+
+  // Build all containers in parallel
+  const buildResults = await Promise.all(
+    services.map(service =>
+      task(`Building ${service}`, async () => {
+        await exec`docker build -t ${registry}/${service}:${version} -f ${service}/Dockerfile ${service}`;
+        return service;
+      })
+    )
   );
 
-  say('📊 Enterprise AI analysis complete');
-  console.log(analysis);
+  say('✅ All containers built successfully');
+
+  // Push all containers in parallel
+  say('📤 Publishing to registry...');
+
+  const pushResults = await Promise.all(
+    services.map(service =>
+      task(`Publishing ${service}`, async () => {
+        await exec`docker push ${registry}/${service}:${version}`;
+        return service;
+      })
+    )
+  );
+
+  yell('CONTAINERS PUBLISHED!');
+  say(`Published: ${pushResults.join(', ')}`);
+  say(`Registry: ${registry}`);
+  say(`Version: ${version}`);
 }
 ```
 
-### Simple Text Generation
-
-For quick text generation without structured output:
+#### Kubernetes Deployment Control
 
 ```javascript
 /**
- * Generate marketing copy
+ * Deploy to Kubernetes with health checks
  */
-export async function generateCopy(product) {
-  const copy = await ai(`Write compelling marketing copy for: ${product}`);
-  say('📝 Generated copy:');
-  console.log(copy);
+export async function kubeDeploy(
+  environment = 'staging',
+  options = { wait: true, replicas: 3 }
+) {
+  const { exec, task, say, yell, ask } = global.bunosh;
+
+  // Confirm production deployments
+  if (environment === 'production') {
+    const confirmed = await ask(
+      `⚠️ Deploy to PRODUCTION?`,
+      false
+    );
+    if (!confirmed) {
+      say('Deployment cancelled');
+      return;
+    }
+  }
+
+  // Set kubectl context
+  await task('Setting context', () =>
+    exec`kubectl config use-context ${environment}`
+  );
+
+  // Apply configurations
+  await task('Applying configurations', () =>
+    exec`kubectl apply -f k8s/${environment}/`
+  );
+
+  // Scale if needed
+  if (options.replicas) {
+    await task(`Scaling to ${options.replicas} replicas`, () =>
+      exec`kubectl scale deployment/app --replicas=${options.replicas}`
+    );
+  }
+
+  // Wait for rollout
+  if (options.wait) {
+    await task('Waiting for rollout', () =>
+      exec`kubectl rollout status deployment/app --timeout=5m`
+    );
+  }
+
+  // Verify deployment
+  const pods = await exec`kubectl get pods -l app=myapp -o json`;
+  const podData = JSON.parse(pods.output);
+  const runningPods = podData.items.filter(
+    pod => pod.status.phase === 'Running'
+  ).length;
+
+  if (runningPods === options.replicas) {
+    yell('DEPLOYMENT SUCCESSFUL!');
+    say(`✅ ${runningPods} pods running in ${environment}`);
+  } else {
+    yell('DEPLOYMENT ISSUES!');
+    say(`⚠️ Only ${runningPods}/${options.replicas} pods running`);
+  }
 }
 
 /**
- * Translate content
+ * Rollback Kubernetes deployment
  */
-export async function translate(text, language = 'Spanish') {
-  const translation = await ai(`Translate to ${language}: ${text}`);
-  say(`🌐 Translation to ${language}:`);
-  console.log(translation);
+export async function kubeRollback(environment = 'staging') {
+  const { exec, say, ask } = global.bunosh;
+
+  const confirmed = await ask(
+    `Rollback ${environment} deployment?`,
+    false
+  );
+
+  if (!confirmed) {
+    say('Rollback cancelled');
+    return;
+  }
+
+  await exec`kubectl config use-context ${environment}`;
+  await exec`kubectl rollout undo deployment/app`;
+  await exec`kubectl rollout status deployment/app`;
+
+  say(`✅ Rolled back ${environment} deployment`);
 }
 ```
 
-### Progressive Enhancement
+#### AWS Infrastructure Management
 
-The AI task features:
-- **🎭 Animated Progress**: Braille spinner animation during generation
-- **📊 Token Tracking**: Shows token usage for cost monitoring
-- **⚡ Fast Inference**: Optimized for speed with Groq and other providers
-- **🔧 Structured Output**: Get JSON responses with defined schemas
-- **🎯 Provider Auto-Detection**: Automatically detects available API keys
-- **💪 Error Handling**: Graceful handling of API errors and rate limits
+```
+bunosh aws:spawn-server --count 3
+```
 
-Transform your development workflow with AI-powered automation! Generate documentation, analyze code, create tests, write commit messages, and much more.
-
-## Command Features
-
-### Automatic CLI Generation
-- `functionName` → `bunosh function:name`
-- Function parameters become command arguments
-- Last object parameter becomes CLI options
-- JSDoc comments become help descriptions
-
-### Smart Argument Handling
 ```javascript
-// Function definition
-export function deploy(env = 'staging', options = { force: false, verbose: false }) {
-  // ...
+/**
+ * Spawn EC2 instances and configure
+ *
+ */
+export async function awsSpawnServer(
+  instanceType = 't3.micro',
+  options = { count: 1, region: 'us-east-1' }
+) {
+  const { exec, task, say, writeToFile } = global.bunosh;
+
+  const result = await exec`aws ec2 run-instances \
+      --image-id ami-0c55b159cbfafe1f0 \
+      --instance-type ${instanceType} \
+      --count ${options.count} \
+      --region ${options.region} \
+      --output json`;
+
+  const instanceIds = JSON.parse(result.output).Instances.map(i => i.InstanceId);
+  say(`🚀 Launched instances: ${instanceIds.join(', ')}`);
+
+  exec`aws ec2 wait instance-running --instance-ids ${instanceIds.join(' ')}`
+
+  const details = await exec`aws ec2 describe-instances \
+    --instance-ids ${instanceIds.join(' ')} \
+    --output json`;
+  const instances = JSON.parse(details.output).Reservations[0].Instances;
+
+  writeToFile('instances.json', (line) => {
+    line`${JSON.stringify(instances, null, 2)}`;
+  });
+
+  // Output connection info
+  instances.forEach(instance => {
+    say(`Instance ${instance.InstanceId}:`);
+    say(`  Public IP: ${instance.PublicIpAddress}`);
+    say(`  SSH: ssh -i key.pem ec2-user@${instance.PublicIpAddress}`);
+  });
+
+  return instances;
 }
 
-// CLI usage
-bunosh deploy production --force --verbose
-```
+/**
+ * Configure Cloudflare DNS for new servers
+ */
+export async function cloudflareSetup(domain, ipAddress) {
+  const { exec, task, say } = global.bunosh;
 
-### Help and Documentation
-```bash
-# List all commands
-bunosh
+  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
-# Get help for specific command
-bunosh deploy --help
-```
+  await task('Creating DNS record', async () => {
+    const result = await exec`curl -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records" \
+      -H "Authorization: Bearer ${apiToken}" \
+      -H "Content-Type: application/json" \
+      --data '{
+        "type": "A",
+        "name": "${domain}",
+        "content": "${ipAddress}",
+        "ttl": 3600
+      }'`;
 
-### Shell Auto-Completion
-Enable tab completion for faster command typing:
+    return JSON.parse(result.output);
+  });
 
-```bash
-# 🚀 Auto-setup (recommended) - detects your shell and installs completion
-bunosh setup-completion
-
-# Manual setup if needed
-bunosh completion bash > ~/.bunosh-completion.bash
-echo "source ~/.bunosh-completion.bash" >> ~/.bashrc
-source ~/.bashrc
-
-# Now use tab completion
-bunosh dep<TAB>    # Completes to 'deploy'
-bunosh <TAB><TAB>  # Shows all available commands
-```
-
-**Supported shells:** bash, zsh, fish. The `setup-completion` command automatically detects your shell and handles installation. See [COMPLETION.md](COMPLETION.md) for detailed setup.
-
-### Staying Up to Date
-
-**Single Executable:**
-```bash
-# Check for updates
-bunosh upgrade --check
-
-# Upgrade to latest version
-bunosh upgrade
-
-# Force reinstall current version
-bunosh upgrade --force
-```
-
-**NPM Installation:**
-```bash
-npm update -g bunosh
-```
-
-## Advanced Usage
-
-### Parallel Task Execution
-```javascript
-const results = await Promise.all([
-  task('Task 1', () => exec`sleep 2 && echo "Done 1"`),
-  task('Task 2', () => exec`sleep 2 && echo "Done 2"`),
-  task('Task 3', () => exec`sleep 2 && echo "Done 3"`)
-]);
-```
-
-
-
-### NPM Scripts Integration
-Bunosh automatically includes your package.json scripts:
-```bash
-bunosh npm:test    # runs npm run test
-bunosh npm:build   # runs npm run build
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Write tests for new functionality
-4. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
-
----
-
-Built with ❤️ for modern JavaScript development
+  say(`✅ DNS configured: ${domain} → ${ipAddress}`);
+}
