@@ -1051,6 +1051,118 @@ bunosh upgrade --force
 npm update -g bunosh
 ```
 
+## Pipes Support
+
+Bunosh supports executing JavaScript code directly via stdin pipes, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
+
+### Basic Usage
+
+```bash
+# Execute Bunosh code from stdin
+echo "exec\`ls -la\`; say('Directory listing complete!');" | bunosh
+```
+
+```bash
+# Multi-line commands
+echo "
+exec\`pwd\`;
+say('Current directory shown above');
+yell('TASK COMPLETE!');
+" | bunosh
+```
+
+### GitHub Actions Integration
+
+Use pipes to run Bunosh commands in CI/CD workflows without creating separate files:
+
+```yaml
+name: Deploy with Bunosh
+on: [push]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Bunosh
+        run: |
+          curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-linux-x64.tar.gz | tar -xz
+          sudo mv bunosh-linux-x64 /usr/local/bin/bunosh
+      
+      - name: Build and Deploy
+        run: |
+          echo "
+            say('🚀 Starting deployment...');
+            exec\`npm ci\`;
+            exec\`npm run build\`;
+            exec\`npm run test\`;
+            fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
+            });
+            yell('DEPLOYMENT COMPLETE!');
+          " | bunosh
+```
+
+### Shell Script Integration
+
+```bash
+#!/bin/bash
+
+# Traditional approach - create temp file
+TEMP_TASK=$(mktemp)
+cat > "$TEMP_TASK" << 'EOF'
+exec`docker build -t myapp .`;
+exec`docker push myapp:latest`;
+say('Docker image pushed successfully!');
+EOF
+bunosh --bunoshfile "$TEMP_TASK"
+rm "$TEMP_TASK"
+
+# New pipes approach - much cleaner!
+echo "
+  exec\`docker build -t myapp .\`;
+  exec\`docker push myapp:latest\`;
+  say('Docker image pushed successfully!');
+" | bunosh
+```
+
+### Advanced Pipe Examples
+
+**Conditional deployment:**
+```bash
+echo "
+  const branch = process.env.GITHUB_REF?.replace('refs/heads/', '');
+  if (branch === 'main') {
+    say('🚀 Deploying to production...');
+    exec\`npm run deploy:prod\`;
+  } else {
+    say('📦 Deploying to staging...');
+    exec\`npm run deploy:staging\`;
+  }
+" | bunosh
+```
+
+**Dynamic task generation:**
+```bash
+echo "
+  const services = ['api', 'web', 'worker'];
+  for (const service of services) {
+    say(\`Building \${service} service...\`);
+    exec\`docker build -t \${service} ./\${service}\`;
+  }
+  yell('ALL SERVICES BUILT!');
+" | bunosh
+```
+
+### Benefits
+
+- **No temporary files**: Execute tasks without creating Bunoshfile.js
+- **CI/CD friendly**: Perfect for GitHub Actions, GitLab CI, Jenkins
+- **Shell integration**: Embed in bash scripts seamlessly
+- **Dynamic tasks**: Generate tasks programmatically
+- **One-liners**: Quick automation without file management
+
 ## Advanced Usage
 
 ### Parallel Task Execution
