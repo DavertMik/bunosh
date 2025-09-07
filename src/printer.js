@@ -65,6 +65,17 @@ export class Printer {
     this.print(taskName, 'error', extra);
   }
 
+  warning(taskName, error = null, extra = {}) {
+    if (this.startTimeout) {
+      clearTimeout(this.startTimeout);
+      this.startTimeout = null;
+    }
+    if (error) {
+      extra.error = typeof error === 'string' ? error : error.message;
+    }
+    this.print(taskName, 'warning', extra);
+  }
+
   output(line, isError = false) {
     if (!line.trim()) return;
 

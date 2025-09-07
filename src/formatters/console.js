@@ -5,6 +5,7 @@ const STATUS_CONFIG = {
   start: { icon: '▶', color: 'blue' },
   finish: { icon: '✓', color: 'green' },
   error: { icon: '✗', color: 'red' },
+  warning: { icon: '⚠', color: 'yellow' },
   output: { icon: ' ', color: 'white' },
   info: { icon: ' ', color: 'dim' }
 };

@@ -120,6 +120,30 @@ main().catch((error) => {
   process.exit(1);
 });
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  if (!process.env.BUNOSH_COMMAND_STARTED) return;
+  
+  console.error('\n❌ Unhandled Promise Rejection:');
+  console.error(reason instanceof Error ? reason.message : reason);
+  if (reason instanceof Error && reason.stack && process.env.BUNOSH_DEBUG) {
+    console.error(reason.stack);
+  }
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  if (!process.env.BUNOSH_COMMAND_STARTED) return;
+  
+  console.error('\n❌ Uncaught Exception:');
+  console.error(error.message);
+  if (error.stack && process.env.BUNOSH_DEBUG) {
+    console.error(error.stack);
+  }
+  process.exit(1);
+});
+
 function handleBunoshfileError(error, filePath) {
   banner();
   console.log();
