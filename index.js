@@ -28,7 +28,6 @@ global.bunosh = {
   stopOnFail,
   ignoreFail,
   task,
-  try: tryTask,
   stopOnFailures,
   ignoreFailures,
   silence,
