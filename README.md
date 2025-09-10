@@ -804,6 +804,79 @@ export async function kubeRollback(environment = 'staging') {
 }
 ```
 
+## Pipes Support
+
+Bunosh supports executing JavaScript code directly via stdin pipes, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
+
+### Basic Usage
+
+```bash
+# Execute Bunosh code from stdin
+"say('Hello');" | bunosh
+```
+
+```bash
+# Multi-line commands
+echo "
+exec\`pwd\`;
+say('Current directory shown above');
+yell('TASK COMPLETE!');
+" | bunosh
+```
+
+### GitHub Actions Integration
+
+Use pipes to run Bunosh scripts inside CI/CD workflows without creating separate files:
+
+```yaml
+
+- name: Build and Deploy
+  run: |
+    echo "
+      say('🚀 Starting deployment...');
+      exec\`npm ci\`;
+      exec\`npm run build\`;
+      exec\`npm run test\`;
+      fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
+      });
+      yell('DEPLOYMENT COMPLETE!');
+    " | bunosh
+```
+
+
+**Conditional deployment:**
+
+```bash
+echo "
+  const branch = process.env.GITHUB_REF?.replace('refs/heads/', '');
+  if (branch === 'main') {
+    say('🚀 Deploying to production...');
+    exec\`npm run deploy:prod\`;
+  } else {
+    say('📦 Deploying to staging...');
+    exec\`npm run deploy:staging\`;
+  }
+" | bunosh
+```
+
+**Dynamic task generation:**
+
+```bash
+echo "
+  const services = ['api', 'web', 'worker'];
+  for (const service of services) {
+    say(\`Building \${service} service...\`);
+    exec\`docker build -t \${service} ./\${service}\`;
+  }
+  yell('ALL SERVICES BUILT!');
+" | bunosh
+```
+
+
+## Advanced Usage
+
 #### AWS Infrastructure Management
 
 ```
