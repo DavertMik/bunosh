@@ -4,9 +4,9 @@ import fs from 'fs';
 
 const template = `
 // Bunosh CLI required to execute tasks from this file
-// Get it here -> https://github.com/DavertMik/bunosh/releases
+// Get it here => https://buno.sh
 
-const { exec, fetch, writeToFile, task, ai } = global.bunosh;
+const { exec, shell, fetch, writeToFile, task, ai } = global.bunosh;
 
 // input/output
 const { say, ask, yell } = global.bunosh;

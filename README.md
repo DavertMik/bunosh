@@ -560,16 +560,58 @@ Bunosh supports executing JavaScript code directly via stdin pipes, allowing for
 
 ```bash
 # Execute Bunosh code from stdin
-"say('Hello');" | bunosh
+echo "say('Hello')" | bunosh
 ```
 
+### Heredoc Syntax
+
+For multi-line scripts, use heredoc syntax for clean, readable code:
+
 ```bash
-# Multi-line commands
-echo "
-exec\`pwd\`;
-say('Current directory shown above');
-yell('TASK COMPLETE!');
-" | bunosh
+bunosh << 'EOF'
+say('🚀 Starting build process...')
+await task('Install Dependencies', () => shell`npm ci`)
+await task('Build', () => shell`npm run build`)
+await task('Test', () => shell`npm test`)
+say('✅ All tasks completed successfully!')
+EOF
+```
+
+### With Environment Variables and Control Flow
+
+```bash
+# Complex script with conditions
+bunosh << 'EOF'
+const env = process.env.NODE_ENV || 'development'
+say(`Building for ${env}...`)
+
+if (env === 'production') {
+  await shell`npm run build:prod`
+  await task('Deploy', () => shell`./deploy.sh`)
+} else {
+  await shell`npm run build:dev`
+}
+
+yell('BUILD COMPLETE!')
+EOF
+```
+
+### Error Handling
+
+```bash
+# Script with error handling
+bunosh << 'EOF'
+task.stopOnFailures()
+
+try {
+  await shell`npm test`
+  await shell`npm run build`
+  say('✅ Success!')
+} catch (error) {
+  yell(`❌ Build failed: ${error.message}`)
+  process.exit(1)
+}
+EOF
 ```
 
 ### Pipes in GitHub Actions
@@ -577,20 +619,39 @@ yell('TASK COMPLETE!');
 Use pipes to run Bunosh scripts inside CI/CD workflows without creating separate files:
 
 ```yaml
-
 - name: Build and Deploy
   run: |
-    echo "
-      say('🚀 Starting deployment...');
-      exec\`npm ci\`;
-      exec\`npm run build\`;
-      exec\`npm run test\`;
-      fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
-      });
-      yell('DEPLOYMENT COMPLETE!');
-    " | bunosh
+    bunosh << 'EOF'
+    say('🚀 Starting deployment...')
+
+    if (!process.env.NODE_ENV === 'production') return;
+
+    shell`./deploy.sh`
+
+    const response = await fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
+    })
+
+    if (response.ok) {
+      yell('🚀 DEPLOYMENT COMPLETE!')
+    } else {
+      yell('❌ DEPLOYMENT FAILED!')
+      process.exit(1)
+    }
+    EOF
+  env:
+    NODE_ENV: production
+```
+
+### Shell Integration
+
+```bash
+bunosh << 'EOF'
+say('Running database migrations...')
+await shell`npm run migrate`
+say('Migrations completed')
+EOF
 ```
 
 

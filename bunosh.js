@@ -79,14 +79,29 @@ async function main() {
       // Import bunosh globals before executing piped JavaScript
       await import('./index.js');
       
+      // Make bunosh globals available to the function by creating wrapper functions
+      for (const [key, value] of Object.entries(global.bunosh)) {
+        if (typeof value === 'function') {
+          // For template literal tag functions like exec and shell, create a wrapper
+          // that allows them to be called as regular functions with a string
+          if (key === 'exec' || key === 'shell' || key === 'writeToFile') {
+            globalThis[key] = (str) => {
+              // If called as a regular function with a string, convert to template literal call
+              if (typeof str === 'string') {
+                return value([str]);
+              }
+              // Otherwise call normally
+              return value(str, ...Array.from(arguments).slice(1));
+            };
+          } else {
+            globalThis[key] = value;
+          }
+        }
+      }
+      
       // Execute the piped JavaScript code with bunosh globals available
       const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-      
-      // Make bunosh globals available to the function by destructuring from global.bunosh
-      const globalVars = Object.keys(global.bunosh).map(key => `const ${key} = global.bunosh.${key};`).join('\n');
-      const funcBody = `${globalVars}\n${jsCode}`;
-      
-      const func = new AsyncFunction(funcBody);
+      const func = new AsyncFunction(jsCode);
       await func();
     } catch (error) {
       console.error('Error executing piped JavaScript:', error.message);
