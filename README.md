@@ -551,6 +551,49 @@ export async function commit() {
 
 See more ai usage examples in [docs/examples.md](docs/examples.md)
 
+
+## Pipes Support
+
+Bunosh supports executing JavaScript code directly via stdin pipes, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
+
+### Basic Usage
+
+```bash
+# Execute Bunosh code from stdin
+"say('Hello');" | bunosh
+```
+
+```bash
+# Multi-line commands
+echo "
+exec\`pwd\`;
+say('Current directory shown above');
+yell('TASK COMPLETE!');
+" | bunosh
+```
+
+### Pipes in GitHub Actions
+
+Use pipes to run Bunosh scripts inside CI/CD workflows without creating separate files:
+
+```yaml
+
+- name: Build and Deploy
+  run: |
+    echo "
+      say('🚀 Starting deployment...');
+      exec\`npm ci\`;
+      exec\`npm run build\`;
+      exec\`npm run test\`;
+      fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
+      });
+      yell('DEPLOYMENT COMPLETE!');
+    " | bunosh
+```
+
+
 ## Examples
 
 For comprehensive examples of Bunosh in action, see [docs/examples.md](docs/examples.md).

@@ -12,65 +12,124 @@ globalThis._bunoshGlobalTaskStatus = {
 };
 
 // Now import modules
+// Check for piped input FIRST, before any other imports
+function isPipeInput() {
+  // In Bun, process.stdin.isTTY is undefined when piped, not false
+  return process.stdin.isTTY === undefined || !process.stdin.isTTY;
+}
+
+// Read stdin immediately if piped input detected, before other modules can interfere
+let stdinData = null;
+if (isPipeInput()) {
+  // Use synchronous reading to avoid any timing issues
+  try {
+    const fs = require('fs');
+    const buffer = Buffer.alloc(64 * 1024); // 64KB buffer
+    const bytesRead = fs.readSync(0, buffer, 0, buffer.length, null);
+    stdinData = buffer.toString('utf8', 0, bytesRead).trim();
+  } catch (error) {
+    console.error('Error reading stdin:', error.message);
+    stdinData = '';
+  }
+}
+
 import program, { BUNOSHFILE, banner }  from "./src/program.js";
 import { existsSync, readFileSync, statSync } from "fs";
 import init from "./src/init.js";
 import path from "path";
 import color from "chalk";
-import './index.js';
 
-// Parse --bunoshfile flag before importing tasks
-const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
-let customBunoshfile = null;
-if (bunoshfileIndex !== -1 && bunoshfileIndex + 1 < process.argv.length) {
-  customBunoshfile = process.argv[bunoshfileIndex + 1];
-  // Remove the flag and its value from process.argv so it doesn't interfere with command parsing
-  process.argv.splice(bunoshfileIndex, 2);
-}
 
-let tasksFile;
-if (customBunoshfile) {
-  const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
-  // If it's a directory, append the default BUNOSHFILE
-  if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
-    tasksFile = path.join(resolvedPath, BUNOSHFILE);
-    // Change working directory to the bunoshfile directory
-    process.chdir(resolvedPath);
+async function main() {
+  // Parse --bunoshfile flag before importing tasks
+  const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
+  let customBunoshfile = null;
+  if (bunoshfileIndex !== -1 && bunoshfileIndex + 1 < process.argv.length) {
+    customBunoshfile = process.argv[bunoshfileIndex + 1];
+    // Remove the flag and its value from process.argv so it doesn't interfere with command parsing
+    process.argv.splice(bunoshfileIndex, 2);
+  }
+
+  let tasksFile;
+  if (customBunoshfile) {
+    const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
+    // If it's a directory, append the default BUNOSHFILE
+    if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
+      tasksFile = path.join(resolvedPath, BUNOSHFILE);
+      // Change working directory to the bunoshfile directory
+      process.chdir(resolvedPath);
+    } else {
+      tasksFile = resolvedPath;
+      // Change working directory to the bunoshfile's directory
+      process.chdir(path.dirname(resolvedPath));
+    }
   } else {
-    tasksFile = resolvedPath;
-    // Change working directory to the bunoshfile's directory
-    process.chdir(path.dirname(resolvedPath));
-  }
-} else {
-  tasksFile = path.join(process.cwd(), BUNOSHFILE);
-}
-
-if (!existsSync(tasksFile)) {
-  banner();
-
-  if (process.argv.includes('init')) {
-    init();
-    process.exit(0);
+    tasksFile = path.join(process.cwd(), BUNOSHFILE);
   }
 
-  console.log();
-  console.error(`Bunoshfile not found: ${tasksFile}`);
-  console.log(customBunoshfile ? 
-    `Run \`bunosh init\` in the directory or specify a valid --bunoshfile path` :
-    "Run `bunosh init` to create a new Bunoshfile here")
-  console.log();
-  process.exit(1);
-}
+  // Handle piped input first
+  if (isPipeInput()) {
+    const jsCode = stdinData;
+    if (!jsCode) {
+      console.error('No JavaScript code provided via stdin');
+      process.exit(1);
+    }
+    
+    try {
+      // Import bunosh globals before executing piped JavaScript
+      await import('./index.js');
+      
+      // Execute the piped JavaScript code with bunosh globals available
+      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+      
+      // Make bunosh globals available to the function by destructuring from global.bunosh
+      const globalVars = Object.keys(global.bunosh).map(key => `const ${key} = global.bunosh.${key};`).join('\n');
+      const funcBody = `${globalVars}\n${jsCode}`;
+      
+      const func = new AsyncFunction(funcBody);
+      await func();
+    } catch (error) {
+      console.error('Error executing piped JavaScript:', error.message);
+      process.exit(1);
+    }
+    return;
+  }
 
-import(tasksFile).then((tasks) => {
-  try {
-    const source = readFileSync(tasksFile, "utf-8");
-    program(tasks, source);
-  } catch (error) {
+  if (!existsSync(tasksFile)) {
+    banner();
+
+    if (process.argv.includes('init')) {
+      init();
+      process.exit(0);
+    }
+
+    console.log();
+    console.error(`Bunoshfile not found: ${tasksFile}`);
+    console.log(customBunoshfile ? 
+      `Run \`bunosh init\` in the directory or specify a valid --bunoshfile path` :
+      "Run `bunosh init` to create a new Bunoshfile here")
+    console.log();
+    process.exit(1);
+  }
+
+  // Import bunosh globals for normal operation
+  await import('./index.js');
+  
+  import(tasksFile).then((tasks) => {
+    try {
+      const source = readFileSync(tasksFile, "utf-8");
+      program(tasks, source);
+    } catch (error) {
+      handleBunoshfileError(error, tasksFile);
+    }
+  }).catch((error) => {
     handleBunoshfileError(error, tasksFile);
-  }
-}).catch((error) => {
-  handleBunoshfileError(error, tasksFile);
+  });
+}
+
+main().catch((error) => {
+  console.error('Fatal error:', error.message);
+  process.exit(1);
 });
 
 // Handle unhandled promise rejections
