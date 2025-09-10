@@ -70,7 +70,7 @@ export async function helloOther(
     flag: false,
   },
 ) {
-  // yell('running everything!')
+  yell('run it')
 
   await fetch("https://reqres.in/api/users");
 

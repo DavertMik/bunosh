@@ -1,13 +1,15 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import Printer from './printer.js';
 
-export const TaskStatus = {
+// Use global objects created in bunosh.js
+export const TaskStatus = globalThis._bunoshGlobalTaskStatus || {
   RUNNING: 'running',
   FAIL: 'fail',
   SUCCESS: 'success',
   WARNING: 'warning'
 };
 
+// Initialize local array and also keep global synced
 export const tasksExecuted = [];
 export const runningTasks = new Map();
 
@@ -45,32 +47,6 @@ export function prints() {
   globalSilenceMode = false;
 }
 
-const startTime = Date.now();
-
-process.on('exit', (code) => {
-  if (!process.env.BUNOSH_COMMAND_STARTED) return;
-
-  const totalTime = Date.now() - startTime;
-  const tasksFailed = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.FAIL).length;
-  const tasksWarning = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.WARNING).length;
-  
-  // Check if we're in test environment
-  const isTestEnvironment = process.env.NODE_ENV === 'test' ||
-                            typeof Bun?.jest !== 'undefined' ||
-                            process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
-  
-  // Set exit code to 1 if any tasks failed AND we're not in ignoreFailures mode AND not in test environment
-  // Note: if stopOnFailuresMode is true, we would have already exited immediately
-  if (tasksFailed > 0 && !stopOnFailuresMode && !isTestEnvironment) {
-    process.exitCode = 1;
-  }
-  
-  const finalExitCode = (tasksFailed > 0 && !stopOnFailuresMode && !isTestEnvironment) ? 1 : code;
-  const success = finalExitCode === 0;
-
-  console.log(`\n🍲 ${success ? '' : 'FAIL '}Exit Code: ${finalExitCode} | Tasks: ${tasksExecuted.length}${tasksFailed ? ` | Failed: ${tasksFailed}` : ''}${tasksWarning ? ` | Warnings: ${tasksWarning}` : ''} | Time: ${totalTime}ms`);
-});
-
 export function getRunningTaskCount() {
   return runningTasks.size;
 }
@@ -88,6 +64,12 @@ export function createTaskInfo(name) {
   const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
+  
+  // Also add to global array for exit handler
+  if (globalThis._bunoshGlobalTasksExecuted) {
+    globalThis._bunoshGlobalTasksExecuted.push(taskInfo);
+  }
+  
   return taskInfo;
 }
 
@@ -120,10 +102,7 @@ export async function tryTask(name, fn, isSilent = false) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
-
-  tasksExecuted.push(taskInfo);
-  runningTasks.set(taskInfo.id, taskInfo);
+  const taskInfo = createTaskInfo(name);
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);
@@ -166,10 +145,7 @@ export async function task(name, fn, isSilent = false) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
-
-  tasksExecuted.push(taskInfo);
-  runningTasks.set(taskInfo.id, taskInfo);
+  const taskInfo = createTaskInfo(name);
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);

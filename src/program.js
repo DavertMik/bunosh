@@ -4,7 +4,6 @@ import traverseDefault from "@babel/traverse";
 const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
 import fs from 'fs';
-import openEditor from './open-editor.js';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
@@ -13,10 +12,35 @@ import { upgradeExecutable, isExecutable, getCurrentVersion } from './upgrade.js
 export const BUNOSHFILE = `Bunoshfile.js`;
 
 export const banner = () => {
-  console.log(cprint('Bunosh', { symbol: '⯀' }));
-  console.log(color.gray('🍲 Your exceptional task runner'));
+  const asciiArt = cprint('Bunosh', { symbol: '⯀' });
+  console.log(createGradientAscii(asciiArt));
+  console.log(chalk.gray('🍲 Your exceptional task runner'));
   console.log();
 };
+
+function createGradientAscii(asciiArt) {
+  const lines = asciiArt.split('\n');
+  const colors = [
+    chalk.bold.yellow,
+    chalk.bold.green,
+    chalk.bold.greenBright,
+    chalk.bold.cyan,
+    chalk.bold.blue
+  ];
+  
+  return lines.map((line, index) => {
+    // Create smooth gradient by interpolating between colors
+    const progress = index / (lines.length - 1);
+    const colorIndex = progress * (colors.length - 1);
+    const lowerIndex = Math.floor(colorIndex);
+    const upperIndex = Math.min(lowerIndex + 1, colors.length - 1);
+    const factor = colorIndex - lowerIndex;
+    
+    // For smoother transition, we'll use the closest color
+    const color = factor < 0.5 ? colors[lowerIndex] : colors[upperIndex];
+    return color(line);
+  }).join('\n');
+}
 
 export default function bunosh(commands, source) {
   const program = new Command();
@@ -252,15 +276,14 @@ export default function bunosh(commands, source) {
   const editCmd = program.command('edit')
     .description('Open the bunosh file in your editor. $EDITOR or \'code\' is used.')
     .action(async () => {
-      try {
-        await openEditor([{
-          file: BUNOSHFILE,
-        }]);
-      } catch (error) {
-        console.error(error.message);
-        console.error('Set $EDITOR environment variable to use a different editor');
+      if (!Bun) {
+        console.log('Bun is not available');
         process.exit(1);
+        return;
       }
+      await Bun.openEditor([{
+        file: BUNOSHFILE,
+      }]);
     });
 
   internalCommands.push(editCmd);
