@@ -124,10 +124,10 @@ async function main() {
   // Import bunosh globals for normal operation
   await import('./index.js');
   
-  import(tasksFile).then((tasks) => {
+  import(tasksFile).then(async (tasks) => {
     try {
       const source = readFileSync(tasksFile, "utf-8");
-      program(tasks, source);
+      await program(tasks, source);
     } catch (error) {
       handleBunoshfileError(error, tasksFile);
     }
