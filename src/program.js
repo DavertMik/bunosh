@@ -3,7 +3,7 @@ import babelParser from "@babel/parser";
 import traverseDefault from "@babel/traverse";
 const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
@@ -849,11 +849,11 @@ function exportFn(commands) {
 
 function loadNpmScripts() {
   try {
-    if (!fs.existsSync('package.json')) {
+    if (!existsSync('package.json')) {
       return {};
     }
 
-    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
     const scripts = pkg.scripts || {};
 
     // Filter out bunosh scripts (scripts that contain "bunosh")
@@ -878,13 +878,13 @@ async function loadHomeTasks() {
     const homeDir = os.homedir();
     const homeBunoshfile = path.join(homeDir, BUNOSHFILE);
 
-    if (!fs.existsSync(homeBunoshfile)) {
+    if (!existsSync(homeBunoshfile)) {
       return { tasks: {}, source: '' };
     }
 
     // Import the home Bunoshfile
     const homeTasks = await import(homeBunoshfile);
-    const homeSource = fs.readFileSync(homeBunoshfile, 'utf-8');
+    const homeSource = readFileSync(homeBunoshfile, 'utf-8');
 
     return { tasks: homeTasks, source: homeSource };
   } catch (error) {
