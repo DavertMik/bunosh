@@ -24,9 +24,13 @@ describe('Task Listing Display', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify the function no longer exists
+    // Verify the old color picker function no longer exists
+    // The old function had this pattern:
     expect(programContent).not.toContain('function pickColorForColorName');
-    expect(programContent).not.toContain('const colors = [');
+    expect(programContent).not.toContain('pickColorForColorName = function');
+    
+    // But the gradient colors array should still exist
+    expect(programContent).toContain('const colors = [');
   });
 
 });

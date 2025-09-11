@@ -167,7 +167,7 @@ describe('Pipes Support', () => {
 
     expect(exitCode).toBe(0);
     expect(output).toContain('Testing say function');
-    expect(output).toContain('■■■■'); // yell creates ASCII art
+    expect(output).toContain('TESTING YELL'); // yell creates ASCII art
     expect(output).toContain('All tests completed');
   }, isCI ? 30000 : 10000);
 

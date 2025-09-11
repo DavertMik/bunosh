@@ -3,7 +3,7 @@ import babelParser from "@babel/parser";
 import traverseDefault from "@babel/traverse";
 const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
-import fs from 'fs';
+import { readFileSync } from 'fs';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
@@ -14,18 +14,32 @@ export const BUNOSHFILE = `Bunoshfile.js`;
 export const banner = () => {
   const asciiArt = cprint('Bunosh', { symbol: '⯀' });
   console.log(createGradientAscii(asciiArt));
-  console.log(chalk.gray('🍲 Your exceptional task runner'));
+  console.log(color.gray('🍲 Your exceptional task runner'));
+  
+  // Try to get version from package.json
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    console.log(`Version: ${color.bold(pkg.version)}`);
+  } catch {
+    try {
+      // Fallback to current directory
+      const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+      console.log(`Version: ${color.bold(pkg.version)}`);
+    } catch {
+      // Ignore if version can't be read
+    }
+  }
   console.log();
 };
 
 function createGradientAscii(asciiArt) {
   const lines = asciiArt.split('\n');
   const colors = [
-    chalk.bold.yellow,
-    chalk.bold.green,
-    chalk.bold.greenBright,
-    chalk.bold.cyan,
-    chalk.bold.blue
+    color.bold.yellow,
+    color.bold.green,
+    color.bold.greenBright,
+    color.bold.cyan,
+    color.bold.blue
   ];
   
   return lines.map((line, index) => {
@@ -57,7 +71,7 @@ export default function bunosh(commands, source) {
       banner();
       return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
     },
-    commandUsage: usg => 'bunosh <command> <args> [options]',
+    commandUsage: usg => 'bunosh [-e <code>] <command> <args> [options]',
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
@@ -483,12 +497,22 @@ Special Commands:
   📝 Edit bunosh file: ${color.bold('bunosh edit')}
   📥 Export commands as scripts to package.json: ${color.bold('bunosh export:scripts')}
   🦾 Upgrade bunosh: ${color.bold('bunosh upgrade')}
+  
+Execute JavaScript:
+  ${color.bold('bunosh -e "console.log(\'Hello\')"')}    Execute inline JavaScript
+  ${color.bold('bunosh -e < script.js')}                 Execute JavaScript from file
 `);
 
   program.on("command:*", (cmd) => {
     console.log(`\nUnknown command ${cmd}\n`);
     program.outputHelp();
   });
+
+  // Show help if no command provided
+  if (process.argv.length === 2) {
+    program.outputHelp();
+    return program;
+  }
 
   program.parse(process.argv);
 

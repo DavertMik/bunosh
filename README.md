@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <strong>ONE TOOL TO SCRIPT THEM ALL</strong>
+  <strong>Your exceptional task runner</strong>
 </p>
 
 <p align="center">
-  Transform JavaScript functions into powerful CLI commands. Write once, run anywhere.
+  Transform JavaScript functions into CLI commands.
 </p>
 
 ---
@@ -480,7 +480,7 @@ export async function checkServices() {
     await useFallbackDatabase();
   }
 
-  const apiHealthy = await task.try(() => fetch('http://localhost:3000/health');
+  const apiHealthy = await task.try(() => fetch('http://localhost:3000/health'));
 
   if (!apiHealthy) {
     yell('API IS DOWN!');
@@ -552,15 +552,18 @@ export async function commit() {
 See more ai usage examples in [docs/examples.md](docs/examples.md)
 
 
-## Pipes Support
+## Execute JavaScript Code
 
-Bunosh supports executing JavaScript code directly via stdin pipes, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
+Bunosh supports executing JavaScript code directly using the `-e` flag, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
 
 ### Basic Usage
 
 ```bash
-# Execute Bunosh code from stdin
-echo "say('Hello')" | bunosh
+# Execute inline JavaScript
+bunosh -e "say('Hello')"
+
+# Execute JavaScript from stdin
+echo "say('Hello')" | bunosh -e
 ```
 
 ### Heredoc Syntax
@@ -568,7 +571,7 @@ echo "say('Hello')" | bunosh
 For multi-line scripts, use heredoc syntax for clean, readable code:
 
 ```bash
-bunosh << 'EOF'
+bunosh -e << 'EOF'
 say('🚀 Starting build process...')
 await task('Install Dependencies', () => shell`npm ci`)
 await task('Build', () => shell`npm run build`)
@@ -581,7 +584,7 @@ EOF
 
 ```bash
 # Complex script with conditions
-bunosh << 'EOF'
+bunosh -e << 'EOF'
 const env = process.env.NODE_ENV || 'development'
 say(`Building for ${env}...`)
 
@@ -600,7 +603,7 @@ EOF
 
 ```bash
 # Script with error handling
-bunosh << 'EOF'
+bunosh -e << 'EOF'
 task.stopOnFailures()
 
 try {
@@ -614,14 +617,14 @@ try {
 EOF
 ```
 
-### Pipes in GitHub Actions
+### JavaScript Execution in GitHub Actions
 
-Use pipes to run Bunosh scripts inside CI/CD workflows without creating separate files:
+Use JavaScript execution to run Bunosh scripts inside CI/CD workflows without creating separate files:
 
 ```yaml
 - name: Build and Deploy
   run: |
-    bunosh << 'EOF'
+    bunosh -e << 'EOF'
     say('🚀 Starting deployment...')
 
     if (!process.env.NODE_ENV === 'production') return;
@@ -647,7 +650,7 @@ Use pipes to run Bunosh scripts inside CI/CD workflows without creating separate
 ### Shell Integration
 
 ```bash
-bunosh << 'EOF'
+bunosh -e << 'EOF'
 say('Running database migrations...')
 await shell`npm run migrate`
 say('Migrations completed')

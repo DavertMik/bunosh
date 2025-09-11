@@ -12,35 +12,15 @@ globalThis._bunoshGlobalTaskStatus = {
 };
 
 // Now import modules
-// Check for piped input FIRST, before any other imports
-function isPipeInput() {
-  // In Bun, process.stdin.isTTY is undefined when piped, not false
-  return process.stdin.isTTY === undefined || !process.stdin.isTTY;
-}
-
-// Read stdin immediately if piped input detected, before other modules can interfere
-let stdinData = null;
-if (isPipeInput()) {
-  // Use synchronous reading to avoid any timing issues
-  try {
-    const fs = require('fs');
-    const buffer = Buffer.alloc(64 * 1024); // 64KB buffer
-    const bytesRead = fs.readSync(0, buffer, 0, buffer.length, null);
-    stdinData = buffer.toString('utf8', 0, bytesRead).trim();
-  } catch (error) {
-    console.error('Error reading stdin:', error.message);
-    stdinData = '';
-  }
-}
 
 import program, { BUNOSHFILE, banner }  from "./src/program.js";
 import { existsSync, readFileSync, statSync } from "fs";
 import init from "./src/init.js";
 import path from "path";
-import color from "chalk";
 
 
 async function main() {
+
   // Parse --bunoshfile flag before importing tasks
   const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
   let customBunoshfile = null;
@@ -67,16 +47,30 @@ async function main() {
     tasksFile = path.join(process.cwd(), BUNOSHFILE);
   }
 
-  // Handle piped input first
-  if (isPipeInput()) {
-    const jsCode = stdinData;
+  // Handle -e flag for executing JavaScript code
+  const eFlagIndex = process.argv.indexOf('-e');
+  if (eFlagIndex !== -1) {
+    let jsCode = '';
+    
+    // Check if code is provided as argument
+    if (eFlagIndex + 1 < process.argv.length && !process.argv[eFlagIndex + 1].startsWith('-')) {
+      jsCode = process.argv[eFlagIndex + 1];
+    } else {
+      // Read from stdin
+      const chunks = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(chunk);
+      }
+      jsCode = Buffer.concat(chunks).toString('utf8').trim();
+    }
+    
     if (!jsCode) {
-      console.error('No JavaScript code provided via stdin');
+      console.error('No JavaScript code provided');
       process.exit(1);
     }
     
     try {
-      // Import bunosh globals before executing piped JavaScript
+      // Import bunosh globals before executing JavaScript
       await import('./index.js');
       
       // Make bunosh globals available to the function by creating wrapper functions
@@ -99,15 +93,15 @@ async function main() {
         }
       }
       
-      // Execute the piped JavaScript code with bunosh globals available
+      // Execute the JavaScript code with bunosh globals available
       const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
       const func = new AsyncFunction(jsCode);
       await func();
+      return;
     } catch (error) {
-      console.error('Error executing piped JavaScript:', error.message);
+      console.error('Error executing JavaScript:', error.message);
       process.exit(1);
     }
-    return;
   }
 
   if (!existsSync(tasksFile)) {
