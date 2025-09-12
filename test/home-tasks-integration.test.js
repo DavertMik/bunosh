@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Integration tests for home tasks with actual execution
-describe('Home Tasks Integration - Runtime Tests', () => {
+// Integration tests for personal commands with actual execution
+describe('Personal Commands Integration - Runtime Tests', () => {
   let tempHomeDir;
   let tempProjectDir;
   let originalHome;
@@ -46,7 +46,7 @@ export function projectTask() {
     }
   });
 
-  test('program loads without home tasks when no home Bunoshfile exists', async () => {
+  test('program loads without personal commands when no home Bunoshfile exists', async () => {
     // Import and run the program function
     const programModule = await import('../src/program.js');
     const program = programModule.default;
@@ -64,7 +64,7 @@ export function projectTask() {
     }).not.toThrow();
   });
 
-  test('program loads and integrates home tasks when home Bunoshfile exists', async () => {
+  test('program loads and integrates personal commands when home Bunoshfile exists', async () => {
     // Create home Bunoshfile
     const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
     fs.writeFileSync(homeBunoshfile, `
@@ -94,14 +94,14 @@ export function paramTask(name = 'World', opts = { greeting: 'Hello' }) {
     
     const mockSource = 'export function projectTask() { console.log("Project task executed"); }';
     
-    // This should load home tasks without error
+    // This should load personal commands without error
     let programInstance;
     expect(async () => {
       programInstance = await program(mockCommands, mockSource);
     }).not.toThrow();
   });
 
-  test('home task with invalid syntax is handled gracefully', async () => {
+  test('personal command with invalid syntax is handled gracefully', async () => {
     // Create home Bunoshfile with syntax error
     const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
     fs.writeFileSync(homeBunoshfile, `
@@ -127,7 +127,7 @@ export function badTask() {
     }).not.toThrow();
   });
 
-  test('home task comments and parameters are parsed correctly', async () => {
+  test('personal command comments and parameters are parsed correctly', async () => {
     // Create home Bunoshfile with comments and parameters
     const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
     fs.writeFileSync(homeBunoshfile, `
@@ -171,7 +171,7 @@ export function backup() {
     expect(fs.existsSync(expectedHomeBunoshfile)).toBe(true);
   });
 
-  test('both project and home tasks can coexist', async () => {
+  test('both project and personal commands can coexist', async () => {
     // Create home Bunoshfile
     const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
     fs.writeFileSync(homeBunoshfile, `
@@ -194,7 +194,7 @@ export function homeTask() {
     expect(projectContent).not.toContain('homeTask');
   });
 
-  test('home tasks with same name as project tasks do not conflict due to namespace', () => {
+  test('personal commands with same name as project commands do not conflict due to namespace', () => {
     // Create home Bunoshfile with same function name as project
     const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
     fs.writeFileSync(homeBunoshfile, `

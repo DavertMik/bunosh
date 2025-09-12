@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Test the home tasks functionality
-describe('Home Tasks Integration', () => {
+// Test the personal commands functionality
+describe('Personal Commands Integration', () => {
   let tempHomeDir;
   let originalHome;
   
@@ -61,31 +61,31 @@ export function anotherTask(name = 'World') {
     expect(content).toContain('Test home task');
   });
 
-  test('home tasks are added with my: prefix', () => {
+  test('personal commands are added with my: prefix', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify home tasks get my: prefix
+    // Verify personal commands get my: prefix
     expect(programContent).toContain('my:${fnName}');
     expect(programContent).toContain('type: \'home\'');
     expect(programContent).toContain('cmdData.type === \'home\'');
   });
 
-  test('home tasks appear in help output with separate section', () => {
+  test('personal commands appear in help output with separate section', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify home tasks help section
-    expect(programContent).toContain('My Tasks (from ~/${BUNOSHFILE}):');
+    // Verify personal commands help section
+    expect(programContent).toContain('My Commands (from ~/${BUNOSHFILE}):');
     expect(programContent).toContain('homeTaskNamesForHelp');
     expect(programContent).toContain('my:${taskName}');
   });
 
-  test('home task parsing includes comments, args, and options', () => {
+  test('personal command parsing includes comments, args, and options', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify parsing functions exist for home tasks
+    // Verify parsing functions exist for personal commands
     expect(programContent).toContain('fetchHomeComments()');
     expect(programContent).toContain('fetchHomeFnAst');
     expect(programContent).toContain('parseHomeArgs');
@@ -93,11 +93,11 @@ export function anotherTask(name = 'World') {
     expect(programContent).toContain('homeComments[originalFnName]');
   });
 
-  test('home task execution uses correct binding', () => {
+  test('personal command execution uses correct binding', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify home tasks are bound to homeTasks object
+    // Verify personal commands are bound to homeTasks object
     expect(programContent).toContain('cmdData.data.bind(homeTasks)');
   });
 
@@ -105,33 +105,33 @@ export function anotherTask(name = 'World') {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify error handling in loadHomeTasks
+    // Verify error handling in loadHomeTasks function
     expect(programContent).toContain('catch (error)');
-    expect(programContent).toContain('console.warn(\'Warning: Could not load home Bunoshfile:\'');
+    expect(programContent).toContain('console.warn(\'Warning: Could not load personal commands:\'');
     expect(programContent).toContain('return { tasks: {}, source: \'\' }');
   });
 
-  test('home comments parsing handles JSDoc format', () => {
+  test('personal command comments parsing handles JSDoc format', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify JSDoc comment parsing for home tasks
+    // Verify JSDoc comment parsing for personal commands
     expect(programContent).toContain('fetchHomeComments()');
     expect(programContent).toContain('/\\*\\*\\s([\\s\\S]*)\\\\*\\/\\s*export/');
     expect(programContent).toContain('homeComments[functionName]');
   });
 
-  test('home task AST parsing handles function signatures', () => {
+  test('personal command AST parsing handles function signatures', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
-    // Verify AST parsing for home function arguments and options
+    // Verify AST parsing for personal command arguments and options
     expect(programContent).toContain('parseHomeArgs(fnName, ast)');
     expect(programContent).toContain('parseHomeOpts(fnName, ast)');
     expect(programContent).toContain('if (path.node.id.name !== fnName) return');
   });
 
-  test('home tasks integration preserves existing functionality', () => {
+  test('personal commands integration preserves existing functionality', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
@@ -140,17 +140,17 @@ export function anotherTask(name = 'World') {
     expect(programContent).toContain('type: \'bunosh\'');
     expect(programContent).toContain('type: \'npm\'');
     
-    // Verify command collection includes all types
-    expect(programContent).toContain('// Collect all commands (bunosh + home tasks + npm scripts)');
+    // Verify command collection includes all types (bunosh, personal, npm)
+    expect(programContent).toContain('// Collect all commands (bunosh + personal commands + npm scripts)');
   });
 
-  test('command filtering excludes home tasks from visible commands', () => {
+  test('command filtering works correctly with personal commands', () => {
     const programPath = path.resolve(path.dirname(import.meta.url.replace('file://', '')), '../src/program.js');
     const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify that npm: commands are filtered from main visible commands
     expect(programContent).toContain('!c.name().startsWith(\'npm:\')');
-    // Note: my: commands are not filtered, so they appear in the main list
+    // Note: my: commands appear in the main list alongside other commands
   });
 
   test('async program function is properly implemented', () => {

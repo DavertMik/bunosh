@@ -316,7 +316,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
   });
 
-  describe.skipIf(!isBunAvailable)('Home Tasks Feature', () => {
+  describe.skipIf(!isBunAvailable)('Personal Commands Feature', () => {
     let tempHomeDir;
     let originalHome;
     
@@ -341,15 +341,15 @@ describe('Bunosh End-to-End Tests', () => {
       }
     });
 
-    it('should work without home Bunoshfile', async () => {
+    it('should work without personal commands', async () => {
       const result = await runBunoshCommand('--help', { cwd: testDir });
       
       expect(result.success).toBe(true);
-      expect(result.stdout).not.toContain('My Tasks');
+      expect(result.stdout).not.toContain('My Commands');
       expect(result.stdout).not.toContain('my:');
     });
 
-    it('should load and display home tasks when home Bunoshfile exists', async () => {
+    it('should load and display personal commands when home Bunoshfile exists', async () => {
       // Create home Bunoshfile
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
@@ -371,14 +371,14 @@ export function backup() {
       const result = await runBunoshCommand('--help', { cwd: testDir });
       
       expect(result.success).toBe(true);
-      expect(result.stdout).toContain('My Tasks (from ~/Bunoshfile.js):');
+      expect(result.stdout).toContain('My Commands (from ~/Bunoshfile.js):');
       expect(result.stdout).toContain('my:deploy');
       expect(result.stdout).toContain('my:backup');
       expect(result.stdout).toContain('Home deployment task');
       expect(result.stdout).toContain('Personal backup utility');
     });
 
-    it('should execute home tasks with my: prefix', async () => {
+    it('should execute personal commands with my: prefix', async () => {
       // Create home Bunoshfile
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
@@ -393,7 +393,7 @@ export function greet(name = 'Home User') {
       expect(result.stdout).toContain('Hello from home, Home User!');
     });
 
-    it('should execute home tasks with parameters', async () => {
+    it('should execute personal commands with parameters', async () => {
       // Create home Bunoshfile
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
@@ -408,7 +408,7 @@ export function greet(name = 'World', opts = { greeting: 'Hello' }) {
       expect(result.stdout).toContain('Hi, Claude from home!');
     });
 
-    it('should handle home tasks alongside project tasks', async () => {
+    it('should handle personal commands alongside project commands', async () => {
       // Create home Bunoshfile
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
@@ -417,7 +417,7 @@ export function homeTask() {
 }
 `);
       
-      // Test that both project and home tasks work
+      // Test that both project and personal commands work
       const homeResult = await runBunoshCommand('my:homeTask', { cwd: testDir });
       const projectResult = await runBunoshCommand('simple:exec', { cwd: testDir });
       
@@ -445,8 +445,8 @@ export function badTask() {
       expect(result.stdout).not.toContain('my:badTask');
     });
 
-    it('should allow same function names in home and project without conflict', async () => {
-      // Create home Bunoshfile with same function name as project
+    it('should allow same function names in personal and project commands without conflict', async () => {
+      // Create personal Bunoshfile with same function name as project
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
 export function build() {
@@ -480,8 +480,8 @@ export function build() {
       expect(homeResult.stdout).toContain('Building from home directory');
     });
 
-    it('should show home tasks in correct alphabetical order with other commands', async () => {
-      // Create home Bunoshfile with tasks that should appear in alphabetical order
+    it('should show personal commands in correct alphabetical order with other commands', async () => {
+      // Create personal Bunoshfile with commands that should appear in alphabetical order
       const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
       fs.writeFileSync(homeBunoshfile, `
 export function aHomeTask() {
@@ -506,9 +506,9 @@ export function zHomeTask() {
         !line.includes('Special Commands:')
       );
       
-      // Should contain both home tasks with my: prefix
-      const homeTasksInHelp = commandLines.filter(line => line.includes('my:'));
-      expect(homeTasksInHelp.length).toBeGreaterThan(0);
+      // Should contain both personal commands with my: prefix
+      const personalCommandsInHelp = commandLines.filter(line => line.includes('my:'));
+      expect(personalCommandsInHelp.length).toBeGreaterThan(0);
     });
   });
 });

@@ -65,7 +65,7 @@ export default async function bunosh(commands, source) {
   // Load npm scripts from package.json
   const npmScripts = loadNpmScripts();
 
-  // Load home tasks from $HOME/Bunoshfile.js
+  // Load personal commands from $HOME/Bunoshfile.js
   const { tasks: homeTasks, source: homeSource } = await loadHomeTasks();
 
   program.configureHelp({
@@ -108,7 +108,7 @@ export default async function bunosh(commands, source) {
   const comments = fetchComments();
   const homeComments = fetchHomeComments();
 
-  // Collect all commands (bunosh + home tasks + npm scripts) and sort them
+  // Collect all commands (bunosh + personal commands + npm scripts) and sort them
   const allCommands = [];
 
   // Add bunosh commands
@@ -116,7 +116,7 @@ export default async function bunosh(commands, source) {
     allCommands.push({ type: 'bunosh', name: fnName, data: commands[fnName] });
   });
 
-  // Add home tasks with my: prefix
+  // Add personal commands with my: prefix
   Object.keys(homeTasks).forEach((fnName) => {
     if (typeof homeTasks[fnName] === 'function') {
       allCommands.push({ type: 'home', name: `my:${fnName}`, data: homeTasks[fnName], source: homeSource });
@@ -271,7 +271,7 @@ export default async function bunosh(commands, source) {
         return functionOpts;
       }
     } else if (cmdData.type === 'home') {
-      // Handle home tasks with my: prefix
+      // Handle personal commands with my: prefix
       const originalFnName = cmdData.name.replace('my:', ''); // Remove my: prefix for internal usage
       const fnBody = cmdData.data.toString();
       const homeAst = fetchHomeFnAst(originalFnName, cmdData.source);
@@ -536,19 +536,19 @@ export default async function bunosh(commands, source) {
 
   internalCommands.push(upgradeCmd);
 
-  // Add home tasks help section if home tasks exist
+  // Add personal commands help section if personal commands exist
   const homeTaskNamesForHelp = Object.keys(homeTasks).filter(key => typeof homeTasks[key] === 'function');
   if (homeTaskNamesForHelp.length > 0) {
     const homeCommandsList = homeTaskNamesForHelp.sort().map(taskName => {
       const commandName = `my:${taskName}`;
       const taskComment = homeComments[taskName] || '';
-      const description = taskComment ? taskComment.split('\n')[0] : 'Home task';
+      const description = taskComment ? taskComment.split('\n')[0] : 'Personal command';
       return `  ${color.white.bold(commandName.padEnd(18))} ${color.gray(description)}`;
     }).join('\n');
 
     program.addHelpText('after', `
 
-My Tasks (from ~/${BUNOSHFILE}):
+My Commands (from ~/${BUNOSHFILE}):
 ${homeCommandsList}
 `);
   }
@@ -871,6 +871,7 @@ function loadNpmScripts() {
   }
 }
 
+// Load personal commands from user's home directory
 async function loadHomeTasks() {
   try {
     const os = await import('os');
@@ -888,7 +889,7 @@ async function loadHomeTasks() {
 
     return { tasks: homeTasks, source: homeSource };
   } catch (error) {
-    console.warn('Warning: Could not load home Bunoshfile:', error.message);
+    console.warn('Warning: Could not load personal commands:', error.message);
     return { tasks: {}, source: '' };
   }
 }

@@ -24,7 +24,7 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 - **🚀 Zero Configuration** - Write functions, get CLI commands automatically
 - **🎨 Pure JavaScript** - write commands as JavaScript functions
-- **🏠 Personal Task Library** - Global tasks from `~/Bunoshfile.js` available everywhere with `my:` namespace
+- **🏠 Personal Commands** - Global commands from `~/Bunoshfile.js` available everywhere with `my:` namespace
 - **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
 - **🤖 AI-Powered** - integrate LLM calls into your daily tasks
 - **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
@@ -71,7 +71,7 @@ export async function helloWorld(name = 'person') {
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Commands](#commands)
-  - [Home Tasks (My Namespace)](#home-tasks-my-namespace)
+  - [Personal Commands (My Namespace)](#personal-commands-my-namespace)
 - [Tasks](#tasks)
 - [Input/Output](#inputoutput)
 - [Task Control](#task-control)
@@ -219,14 +219,14 @@ Functions are automatically converted to kebab-case commands:
 | `npmInstall` | `bunosh npm:install` |
 | `buildAndDeploy` | `bunosh build:and-deploy` |
 
-### Home Tasks (My Namespace)
+### Personal Commands (My Namespace)
 
-Bunosh automatically loads tasks from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
+Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
 
 **Create your personal toolkit:**
 
 ```javascript
-// ~/Bunoshfile.js - Your global tasks available everywhere
+// ~/Bunoshfile.js - Your global commands available everywhere
 
 /**
  * Quick deployment to personal staging server
@@ -265,14 +265,14 @@ bunosh my:deploy my-app production
 bunosh my:backup projects
 bunosh my:new-project awesome-app react
 
-# List all your personal tasks
-bunosh --help  # Shows "My Tasks" section
+# List all your personal commands
+bunosh --help  # Shows "My Commands" section
 ```
 
 **Key Features:**
-- 🏠 **Global availability** - Access your personal tasks from any project directory
-- 🏷️ **Namespaced** - `my:` prefix prevents conflicts with project tasks
-- 📝 **Same syntax** - Uses identical JavaScript function syntax as project tasks
+- 🏠 **Global availability** - Access your personal commands from any project directory
+- 🏷️ **Namespaced** - `my:` prefix prevents conflicts with project commands
+- 📝 **Same syntax** - Uses identical JavaScript function syntax as project commands
 - 🔧 **Parameters & options** - Full support for arguments and CLI options
 - 📚 **Help integration** - Shows in help output with descriptions
 - 🚫 **Graceful fallback** - Works seamlessly when no home Bunoshfile exists
