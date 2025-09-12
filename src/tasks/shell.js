@@ -4,12 +4,44 @@ import Printer from "../printer.js";
 const isBun = typeof Bun !== 'undefined' && typeof Bun.spawn === 'function';
 
 export default function shell(strings, ...values) {
+  let envs = null;
+  let cwd = null;
+  
+  // Check if called as regular function instead of template literal
+  if (!Array.isArray(strings)) {
+    // If first argument is a string, treat it as the command
+    if (typeof strings === 'string') {
+      // For Bun shell, we need to create a template literal-like call
+      // But since we can't, fall back to exec
+      console.log('Note: shell() with string argument falls back to exec()');
+      const cmdPromise = (async () => {
+        const { default: exec } = await import("./exec.js");
+        let execPromise = exec(strings);
+        if (envs) execPromise = execPromise.env(envs);
+        if (cwd) execPromise = execPromise.cwd(cwd);
+        return execPromise;
+      })();
+      
+      // Add .env and .cwd methods
+      cmdPromise.env = (newEnvs) => {
+        envs = newEnvs;
+        return cmdPromise;
+      };
+      
+      cmdPromise.cwd = (newCwd) => {
+        cwd = newCwd;
+        return cmdPromise;
+      };
+      
+      return cmdPromise;
+    } else {
+      throw new Error('shell() must be called as a template literal: shell`command`');
+    }
+  }
+  
   const cmd = strings.reduce((accumulator, str, i) => {
     return accumulator + str + (values[i] || "");
   }, "");
-
-  let envs = null;
-  let cwd = null;
 
   const cmdPromise = new Promise(async (resolve, reject) => {
     const extraInfo = {};
@@ -18,7 +50,7 @@ export default function shell(strings, ...values) {
 
     if (!isBun) {
       const { default: exec } = await import("./exec.js");
-      let execPromise = exec(strings, ...values);
+      let execPromise = exec([cmd]);
       if (envs) execPromise = execPromise.env(envs);
       if (cwd) execPromise = execPromise.cwd(cwd);
       const result = await execPromise;
@@ -64,7 +96,7 @@ export default function shell(strings, ...values) {
           finishTaskInfo(taskInfo, true, null, "fallback to exec");
           
           const { default: exec } = await import("./exec.js");
-          let execPromise = exec`${cmd}`;
+          let execPromise = exec([cmd]);
           if (envs) execPromise = execPromise.env(envs);
           if (cwd) execPromise = execPromise.cwd(cwd);
           const result = await execPromise;

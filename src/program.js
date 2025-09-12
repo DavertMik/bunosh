@@ -3,7 +3,7 @@ import babelParser from "@babel/parser";
 import traverseDefault from "@babel/traverse";
 const traverse = traverseDefault.default || traverseDefault;
 import color from "chalk";
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
@@ -18,16 +18,12 @@ export const banner = () => {
   
   // Try to get version from package.json
   try {
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    // First try relative to src directory
+    const pkgPath = new URL('../package.json', import.meta.url);
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     console.log(`Version: ${color.bold(pkg.version)}`);
-  } catch {
-    try {
-      // Fallback to current directory
-      const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-      console.log(`Version: ${color.bold(pkg.version)}`);
-    } catch {
-      // Ignore if version can't be read
-    }
+  } catch (e) {
+    // Ignore if version can't be read
   }
   console.log();
 };
@@ -69,6 +65,17 @@ export default function bunosh(commands, source) {
     commandDescription: _cmd => {
       // Show banner and description
       banner();
+      
+      // Try to get version from current directory's package.json for help display
+      try {
+        if (existsSync('package.json')) {
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          console.log(`Version: ${color.bold(pkg.version)}`);
+        }
+      } catch {
+        // Ignore if version can't be read
+      }
+      
       return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
     },
     commandUsage: usg => 'bunosh [-e <code>] <command> <args> [options]',
@@ -349,7 +356,7 @@ export default function bunosh(commands, source) {
         const paths = getCompletionPaths(shell);
 
         // Check if already installed
-        if (!options.force && fs.existsSync(paths.completionFile)) {
+        if (!options.force && existsSync(paths.completionFile)) {
           console.log(`⚠️  Completion already installed at: ${paths.completionFile}`);
           console.log('   Use --force to overwrite, or run:');
           console.log(`   ${color.dim('rm')} ${paths.completionFile}`);
@@ -588,17 +595,17 @@ function parseDocBlock(funcName, code) {
 }
 
 function exportFn(commands) {
-  if (!fs.existsSync(BUNOSHFILE)) {
+  if (!existsSync(BUNOSHFILE)) {
     console.error(`${BUNOSHFILE} file not found, can\'t export its commands.`);
     return false;
   }
 
-  if (!fs.existsSync('package.json')) {
+  if (!existsSync('package.json')) {
     console.error('package.json now found, can\'t set scripts.');
     return false;
   }
 
-  const pkg = JSON.parse(fs.readFileSync('package.json').toString());
+  const pkg = JSON.parse(readFileSync('package.json').toString());
   if (!pkg.scripts) {
     pkg.scripts = {};
   }
@@ -611,7 +618,7 @@ function exportFn(commands) {
 
   pkg.scripts = {...pkg.scripts, ...scripts };
 
-  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4));
+  writeFileSync('package.json', JSON.stringify(pkg, null, 4));
 
   console.log('Added scripts:');
   console.log();
@@ -626,11 +633,11 @@ function exportFn(commands) {
 
 function loadNpmScripts() {
   try {
-    if (!fs.existsSync('package.json')) {
+    if (!existsSync('package.json')) {
       return {};
     }
 
-    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
     const scripts = pkg.scripts || {};
 
     // Filter out bunosh scripts (scripts that contain "bunosh")

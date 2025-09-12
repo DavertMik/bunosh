@@ -77,7 +77,7 @@ describe('NPM Scripts Integration', () => {
     const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify error handling for missing package.json
-    expect(programContent).toContain('fs.existsSync(\'package.json\')');
+    expect(programContent).toContain('existsSync(\'package.json\')');
     expect(programContent).toContain('return {}');
   });
 });

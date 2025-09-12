@@ -302,7 +302,7 @@ describe('Bunosh End-to-End Tests', () => {
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Unknown command unknown:command');
-      expect(result.stdout).toContain('Usage: bunosh <command>');
+      expect(result.stdout).toContain('Usage: bunosh [-e <code>] <command> <args> [options]');
     });
 
     it('should handle missing Bunoshfile', async () => {
