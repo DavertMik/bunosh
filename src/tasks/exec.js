@@ -4,6 +4,17 @@ import Printer from '../printer.js';
 const isBun = typeof Bun !== 'undefined';
 
 export default function exec(strings, ...values) {
+  // Check if called as regular function instead of template literal
+  if (!Array.isArray(strings)) {
+    // If first argument is a string, treat it as the command
+    if (typeof strings === 'string') {
+      strings = [strings];
+      values = [];
+    } else {
+      throw new Error('exec() must be called as a template literal: exec`command` or exec("command")');
+    }
+  }
+  
   const cmd = strings.reduce((accumulator, str, i) => {
     return accumulator + str + (values[i] || '');
   }, '');

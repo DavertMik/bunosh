@@ -4,11 +4,11 @@ import path from 'path';
 
 const bunoshPath = path.resolve('./bunosh.js');
 
-describe('Pipes Support', () => {
+describe('JavaScript Execution with -e flag', () => {
   const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
   test('executes simple JavaScript code from stdin', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -26,7 +26,7 @@ describe('Pipes Support', () => {
 
   test('executes bunosh functions from stdin', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -46,7 +46,7 @@ describe('Pipes Support', () => {
     const timeout = isCI ? 20000 : 5000; // Longer timeout for CI
     
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -74,7 +74,7 @@ describe('Pipes Support', () => {
 
   test('handles multiple statements from stdin', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -100,7 +100,7 @@ describe('Pipes Support', () => {
 
   test('handles syntax errors in piped code', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -113,12 +113,12 @@ describe('Pipes Support', () => {
     const exitCode = await proc.exited;
 
     expect(exitCode).toBe(1);
-    expect(stderr).toContain('Error executing piped JavaScript');
+    expect(stderr).toContain('Error executing JavaScript');
   });
 
   test('handles empty stdin input', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -131,12 +131,12 @@ describe('Pipes Support', () => {
     const exitCode = await proc.exited;
 
     expect(exitCode).toBe(1);
-    expect(stderr).toContain('No JavaScript code provided via stdin');
+    expect(stderr).toContain('No JavaScript code provided');
   });
 
   test('all bunosh globals are available in piped code', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -173,7 +173,7 @@ describe('Pipes Support', () => {
 
   test('handles async operations in piped code', async () => {
     const proc = spawn({
-      cmd: ['bun', bunoshPath],
+      cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe'
@@ -197,22 +197,21 @@ describe('Pipes Support', () => {
     expect(output).toContain('All async commands completed');
   });
 
-  test('correctly detects non-pipe input', () => {
-    // Test the isPipeInput function logic
-    // When process.stdin.isTTY is true (terminal), isPipeInput should return false
-    const originalIsTTY = process.stdin.isTTY;
-    
-    // Mock TTY scenario
-    process.stdin.isTTY = true;
-    
-    // Import the isPipeInput function logic inline for testing
-    const isPipeInput = () => {
-      return process.stdin.isTTY === undefined || !process.stdin.isTTY;
-    };
-    
-    expect(isPipeInput()).toBe(false);
-    
-    // Restore original value
-    process.stdin.isTTY = originalIsTTY;
+  test('handles -e flag without code argument', async () => {
+    const proc = spawn({
+      cmd: ['bun', bunoshPath, '-e'],
+      stdin: 'pipe',
+      stdout: 'pipe',
+      stderr: 'pipe'
+    });
+
+    // Don't write anything to stdin
+    proc.stdin?.end();
+
+    const stderr = await new Response(proc.stderr).text();
+    const exitCode = await proc.exited;
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('No JavaScript code provided');
   });
 });

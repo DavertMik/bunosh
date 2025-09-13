@@ -384,6 +384,54 @@ export function generateConfig(name, port = 3000) {
 copyFile('template.env', '.env');
 ```
 
+### Task Result Objects
+
+Many Bunosh functions return `TaskResult` objects that provide information about the execution:
+
+```javascript
+// TaskResult properties
+const result = await shell`echo "Hello"`;
+console.log(result.status);    // 'success', 'fail', or 'warning'
+console.log(result.output);    // Command output or result data
+console.log(result.hasFailed); // true if status is 'fail'
+console.log(result.hasSucceeded); // true if status is 'success'
+console.log(result.hasWarning); // true if status is 'warning'
+```
+
+#### Creating TaskResults
+
+```javascript
+// For custom task implementations
+const { TaskResult } = global.bunosh;
+
+// Success with output
+return TaskResult.success('Operation completed');
+
+// Failure with error message
+return TaskResult.fail('Something went wrong');
+
+// Warning with message
+return TaskResult.warning('Deprecated feature used');
+```
+
+#### Checking Results
+
+```javascript
+const result = await exec`npm test`;
+
+if (result.hasFailed) {
+  yell('Tests failed!');
+  process.exit(1);
+}
+
+if (result.hasSucceeded) {
+  say(`✅ ${result.output}`);
+}
+
+// Access output
+const output = result.output;
+```
+
 ## Input/Output
 
 ### `say` - Normal Output

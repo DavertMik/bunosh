@@ -55,8 +55,8 @@ async function main() {
     // Check if code is provided as argument
     if (eFlagIndex + 1 < process.argv.length && !process.argv[eFlagIndex + 1].startsWith('-')) {
       jsCode = process.argv[eFlagIndex + 1];
-    } else {
-      // Read from stdin
+    } else if (!process.stdin.isTTY) {
+      // Read from stdin only if it's not a TTY (i.e., it's being piped)
       const chunks = [];
       for await (const chunk of process.stdin) {
         chunks.push(chunk);
@@ -78,7 +78,7 @@ async function main() {
         if (typeof value === 'function') {
           // For template literal tag functions like exec and shell, create a wrapper
           // that allows them to be called as regular functions with a string
-          if (key === 'exec' || key === 'shell' || key === 'writeToFile') {
+          if (key === 'exec' || key === 'writeToFile') {
             globalThis[key] = (str) => {
               // If called as a regular function with a string, convert to template literal call
               if (typeof str === 'string') {
@@ -87,6 +87,9 @@ async function main() {
               // Otherwise call normally
               return value(str, ...Array.from(arguments).slice(1));
             };
+          } else if (key === 'shell') {
+            // Shell function has special handling for string arguments - it falls back to exec
+            globalThis[key] = value;
           } else {
             globalThis[key] = value;
           }
