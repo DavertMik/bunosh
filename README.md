@@ -24,6 +24,7 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 - **🚀 Zero Configuration** - Write functions, get CLI commands automatically
 - **🎨 Pure JavaScript** - write commands as JavaScript functions
+- **🏠 Personal Commands** - Global commands from `~/Bunoshfile.js` available everywhere with `my:` namespace
 - **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
 - **🤖 AI-Powered** - integrate LLM calls into your daily tasks
 - **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
@@ -70,6 +71,7 @@ export async function helloWorld(name = 'person') {
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Commands](#commands)
+  - [Personal Commands (My Namespace)](#personal-commands-my-namespace)
 - [Tasks](#tasks)
 - [Input/Output](#inputoutput)
 - [Task Control](#task-control)
@@ -216,6 +218,64 @@ Functions are automatically converted to kebab-case commands:
 | `gitPush` | `bunosh git:push` |
 | `npmInstall` | `bunosh npm:install` |
 | `buildAndDeploy` | `bunosh build:and-deploy` |
+
+### Personal Commands (My Namespace)
+
+Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
+
+**Create your personal toolkit:**
+
+```javascript
+// ~/Bunoshfile.js - Your global commands available everywhere
+
+/**
+ * Quick deployment to personal staging server
+ */
+export function deploy(app, env = 'staging') {
+  say(`🚀 Deploying ${app} to personal ${env} environment...`);
+  await exec`ssh deploy@myserver.com "deploy.sh ${app} ${env}"`;
+  say('✅ Deployment complete!');
+}
+
+/**
+ * Personal backup script
+ */
+export function backup(target = 'documents') {
+  say(`💾 Creating backup of ${target}...`);
+  await exec`rsync -av ~/${target}/ ~/Backups/${target}-$(date +%Y%m%d)/`;
+  say('📦 Backup completed!');
+}
+
+/**
+ * Quick project setup
+ */
+export function newProject(name, template = 'basic') {
+  say(`🏗️ Creating new project: ${name}`);
+  await exec`git clone https://github.com/my-templates/${template}.git ${name}`;
+  await exec`cd ${name} && npm install`;
+  say(`✅ Project ${name} ready!`);
+}
+```
+
+**Available in any project:**
+
+```bash
+# From any directory, these commands work:
+bunosh my:deploy my-app production
+bunosh my:backup projects
+bunosh my:new-project awesome-app react
+
+# List all your personal commands
+bunosh --help  # Shows "My Commands" section
+```
+
+**Key Features:**
+- 🏠 **Global availability** - Access your personal commands from any project directory
+- 🏷️ **Namespaced** - `my:` prefix prevents conflicts with project commands
+- 📝 **Same syntax** - Uses identical JavaScript function syntax as project commands
+- 🔧 **Parameters & options** - Full support for arguments and CLI options
+- 📚 **Help integration** - Shows in help output with descriptions
+- 🚫 **Graceful fallback** - Works seamlessly when no home Bunoshfile exists
 
 ## Tasks
 
