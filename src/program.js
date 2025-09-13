@@ -87,7 +87,7 @@ export default async function bunosh(commands, source) {
     visibleOptions: _opt => [],
     visibleCommands: cmd => {
       const commands = cmd.commands.filter(c => !internalCommands.includes(c));
-      return commands.filter(c => !c.name().startsWith('npm:'));
+      return commands.filter(c => !c.name().startsWith('npm:') && !c.name().startsWith('my:'));
     },
     subcommandTerm: (cmd) => color.white.bold(cmd.name()),
     subcommandDescription: (cmd) => color.gray(cmd.description()),
