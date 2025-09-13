@@ -87,6 +87,22 @@ export async function helloOther(
 }
 
 /**
+ * Hello other
+ */
+export async function helloTasks(num = 1) {
+  yell('run it now please fast')
+
+  const tasks = [];
+    for (let i = 0; i < num; i++) {
+      tasks.push(task(`Fetch user ${i + 1}`, async () => {
+        const res = await fetch(`https://reqres.in/api/users/${i + 1}`);
+        return res;
+    }))
+  }
+  await Promise.all(tasks);
+}
+
+/**
  * Deploys code to staging
  */
 export async function updateToProduction(env) {

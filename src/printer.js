@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { createFormatter } from './formatters/factory.js';
-import { getTaskPrefix } from './task.js';
+import { getTaskPrefix, runningTasks } from './task.js';
 
 export class Printer {
   constructor(taskType, taskId = null) {
@@ -21,9 +21,21 @@ export class Printer {
       extra.duration = Date.now() - this.startTime;
     }
 
+    // Get task info to check for parent task
+    let displayTaskName = taskName;
+    if (this.taskId) {
+      const taskInfo = runningTasks.get(this.taskId);
+      if (taskInfo && taskInfo.parentId) {
+        const parentTask = runningTasks.get(taskInfo.parentId);
+        if (parentTask) {
+          displayTaskName = `${parentTask.name} > ${taskName}`;
+        }
+      }
+    }
+
     // Add task prefix for parallel tasks
     const prefix = this.taskId ? getTaskPrefix(this.taskId) : '';
-    const prefixedTaskName = prefix ? `${prefix} ${taskName}` : taskName;
+    const prefixedTaskName = prefix ? `${prefix} ${displayTaskName}` : displayTaskName;
 
     const output = this.formatter.format(prefixedTaskName, status, this.taskType, extra);
     if (output) {

@@ -1,4 +1,4 @@
-import { TaskResult, createTaskInfo, finishTaskInfo } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId } from '../task.js';
 import Printer from '../printer.js';
 
 const isBun = typeof Bun !== 'undefined';
@@ -27,7 +27,8 @@ export default function exec(strings, ...values) {
     if (cwd) extraInfo.cwd = cwd;
     if (envs) extraInfo.env = envs;
 
-    const taskInfo = createTaskInfo(cmd);
+    const currentTaskId = getCurrentTaskId();
+    const taskInfo = createTaskInfo(cmd, currentTaskId);
     const printer = new Printer('exec', taskInfo.id);
     printer.start(cmd, extraInfo);
 

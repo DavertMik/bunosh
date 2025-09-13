@@ -1,4 +1,4 @@
-import { TaskResult, createTaskInfo, finishTaskInfo } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId } from '../task.js';
 import Printer from '../printer.js';
 
 export default async function httpFetch() {
@@ -6,7 +6,8 @@ export default async function httpFetch() {
   const method = arguments[1]?.method || 'GET';
   const taskName = `${method} ${url}`;
   
-  const taskInfo = createTaskInfo(taskName);
+  const currentTaskId = getCurrentTaskId();
+  const taskInfo = createTaskInfo(taskName, currentTaskId);
   const printer = new Printer('fetch', taskInfo.id);
   printer.start(taskName);
 
@@ -20,7 +21,7 @@ export default async function httpFetch() {
         const lines = textDecoder.decode(chunk, { stream: true }).toString().split('\n');
         for (const line of lines) {
           if (line.trim()) {
-            printer.print(line, 'output');
+            printer.output(line);
             output += line + '\n';
           }
         }
