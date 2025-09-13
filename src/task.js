@@ -48,7 +48,8 @@ export function prints() {
 }
 
 export function getRunningTaskCount() {
-  return runningTasks.size;
+  // Only count top-level tasks (tasks without a parent)
+  return Array.from(runningTasks.values()).filter(task => !task.parentId).length;
 }
 
 export function getCurrentTaskId() {
@@ -56,12 +57,24 @@ export function getCurrentTaskId() {
 }
 
 export function getTaskPrefix(taskId) {
-  const taskNumber = Array.from(runningTasks.keys()).indexOf(taskId) + 1;
+  const taskInfo = runningTasks.get(taskId);
+  if (!taskInfo) return '';
+  
+  // Only show prefixes for top-level tasks when there are multiple top-level tasks
+  if (taskInfo.parentId) {
+    // This is a child task, never show prefix
+    return '';
+  }
+  
+  // For top-level tasks, calculate position among other top-level tasks
+  const topLevelTasks = Array.from(runningTasks.values()).filter(task => !task.parentId);
+  const taskNumber = topLevelTasks.findIndex(task => task.id === taskId) + 1;
   return getRunningTaskCount() > 1 ? `❰${taskNumber}❱` : '';
 }
 
-export function createTaskInfo(name) {
-  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
+
+export function createTaskInfo(name, parentId = null) {
+  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId);
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
   
@@ -88,11 +101,12 @@ export function finishTaskInfo(taskInfo, success = true, error = null, output = 
 }
 
 export class TaskInfo {
-  constructor(name, startTime, status) {
+  constructor(name, startTime, status, parentId = null) {
     this.id = `task-${++taskCounter}-${Math.random().toString(36).substring(7)}`;
     this.name = name;
     this.startTime = startTime;
     this.status = status;
+    this.parentId = parentId;
   }
 }
 
@@ -159,14 +173,54 @@ export async function task(name, fn, isSilent = false) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
 
-    taskInfo.status = TaskStatus.SUCCESS;
-    taskInfo.duration = duration;
-    taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
+    // Check if result is a TaskResult instance
+    if (result && result.constructor && result.constructor.name === 'TaskResult') {
+      // Use the TaskResult's status
+      taskInfo.status = result.status;
+      taskInfo.duration = duration;
+      taskInfo.result = { status: result.status, output: result.output };
 
-    if (shouldPrint) printer.finish(name);
-    runningTasks.delete(taskInfo.id);
+      if (shouldPrint) {
+        if (result.hasFailed) {
+          printer.error(name, new Error(result.output || 'Task failed'));
+        } else if (result.hasWarning) {
+          printer.warning(name, new Error(result.output || 'Task warning'));
+        } else {
+          printer.finish(name);
+        }
+      }
+      runningTasks.delete(taskInfo.id);
 
-    return result;
+      // If the TaskResult indicates failure, we might need to exit
+      if (result.hasFailed) {
+        // Don't exit during testing
+        const isTestEnvironment = process.env.NODE_ENV === 'test' ||
+                                  typeof Bun?.jest !== 'undefined' ||
+                                  process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
+
+        // Exit immediately if stopOnFailures mode is enabled
+        if (stopOnFailuresMode && !isTestEnvironment) {
+          process.exit(1);
+        }
+        
+        // Also exit if stopFailToggle is enabled (legacy behavior)
+        if (stopFailToggle && !isTestEnvironment) {
+          process.exit(1);
+        }
+      }
+
+      return result;
+    } else {
+      // Normal non-TaskResult result - treat as success
+      taskInfo.status = TaskStatus.SUCCESS;
+      taskInfo.duration = duration;
+      taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
+
+      if (shouldPrint) printer.finish(name);
+      runningTasks.delete(taskInfo.id);
+
+      return result;
+    }
   } catch (err) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
