@@ -59,13 +59,13 @@ export function getCurrentTaskId() {
 export function getTaskPrefix(taskId) {
   const taskInfo = runningTasks.get(taskId);
   if (!taskInfo) return '';
-  
+
   // Only show prefixes for top-level tasks when there are multiple top-level tasks
   if (taskInfo.parentId) {
     // This is a child task, never show prefix
     return '';
   }
-  
+
   // For top-level tasks, calculate position among other top-level tasks
   const topLevelTasks = Array.from(runningTasks.values()).filter(task => !task.parentId);
   const taskNumber = topLevelTasks.findIndex(task => task.id === taskId) + 1;
@@ -77,12 +77,12 @@ export function createTaskInfo(name, parentId = null) {
   const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId);
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
-  
+
   // Also add to global array for exit handler
   if (globalThis._bunoshGlobalTasksExecuted) {
     globalThis._bunoshGlobalTasksExecuted.push(taskInfo);
   }
-  
+
   return taskInfo;
 }
 
@@ -175,52 +175,17 @@ export async function task(name, fn, isSilent = false) {
 
     // Check if result is a TaskResult instance
     if (result && result.constructor && result.constructor.name === 'TaskResult') {
-      // Use the TaskResult's status
-      taskInfo.status = result.status;
-      taskInfo.duration = duration;
-      taskInfo.result = { status: result.status, output: result.output };
-
-      if (shouldPrint) {
-        if (result.hasFailed) {
-          printer.error(name, new Error(result.output || 'Task failed'));
-        } else if (result.hasWarning) {
-          printer.warning(name, new Error(result.output || 'Task warning'));
-        } else {
-          printer.finish(name);
-        }
-      }
-      runningTasks.delete(taskInfo.id);
-
-      // If the TaskResult indicates failure, we might need to exit
-      if (result.hasFailed) {
-        // Don't exit during testing
-        const isTestEnvironment = process.env.NODE_ENV === 'test' ||
-                                  typeof Bun?.jest !== 'undefined' ||
-                                  process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
-
-        // Exit immediately if stopOnFailures mode is enabled
-        if (stopOnFailuresMode && !isTestEnvironment) {
-          process.exit(1);
-        }
-        
-        // Also exit if stopFailToggle is enabled (legacy behavior)
-        if (stopFailToggle && !isTestEnvironment) {
-          process.exit(1);
-        }
-      }
-
-      return result;
-    } else {
-      // Normal non-TaskResult result - treat as success
-      taskInfo.status = TaskStatus.SUCCESS;
-      taskInfo.duration = duration;
-      taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
-
-      if (shouldPrint) printer.finish(name);
-      runningTasks.delete(taskInfo.id);
-
       return result;
     }
+
+    taskInfo.status = TaskStatus.SUCCESS;
+    taskInfo.duration = duration;
+    taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
+
+    printer.finish(name);
+    runningTasks.delete(taskInfo.id);
+
+    return result;
   } catch (err) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
@@ -229,7 +194,7 @@ export async function task(name, fn, isSilent = false) {
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.FAIL, output: err.message };
 
-    if (shouldPrint) printer.error(name, err);
+    printer.error(name, err);
     runningTasks.delete(taskInfo.id);
 
     // Don't exit during testing
@@ -241,14 +206,9 @@ export async function task(name, fn, isSilent = false) {
     if (stopOnFailuresMode && !isTestEnvironment) {
       process.exit(1);
     }
-    
-    // Also exit if stopFailToggle is enabled (legacy behavior)
-    if (stopFailToggle && !isTestEnvironment) {
-      process.exit(1);
-    }
-
-    throw err;
   }
+
+  return taskInfo;
 }
 
 // Add try method to task function
