@@ -497,39 +497,19 @@ export function zHomeTask() {
       
       expect(result.success).toBe(true);
       
-      // Debug: Log the full output in CI environment
-      if (process.env.CI) {
-        console.log('=== FULL HELP OUTPUT ===');
-        console.log(result.stdout);
-        console.log('=== END HELP OUTPUT ===');
-      }
-      
       // Extract command lines from help output
       const lines = result.stdout.split('\n');
-      const commandLines = lines.filter(line => 
-        line.trim().match(/^[a-z-:]+/) && 
-        !line.includes('NPM Scripts:') && 
-        !line.includes('My Commands:') &&
-        !line.includes('Special Commands:')
-      );
-      
-      // Debug: Log filtered command lines in CI environment
-      if (process.env.CI) {
-        console.log('=== FILTERED COMMAND LINES ===');
-        console.log(commandLines);
-        console.log('=== END COMMAND LINES ===');
-      }
+      const commandLines = lines.filter(line => {
+        // Remove ANSI color codes and trim whitespace
+        const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '').trim();
+        return cleanLine.match(/^[a-z-:]+/) && 
+               !line.includes('NPM Scripts:') && 
+               !line.includes('My Commands:') &&
+               !line.includes('Special Commands:');
+      });
       
       // Should contain both personal commands with my: prefix
       const personalCommandsInHelp = commandLines.filter(line => line.includes('my:'));
-      
-      // Debug: Log personal commands found in CI environment
-      if (process.env.CI) {
-        console.log('=== PERSONAL COMMANDS FOUND ===');
-        console.log(personalCommandsInHelp);
-        console.log('=== END PERSONAL COMMANDS ===');
-      }
-      
       expect(personalCommandsInHelp.length).toBeGreaterThan(0);
     });
   });
