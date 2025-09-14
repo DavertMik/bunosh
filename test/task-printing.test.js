@@ -10,7 +10,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -38,7 +39,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -65,7 +67,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -95,7 +98,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -129,7 +133,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -163,7 +168,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -199,7 +205,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -231,7 +238,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -263,7 +271,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -295,7 +304,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -343,7 +353,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -376,7 +387,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
@@ -406,7 +418,8 @@ describe('Task Printing Behavior', () => {
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'pipe',
+      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
     });
 
     const code = `
