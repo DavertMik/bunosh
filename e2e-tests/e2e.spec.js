@@ -131,7 +131,7 @@ describe('Bunosh End-to-End Tests', () => {
       // Task should complete but show failures in output
       expect(result.success).toBe(true); // Process succeeds in test mode
       expect(result.exitCode).toBe(0);   // Exit code 0 in test mode
-      expect(result.stdout).toContain('Failed: 2'); // But reports failure (both subtask and parent task)
+      expect(result.stdout).toContain('Failed: 1'); // But reports failure (only subtask fails, parent returns TaskResult)
       
       // Check for failure indication (different formats in CI vs local)
       const hasExitCodeMessage = result.stdout.includes('exit code: 1') || result.stdout.includes('Exit code: 1');

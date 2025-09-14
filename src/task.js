@@ -206,9 +206,14 @@ export async function task(name, fn, isSilent = false) {
     if (stopOnFailuresMode && !isTestEnvironment) {
       process.exit(1);
     }
+    
+    // Also exit if stopFailToggle is enabled (legacy behavior)
+    if (stopFailToggle && !isTestEnvironment) {
+      process.exit(1);
+    }
+    
+    throw err;
   }
-
-  return taskInfo;
 }
 
 // Add try method to task function
