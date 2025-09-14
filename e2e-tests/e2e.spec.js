@@ -502,7 +502,7 @@ export function zHomeTask() {
       const commandLines = lines.filter(line => 
         line.trim().match(/^[a-z-:]+/) && 
         !line.includes('NPM Scripts:') && 
-        !line.includes('My Tasks:') &&
+        !line.includes('My Commands:') &&
         !line.includes('Special Commands:')
       );
       
