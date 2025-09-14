@@ -211,8 +211,7 @@ process.on('exit', (code) => {
 });
 
 function handleBunoshfileError(error, filePath) {
-  banner();
-  console.log();
+  // Don't show banner for errors - it interferes with error visibility
   
   // Check for Babel parser syntax errors
   if (error.code === 'BABEL_PARSER_SYNTAX_ERROR' || 

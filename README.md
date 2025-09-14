@@ -219,14 +219,46 @@ Functions are automatically converted to kebab-case commands:
 
 ## Tasks
 
-All Bunosh utilities are available via `global.bunosh`:
+Bunosh provides built-in tasks which are available via `global.bunosh`:
 
 ```javascript
-const { exec, shell, fetch, writeToFile, copyFile, task, ai, say, ask, yell } = global.bunosh;
+const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
 ```
 
 > We use global variables instead of imports to ensure you can use it with bunosh single-executable on any platform.
 
+
+* Async tasks: `exec`, `shell`, `fetch`
+* Sync tasks: `writeToFile`, `copyFile`
+* Task wrapper: `task`
+
+Each executed task returns `TaskResult` object which can be analyzed and used in next steps:
+
+```js
+const result = await shell`echo "Hello"`;
+console.log(result.status);    // 'success', 'fail', or 'warning'
+console.log(result.output);    // Command output or result data
+console.log(result.hasFailed); // true if status is 'fail'
+console.log(result.hasSucceeded); // true if status is 'success'
+console.log(result.hasWarning); // true if status is 'warning'
+```
+
+Now let's look into other tasks:
+
+#### `task`
+
+General method that transforms a function into a task. Adds it to tasks registry and prints task information:
+
+```js
+// register operation as a task
+const result = task('Fetch Readme file', () => {
+  const content = fs.readFileSync('README.md', 'utf8');
+  console.log(content);
+  return content;
+});
+```
+
+If a another task is executed inside a task function, its description will be appended to all child tasks.
 
 #### `exec`
 
@@ -280,9 +312,9 @@ For more details see [bun shell](https://bun.sh/docs/runtime/shell) reference
 
 shell prints output from stdout and stderr. To disable output, [make tasks silent](#silent):
 
-### HTTP Requests
+###$ `fetch`
 
-Built-in fetch wrapper:
+`fetch` task wraps fetch:
 
 ```javascript
 /**
@@ -308,69 +340,22 @@ Template-based file writing and copying:
 /**
  * Generate configuration file
  */
-export function generateConfig(name, port = 3000) {
-  writeToFile('config.json', (line) => {
-    line`{`;
-    line`  "name": "${name}",`;
-    line`  "port": ${port},`;
-    line`  "environment": "development"`;
-    line`}`;
+export function generatePage(name, description = '') {
+  writeToFile('index.mdx', (line) => {
+    line`name": "${name}",`;
+    if (description) {
+      line`description: "${description}"`;
+    }
+    line`---`;
   });
 
-  say('📝 Config file created');
+  say('📝 Page created');
 }
 
 // Copy files
 copyFile('template.env', '.env');
 ```
 
-### Task Result Objects
-
-Many Bunosh functions return `TaskResult` objects that provide information about the execution:
-
-```javascript
-// TaskResult properties
-const result = await shell`echo "Hello"`;
-console.log(result.status);    // 'success', 'fail', or 'warning'
-console.log(result.output);    // Command output or result data
-console.log(result.hasFailed); // true if status is 'fail'
-console.log(result.hasSucceeded); // true if status is 'success'
-console.log(result.hasWarning); // true if status is 'warning'
-```
-
-#### Creating TaskResults
-
-```javascript
-// For custom task implementations
-const { TaskResult } = global.bunosh;
-
-// Success with output
-return TaskResult.success('Operation completed');
-
-// Failure with error message
-return TaskResult.fail('Something went wrong');
-
-// Warning with message
-return TaskResult.warning('Deprecated feature used');
-```
-
-#### Checking Results
-
-```javascript
-const result = await exec`npm test`;
-
-if (result.hasFailed) {
-  yell('Tests failed!');
-  process.exit(1);
-}
-
-if (result.hasSucceeded) {
-  say(`✅ ${result.output}`);
-}
-
-// Access output
-const output = result.output;
-```
 
 ## Input/Output
 

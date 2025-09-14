@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code Style
+
+IMPORTANT: No comments in code unless asked
+Avoid if/else constrution, prefer if/return instead
+
+
 ## Development Commands
 
 - **Run Bunosh**: `bun bunosh.js` or `bunosh <command>` (requires global install)
@@ -97,7 +103,7 @@ The project uses two different test frameworks:
 
 ### End-to-End Tests (Vitest)
 - **Command**: `npm run test:e2e` - Run all e2e tests
-- **Location**: `e2e-tests/` directory  
+- **Location**: `e2e-tests/` directory
 - **Framework**: Vitest
 - **Usage**: For testing CLI behavior, command execution, and integration scenarios
 

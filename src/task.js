@@ -48,7 +48,8 @@ export function prints() {
 }
 
 export function getRunningTaskCount() {
-  return runningTasks.size;
+  // Only count top-level tasks (tasks without a parent)
+  return Array.from(runningTasks.values()).filter(task => !task.parentId).length;
 }
 
 export function getCurrentTaskId() {
@@ -56,20 +57,32 @@ export function getCurrentTaskId() {
 }
 
 export function getTaskPrefix(taskId) {
-  const taskNumber = Array.from(runningTasks.keys()).indexOf(taskId) + 1;
+  const taskInfo = runningTasks.get(taskId);
+  if (!taskInfo) return '';
+
+  // Only show prefixes for top-level tasks when there are multiple top-level tasks
+  if (taskInfo.parentId) {
+    // This is a child task, never show prefix
+    return '';
+  }
+
+  // For top-level tasks, calculate position among other top-level tasks
+  const topLevelTasks = Array.from(runningTasks.values()).filter(task => !task.parentId);
+  const taskNumber = topLevelTasks.findIndex(task => task.id === taskId) + 1;
   return getRunningTaskCount() > 1 ? `❰${taskNumber}❱` : '';
 }
 
-export function createTaskInfo(name) {
-  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING);
+
+export function createTaskInfo(name, parentId = null) {
+  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId);
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
-  
+
   // Also add to global array for exit handler
   if (globalThis._bunoshGlobalTasksExecuted) {
     globalThis._bunoshGlobalTasksExecuted.push(taskInfo);
   }
-  
+
   return taskInfo;
 }
 
@@ -88,11 +101,12 @@ export function finishTaskInfo(taskInfo, success = true, error = null, output = 
 }
 
 export class TaskInfo {
-  constructor(name, startTime, status) {
+  constructor(name, startTime, status, parentId = null) {
     this.id = `task-${++taskCounter}-${Math.random().toString(36).substring(7)}`;
     this.name = name;
     this.startTime = startTime;
     this.status = status;
+    this.parentId = parentId;
   }
 }
 
@@ -159,11 +173,16 @@ export async function task(name, fn, isSilent = false) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
 
+    // Check if result is a TaskResult instance
+    if (result && result.constructor && result.constructor.name === 'TaskResult') {
+      return result;
+    }
+
     taskInfo.status = TaskStatus.SUCCESS;
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
 
-    if (shouldPrint) printer.finish(name);
+    printer.finish(name);
     runningTasks.delete(taskInfo.id);
 
     return result;
@@ -175,7 +194,7 @@ export async function task(name, fn, isSilent = false) {
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.FAIL, output: err.message };
 
-    if (shouldPrint) printer.error(name, err);
+    printer.error(name, err);
     runningTasks.delete(taskInfo.id);
 
     // Don't exit during testing
@@ -192,7 +211,7 @@ export async function task(name, fn, isSilent = false) {
     if (stopFailToggle && !isTestEnvironment) {
       process.exit(1);
     }
-
+    
     throw err;
   }
 }
