@@ -317,10 +317,10 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // With direct TaskResult return, all tasks show as running with sequential numbering
-    expect(output).toMatch(/▶ task ❰1❱ Sequential task/);
-    expect(output).toMatch(/▶ task ❰2❱ Parallel 1/);
-    expect(output).toMatch(/▶ task ❰3❱ Parallel 2/);
-    expect(output).toMatch(/▶ task ❰4❱ Final task/);
+    expect(output).toContain('▶ task ❰1❱ Sequential task');
+    expect(output).toContain('▶ task ❰2❱ Parallel 1');
+    expect(output).toContain('▶ task ❰3❱ Parallel 2');
+    expect(output).toContain('▶ task ❰4❱ Final task');
   });
 
   test('child tasks never show numbered prefixes', async () => {
