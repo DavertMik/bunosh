@@ -497,6 +497,13 @@ export function zHomeTask() {
       
       expect(result.success).toBe(true);
       
+      // Debug: Log the full output in CI environment
+      if (process.env.CI) {
+        console.log('=== FULL HELP OUTPUT ===');
+        console.log(result.stdout);
+        console.log('=== END HELP OUTPUT ===');
+      }
+      
       // Extract command lines from help output
       const lines = result.stdout.split('\n');
       const commandLines = lines.filter(line => 
@@ -506,8 +513,23 @@ export function zHomeTask() {
         !line.includes('Special Commands:')
       );
       
+      // Debug: Log filtered command lines in CI environment
+      if (process.env.CI) {
+        console.log('=== FILTERED COMMAND LINES ===');
+        console.log(commandLines);
+        console.log('=== END COMMAND LINES ===');
+      }
+      
       // Should contain both personal commands with my: prefix
       const personalCommandsInHelp = commandLines.filter(line => line.includes('my:'));
+      
+      // Debug: Log personal commands found in CI environment
+      if (process.env.CI) {
+        console.log('=== PERSONAL COMMANDS FOUND ===');
+        console.log(personalCommandsInHelp);
+        console.log('=== END PERSONAL COMMANDS ===');
+      }
+      
       expect(personalCommandsInHelp.length).toBeGreaterThan(0);
     });
   });
