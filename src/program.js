@@ -14,17 +14,16 @@ export const BUNOSHFILE = `Bunoshfile.js`;
 export const banner = () => {
   const asciiArt = cprint('Bunosh', { symbol: '⯀' });
   console.log(createGradientAscii(asciiArt));
-  console.log(color.gray('🍲 Your exceptional task runner'));
-  
-  // Try to get version from package.json
+
+  let version = '';
   try {
-    // First try relative to src directory
     const pkgPath = new URL('../package.json', import.meta.url);
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    console.log(`Version: ${color.bold(pkg.version)}`);
+    version = pkg.version;
   } catch (e) {
-    // Ignore if version can't be read
   }
+  console.log(color.gray('🍲 Your deliciously cooked tasks', color.yellow(version)));
+
   console.log();
 };
 
@@ -37,7 +36,7 @@ function createGradientAscii(asciiArt) {
     color.bold.cyan,
     color.bold.blue
   ];
-  
+
   return lines.map((line, index) => {
     // Create smooth gradient by interpolating between colors
     const progress = index / (lines.length - 1);
@@ -45,7 +44,7 @@ function createGradientAscii(asciiArt) {
     const lowerIndex = Math.floor(colorIndex);
     const upperIndex = Math.min(lowerIndex + 1, colors.length - 1);
     const factor = colorIndex - lowerIndex;
-    
+
     // For smoother transition, we'll use the closest color
     const color = factor < 0.5 ? colors[lowerIndex] : colors[upperIndex];
     return color(line);
@@ -68,20 +67,9 @@ export default async function bunosh(commands, source) {
     commandDescription: _cmd => {
       // Show banner and description
       banner();
-      
-      // Try to get version from current directory's package.json for help display
-      try {
-        if (existsSync('package.json')) {
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          console.log(`Version: ${color.bold(pkg.version)}`);
-        }
-      } catch {
-        // Ignore if version can't be read
-      }
-      
       return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
     },
-    commandUsage: usg => 'bunosh [-e <code>] <command> <args> [options]',
+    commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
@@ -187,7 +175,7 @@ export default async function bunosh(commands, source) {
 
       let description = comment?.split('\n')[0] || '';
 
-      if (comment && argsAndOptsDescription.length) description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
+      if (comment && argsAndOptsDescription.length) description += `\n ▹ ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
       command.description(description);
       command.action(commands[fnName].bind(commands));
@@ -576,18 +564,15 @@ ${npmCommandsList}
 `);
   }
 
-  program.addHelpText('after', `
-
+  program.addHelpText('after', color.dim(`
 Special Commands:
 
-  📝 Edit bunosh file: ${color.bold('bunosh edit')}
-  📥 Export commands as scripts to package.json: ${color.bold('bunosh export:scripts')}
-  🦾 Upgrade bunosh: ${color.bold('bunosh upgrade')}
-  
-Execute JavaScript:
-  ${color.bold('bunosh -e "console.log(\'Hello\')"')}    Execute inline JavaScript
-  ${color.bold('bunosh -e < script.js')}                 Execute JavaScript from file
-`);
+  ${color.bold('bunosh edit')}           📝 Edit bunosh file with $EDITOR
+  ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
+  ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
+  ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
+
+`));
 
   program.on("command:*", (cmd) => {
     console.log(`\nUnknown command ${cmd}\n`);
@@ -645,10 +630,10 @@ Execute JavaScript:
 
   function fetchHomeComments() {
     if (!homeSource) return {};
-    
+
     const homeComments = {};
     let homeCompleteAst;
-    
+
     try {
       homeCompleteAst = babelParser.parse(homeSource, {
         sourceType: "module",
@@ -717,7 +702,7 @@ Execute JavaScript:
 
   function parseHomeArgs(fnName, ast) {
     if (!ast) return {};
-    
+
     const functionArguments = {};
 
     traverse(ast, {
@@ -745,7 +730,7 @@ Execute JavaScript:
 
   function parseHomeOpts(fnName, ast) {
     if (!ast) return {};
-    
+
     let functionOpts = {};
 
     traverse(ast, {

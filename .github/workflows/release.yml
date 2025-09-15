@@ -13,6 +13,7 @@ on:
 permissions:
   contents: write
   packages: write
+  actions: write
 
 jobs:
   test:
@@ -161,7 +162,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
+        ref: main
 
     - name: Setup Node.js for NPM
       uses: actions/setup-node@v4
@@ -245,12 +246,24 @@ jobs:
 
     - name: Commit package.json version update
       if: github.event_name == 'release'
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "chore: Update version to ${{ steps.version.outputs.version }}"
-        file_pattern: package.json
-        commit_user_name: "github-actions[bot]"
-        commit_user_email: "github-actions[bot]@users.noreply.github.com"
+      run: |
+        # Configure git
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Ensure we're on main branch
+        git fetch origin main
+        git checkout main
+        git pull origin main
+        
+        # Update package.json version
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        if [ "$CURRENT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+          git add package.json
+          git commit -m "chore: Update version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin main
+        fi
 
   release:
     name: Attach Release Assets

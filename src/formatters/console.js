@@ -3,7 +3,7 @@ import { BaseFormatter } from './base.js';
 
 const STATUS_CONFIG = {
   start: { icon: '▶', color: 'blue' },
-  finish: { icon: '✓', color: 'green' },
+  finish: { icon: '✔', color: 'green' },
   error: { icon: '✗', color: 'red' },
   warning: { icon: '⚠', color: 'yellow' },
   output: { icon: ' ', color: 'white' },
@@ -20,7 +20,7 @@ export class ConsoleFormatter extends BaseFormatter {
     const icon = chalk[config.color](config.icon);
     const taskTypeFormatted = taskType ? chalk.bold(taskType) + ' ' : '';
     const taskNameFormatted = chalk.yellow(taskName);
-    
+
     const extraParts = [];
     Object.entries(extra).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
@@ -41,7 +41,7 @@ export class ConsoleFormatter extends BaseFormatter {
     const terminalWidth = process.stdout.columns || 100;
     let leftContent = `${icon} ${taskTypeFormatted}${taskNameFormatted}`;
     let rightContent = '';
-    
+
     if (extraParts.length > 0) {
       rightContent = `(${extraParts.join(', ')})`;
     }
