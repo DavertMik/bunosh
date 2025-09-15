@@ -571,6 +571,7 @@ Special Commands:
   ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
   ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
+  ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
 
 `));
 

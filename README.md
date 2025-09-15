@@ -151,6 +151,38 @@ bunosh build development
 
 ## Commands
 
+### Multiple Configuration Files
+
+By default, Bunosh loads commands from `Bunoshfile.js` in the current directory. You can specify a different configuration file using:
+
+**CLI Option:**
+```bash
+# Load commands from a different file
+bunosh --bunoshfile Bunoshfile.dev.js hello
+
+# Load from a different directory
+bunosh --bunoshfile ../shared/tasks.js deploy
+
+# Load from an absolute path
+bunosh --bunoshfile /path/to/my/tasks.js build
+```
+
+**Environment Variable:**
+```bash
+# Set default bunoshfile for session
+export BUNOSHFILE=Bunoshfile.dev.js
+bunosh hello  # Uses Bunoshfile.dev.js
+
+# One-time usage
+BUNOSHFILE=Bunoshfile.prod.js bunosh deploy
+```
+
+This enables you to:
+- 🔧 **Environment-specific commands** (`Bunoshfile.dev.js`, `Bunoshfile.prod.js`)
+- 🏢 **Team-specific workflows** (`Bunoshfile.team.js`)
+- 🎯 **Project-specific tooling** (`tools/build-tasks.js`)
+- 📁 **Shared task libraries** (`../shared/common-tasks.js`)
+
 ### Creating Commands
 
 Every exported function in `Bunoshfile.js` becomes a CLI command:
