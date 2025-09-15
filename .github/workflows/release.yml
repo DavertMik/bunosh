@@ -161,6 +161,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
 
     - name: Setup Node.js for NPM
       uses: actions/setup-node@v4
@@ -244,17 +245,12 @@ jobs:
 
     - name: Commit package.json version update
       if: github.event_name == 'release'
-      run: |
-        # Configure git
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Add and commit the package.json with the new version
-        git add package.json
-        git commit -m "chore: Update version to ${{ steps.version.outputs.version }}"
-        
-        # Push the changes back to the repository
-        git push
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "chore: Update version to ${{ steps.version.outputs.version }}"
+        file_pattern: package.json
+        commit_user_name: "github-actions[bot]"
+        commit_user_email: "github-actions[bot]@users.noreply.github.com"
 
   release:
     name: Attach Release Assets
