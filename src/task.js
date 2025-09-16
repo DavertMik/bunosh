@@ -185,7 +185,7 @@ export async function task(name, fn, isSilent = false) {
     printer.finish(name);
     runningTasks.delete(taskInfo.id);
 
-    return result;
+    return TaskResult.success(result, { taskType: 'task' });
   } catch (err) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
@@ -212,7 +212,7 @@ export async function task(name, fn, isSilent = false) {
       process.exit(1);
     }
     
-    throw err;
+    return TaskResult.fail(err.message, { taskType: 'task', error: err });
   }
 }
 

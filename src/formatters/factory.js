@@ -15,6 +15,19 @@ export function createFormatter() {
     return new testFormatterOverride();
   }
   
+  // Check for explicit formatter override via environment variable
+  if (process.env.BUNOSH_FORMATTER) {
+    const requested = process.env.BUNOSH_FORMATTER.toLowerCase();
+    switch (requested) {
+      case 'console':
+        return new ConsoleFormatter();
+      case 'github-actions':
+        return new GitHubActionsFormatter();
+      default:
+        console.warn(`Unknown BUNOSH_FORMATTER: ${requested}. Using auto-detection.`);
+    }
+  }
+  
   for (const FormatterClass of FORMATTERS) {
     if (FormatterClass.detect && FormatterClass.detect()) {
       return new FormatterClass();

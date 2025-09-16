@@ -9,6 +9,7 @@ import {
 } from './helpers/test-env.js';
 import { 
   runBunoshCommand, 
+  runBunoshScript,
   runSystemCommand, 
   checkBunoshAvailable 
 } from './helpers/command-runner.js';
@@ -511,6 +512,86 @@ export function zHomeTask() {
       // Should contain both personal commands with my: prefix
       const personalCommandsInHelp = commandLines.filter(line => line.includes('my:'));
       expect(personalCommandsInHelp.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe.skipIf(!isBunAvailable)('Task Formatting and Output', () => {
+    beforeEach(() => {
+      createTestBunoshfile(testDir);
+    });
+
+    it('should show parent task description in child exec commands', async () => {
+      const script = `
+        await task('Fetch all users', async () => {
+          await exec\`echo "Fetching data..."\`;
+          return 'Users fetched';
+        });
+      `;
+      
+      const result = await runBunoshScript(script, { 
+        cwd: testDir,
+        env: { BUNOSH_FORMATTER: 'console' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('✔ exec Fetch all users > echo "Fetching data..."');
+    });
+
+    it('should show numbered prefixes for parallel tasks', async () => {
+      const script = `
+        await Promise.all([
+          task('Task 1', () => exec\`echo "Output 1"\`),
+          task('Task 2', () => exec\`echo "Output 2"\`),
+          task('Task 3', () => exec\`echo "Output 3"\`)
+        ]);
+      `;
+      
+      const result = await runBunoshScript(script, { 
+        cwd: testDir,
+        env: { BUNOSH_FORMATTER: 'console' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toMatch(/▶ task ❰1❱ Task 1/);
+      expect(result.stdout).toMatch(/▶ task ❰2❱ Task 2/);
+      expect(result.stdout).toMatch(/▶ task ❰3❱ Task 3/);
+    });
+
+    it('should not show prefixes for single tasks', async () => {
+      const script = `
+        await task('Single task', () => exec\`echo "Single task output"\`);
+      `;
+      
+      const result = await runBunoshScript(script, { 
+        cwd: testDir,
+        env: { BUNOSH_FORMATTER: 'console' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('▶ task');
+      expect(result.stdout).toContain('Single task');
+      expect(result.stdout).not.toMatch(/✔ task ❰\\d+❱ Single task/);
+    });
+
+    it('should handle task failures correctly', async () => {
+      const script = `
+        try {
+          await task('Task that fails', async () => {
+            await exec\`sh -c "exit 1"\`;
+          });
+        } catch (e) {
+          // Task failure should be caught
+        }
+      `;
+      
+      const result = await runBunoshScript(script, { 
+        cwd: testDir,
+        env: { BUNOSH_FORMATTER: 'console' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('✗ exec Task that fails > sh -c "exit 1"');
+      expect(result.stdout).toContain('✔ task Task that fails');
     });
   });
 });

@@ -2,6 +2,70 @@ import { spawn } from 'child_process';
 import { BUNOSH_BINARY, createTempTestDir, cleanupTempDir, createTestBunoshfile } from './test-env.js';
 
 /**
+ * Executes a bunosh command with inline script using -e flag
+ */
+export async function runBunoshScript(script, options = {}) {
+  return new Promise((resolve) => {
+    const { cwd, timeout = 15000, env = {} } = options;
+    
+    // Choose runtime based on environment variable or default to bun
+    const runtime = process.env.BUNOSH_RUNTIME || 'bun';
+    const runtimeCmd = runtime === 'bun' ? 'bun' : 'node';
+    
+    const proc = spawn(runtimeCmd, [BUNOSH_BINARY, '-e'], {
+      cwd,
+      env: { ...process.env, ...env },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    // Set timeout
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill('SIGKILL');
+    }, timeout);
+
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({
+        exitCode: code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        timedOut,
+        success: code === 0 && !timedOut
+      });
+    });
+
+    proc.on('error', (error) => {
+      clearTimeout(timer);
+      resolve({
+        exitCode: -1,
+        stdout: stdout.trim(),
+        stderr: error.message,
+        timedOut: false,
+        success: false,
+        error
+      });
+    });
+
+    // Write the script to stdin
+    proc.stdin.write(script);
+    proc.stdin.end();
+  });
+}
+
+/**
  * Executes a bunosh command and returns the result
  */
 export async function runBunoshCommand(args, options = {}) {
