@@ -1,17 +1,27 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { describe, test, expect, mock, spyOn, beforeEach, afterEach } from 'bun:test';
 import { spawn } from 'bun';
 import path from 'path';
+import { setTestFormatter, clearTestFormatter } from '../src/formatters/factory.js';
+import { ConsoleFormatter } from '../src/formatters/console.js';
 
 const bunoshPath = path.resolve('./bunosh.js');
 
 describe('Task Printing Behavior', () => {
+  beforeEach(() => {
+    // Force console formatter for all tests to ensure consistent behavior
+    setTestFormatter(ConsoleFormatter);
+  });
+
+  afterEach(() => {
+    clearTestFormatter();
+  });
   test('parent task description appears in child task status lines', async () => {
     const proc = spawn({
       cmd: ['bun', bunoshPath, '-e'],
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -31,7 +41,7 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // Check that parent task description appears in child exec status line
-    expect(output).toContain('✓ exec Fetch all users > echo "Fetching data..."');
+    expect(output).toContain('✔ exec Fetch all users > echo "Fetching data..."');
   });
 
   test('single task shows no prefix', async () => {
@@ -40,7 +50,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -59,7 +69,7 @@ describe('Task Printing Behavior', () => {
     // With direct TaskResult return, the task shows as running but not completed
     expect(output).toContain('▶ task');
     expect(output).toContain('Single task');
-    expect(output).not.toMatch(/✓ task ❰\\d+❱ Single task/);
+    expect(output).not.toMatch(/✔ task ❰\\d+❱ Single task/);
   });
 
   test('parallel tasks show numbered prefixes', async () => {
@@ -68,7 +78,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -99,7 +109,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -124,8 +134,8 @@ describe('Task Printing Behavior', () => {
     
     // The say function doesn't show prefixes in this context
     // But the task completion should show prefixes
-    expect(output).toMatch(/✓ task ❰1❱ Task 1/);
-    expect(output).toMatch(/✓ task Task 2/);
+    expect(output).toMatch(/✔ task ❰1❱ Task 1/);
+    expect(output).toMatch(/✔ task Task 2/);
   });
 
   test('child tasks show parent description in exec status', async () => {
@@ -134,7 +144,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -159,8 +169,8 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // Check that parent task descriptions appear in child exec status
-    expect(output).toContain('✓ exec Fetch users > echo "Fetching users..."');
-    expect(output).toContain('✓ exec Fetch posts > echo "Fetching posts..."');
+    expect(output).toContain('✔ exec Fetch users > echo "Fetching users..."');
+    expect(output).toContain('✔ exec Fetch posts > echo "Fetching posts..."');
   });
 
   test('nested child tasks show parent chain in exec status', async () => {
@@ -169,7 +179,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -195,9 +205,9 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // Check that nested tasks show parent chain in exec status
-    expect(output).toContain('✓ exec Setup phase > echo "Setting up"');
-    expect(output).toContain('✓ exec Database setup > echo "Creating database"');
-    expect(output).toContain('✓ exec Execution phase > echo "Executing main task"');
+    expect(output).toContain('✔ exec Setup phase > echo "Setting up"');
+    expect(output).toContain('✔ exec Database setup > echo "Creating database"');
+    expect(output).toContain('✔ exec Execution phase > echo "Executing main task"');
   });
 
   test('task with exec failure shows correct status', async () => {
@@ -206,7 +216,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -230,7 +240,7 @@ describe('Task Printing Behavior', () => {
     
     // The exec shows the error, but the task itself succeeds (no exception thrown)
     expect(output).toContain('✗ exec Task that fails > sh -c "exit 1"');
-    expect(output).toContain('✓ task Task that fails');
+    expect(output).toContain('✔ task Task that fails');
   });
 
   test('task with TaskResult failure shows correct status', async () => {
@@ -239,7 +249,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -272,7 +282,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -291,8 +301,8 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // Check that exec commands show parent task description in status
-    expect(output).toContain('✓ exec Run commands > echo "Command output"');
-    expect(output).toContain('✓ exec Run commands > echo "Another command"');
+    expect(output).toContain('✔ exec Run commands > echo "Command output"');
+    expect(output).toContain('✔ exec Run commands > echo "Another command"');
     
     // Should show command outputs
     expect(output).toContain('Command output');
@@ -305,7 +315,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -354,7 +364,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -374,12 +384,12 @@ describe('Task Printing Behavior', () => {
     expect(exitCode).toBe(0);
     
     // Child tasks should not have numbered prefixes
-    expect(output).not.toMatch(/✓ task ❰\\d+❱ Child task 1/);
-    expect(output).not.toMatch(/✓ task ❰\\d+❱ Child task 2/);
+    expect(output).not.toMatch(/✔ task ❰\\d+❱ Child task 1/);
+    expect(output).not.toMatch(/✔ task ❰\\d+❱ Child task 2/);
     
     // But they should show parent task description in exec commands
-    expect(output).toContain('✓ exec Child task 1 > echo "Child 1 output"');
-    expect(output).toContain('✓ exec Child task 2 > echo "Child 2 output"');
+    expect(output).toContain('✔ exec Child task 1 > echo "Child 1 output"');
+    expect(output).toContain('✔ exec Child task 2 > echo "Child 2 output"');
   });
 
   test('TaskResult success is handled correctly', async () => {
@@ -388,7 +398,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `
@@ -419,7 +429,7 @@ describe('Task Printing Behavior', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, GITHUB_ACTIONS: undefined } // Unset GITHUB_ACTIONS to get console output
+      env: { ...process.env, NODE_ENV: 'test' }
     });
 
     const code = `

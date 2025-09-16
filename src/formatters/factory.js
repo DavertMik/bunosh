@@ -6,7 +6,15 @@ const FORMATTERS = [
   ConsoleFormatter
 ];
 
+// Global test formatter override
+let testFormatterOverride = null;
+
 export function createFormatter() {
+  // Use test override if set
+  if (testFormatterOverride) {
+    return new testFormatterOverride();
+  }
+  
   for (const FormatterClass of FORMATTERS) {
     if (FormatterClass.detect && FormatterClass.detect()) {
       return new FormatterClass();
@@ -14,4 +22,13 @@ export function createFormatter() {
   }
   
   return new ConsoleFormatter();
+}
+
+// Test utilities
+export function setTestFormatter(FormatterClass) {
+  testFormatterOverride = FormatterClass;
+}
+
+export function clearTestFormatter() {
+  testFormatterOverride = null;
 }
