@@ -118,15 +118,23 @@ async function ai(prompt, outputFormat = null) {
     process.stdout.write('\r' + ' '.repeat(20) + '\r');
     const tokenInfo = usage ? `${usage.totalTokens} tokens` : '';
     printer.finish(taskName, { tokenInfo });
+    
+    const metadata = {
+      taskType: 'ai',
+      outputFormat: !!outputFormat,
+      usage,
+      prompt: cleanPrompt
+    };
+    
     finishTaskInfo(taskInfo, true, null, outputFormat ? JSON.stringify(result, null, 2) : result);
-    return TaskResult.success(result);
+    return TaskResult.success(result, metadata);
     
   } catch (error) {
     clearInterval(progressInterval);
     process.stdout.write('\r' + ' '.repeat(20) + '\r');
     printer.error(taskName, error);
     finishTaskInfo(taskInfo, false, error, error.message);
-    return TaskResult.fail(error.message);
+    return TaskResult.fail(error.message, { taskType: 'ai' });
   }
 }
 
