@@ -69,7 +69,7 @@ export default async function bunosh(commands, source) {
       banner();
       return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
     },
-    commandUsage: usg => 'bunosh <command> <args> [options]',
+    commandUsage: usg => 'bunosh [-e <code>] <command> <args> [options]',
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
