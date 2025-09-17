@@ -219,6 +219,7 @@ export async function task(name, fn, isSilent = false) {
 // Add try method to task function
 task.try = tryTask;
 
+
 export class SilentTaskWrapper {
   constructor() {
     this.silent = true;
