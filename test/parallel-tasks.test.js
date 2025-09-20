@@ -76,7 +76,8 @@ describe('Parallel Task Support', () => {
     const results = await Promise.all(tasks);
     
     // All tasks should complete successfully
-    expect(results).toEqual(['task1-done', 'task2-done']);
+    expect(results.map(r => r.output)).toEqual(['task1-done', 'task2-done']);
+    expect(results.every(r => r.hasSucceeded)).toBe(true);
     
     mockConsoleLog.mockRestore();
   });

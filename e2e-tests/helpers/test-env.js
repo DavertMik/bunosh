@@ -82,6 +82,7 @@ export async function compositeTask() {
   await task('File creation', () => fileTask('composite-output.txt'));
   await task('Simple exec', () => simpleExec());
   say('Composite task completed');
+  return 'Composite task completed';
 }
 
 export async function parallelTask() {
@@ -91,7 +92,7 @@ export async function parallelTask() {
     task('Parallel task 2', () => exec\`echo "Task 2 output"\`),
     task('Parallel task 3', () => exec\`echo "Task 3 output"\`)
   ]);
-  return results;
+  return 'Parallel tasks completed';
 }
 
 export function taskWithArgs(name, options = { greeting: 'Hello' }) {
@@ -101,7 +102,8 @@ export function taskWithArgs(name, options = { greeting: 'Hello' }) {
 
 export async function failingTask() {
   /* Task that fails */
-  return task('Failing task', () => exec\`sh -c 'exit 1'\`);
+  const result = await task('Failing task', () => exec\`sh -c 'exit 1'\`);
+  return result.output;
 }
 `;
 

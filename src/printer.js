@@ -93,7 +93,7 @@ export class Printer {
 
     // Add task prefix for parallel tasks on output lines
     const prefix = this.taskId ? getTaskPrefix(this.taskId) : '';
-    const prefixedLine = prefix ? `${chalk.gray.dim(prefix)} ${line}` : line;
+    const prefixedLine = prefix ? `${prefix} ${line}` : line;
 
     const formattedLine = this.formatter.formatOutput(prefixedLine, isError);
     if (formattedLine) {

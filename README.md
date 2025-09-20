@@ -301,6 +301,9 @@ console.log(result.output);    // Command output or result data
 console.log(result.hasFailed); // true if status is 'fail'
 console.log(result.hasSucceeded); // true if status is 'success'
 console.log(result.hasWarning); // true if status is 'warning'
+
+// Get structured JSON data from any task (async method)
+const json = await result.json();
 ```
 
 Now let's look into other tasks:
@@ -335,6 +338,11 @@ await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 
 // In specific directory
 await exec`npm install`.cwd('/tmp/project');
+
+// Get structured output with stdout, stderr, exit code and lines
+const result = await exec`git status --porcelain`;
+const data = await result.json();
+// Returns: { stdout: "...", stderr: "...", exitCode: 0, lines: [...] }
 ```
 
 By default task prints live line-by-line output from stdout and stderr. To disable output, use `silent` method:
@@ -359,6 +367,11 @@ Optimized for simple, fast commands when running under Bun:
 await shell`pwd`;
 await shell`ls -la`;
 await shell`cat package.json`;
+
+// Get structured output with stdout, stderr, exit code and lines
+const result = await shell`ls -la`;
+const data = await result.json();
+// Returns: { stdout: "...", stderr: "...", exitCode: 0, lines: [...] }
 ```
 
 For more details see [bun shell](https://bun.sh/docs/runtime/shell) reference
@@ -390,6 +403,11 @@ export async function healthCheck(url) {
     yell(`❌ Service down: ${response.status}`);
   }
 }
+
+// Get JSON response data directly
+const apiResponse = await fetch('https://api.example.com/data');
+const jsonData = await apiResponse.json();
+// Calls response.json() method internally
 ```
 
 ### File Operations
@@ -623,7 +641,7 @@ export async function commit() {
     return;
   }
 
-  const commit = await ai(
+  const response = await ai(
     `Generate a conventional commit message for: ${diff.output}`,
     {
       type: 'Commit type (feat/fix/docs/chore)',
@@ -632,6 +650,8 @@ export async function commit() {
       body: 'Detailed explanation'
     }
   );
+
+  const commit = await response.json();
 
   const message = commit.scope
     ? `${commit.type}(${commit.scope}): ${commit.subject}\n\n${commit.body}`

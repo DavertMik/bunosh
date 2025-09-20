@@ -35,7 +35,8 @@ describe('Task System', () => {
       return 'success result';
     });
     
-    expect(result).toBe('success result');
+    expect(result.hasSucceeded).toBe(true);
+    expect(result.output).toBe('success result');
     expect(tasksExecuted.length).toBe(initialCount + 1);
     expect(tasksExecuted[tasksExecuted.length - 1].status).toBe(TaskStatus.SUCCESS);
     
@@ -47,16 +48,14 @@ describe('Task System', () => {
     
     const initialCount = tasksExecuted.length;
     
-    try {
-      await task('failing task', () => {
-        throw new Error('task failed');
-      });
-      expect(true).toBe(false); // Should not reach here
-    } catch (error) {
-      expect(error.message).toBe('task failed');
-      expect(tasksExecuted.length).toBe(initialCount + 1);
-      expect(tasksExecuted[tasksExecuted.length - 1].status).toBe(TaskStatus.FAIL);
-    }
+    const result = await task('failing task', () => {
+      throw new Error('task failed');
+    });
+    
+    expect(result.hasFailed).toBe(true);
+    expect(result.output).toBe('task failed');
+    expect(tasksExecuted.length).toBe(initialCount + 1);
+    expect(tasksExecuted[tasksExecuted.length - 1].status).toBe(TaskStatus.FAIL);
     
     console.log.mockRestore();
   });
@@ -134,16 +133,13 @@ describe('Failure Handling Modes', () => {
     const { ignoreFailures } = await import('../src/task.js');
     ignoreFailures();
     
-    try {
-      await task('failing task', () => {
-        throw new Error('test error');
-      });
-      expect(true).toBe(false); // Should not reach here due to throw
-    } catch (error) {
-      // task() always throws, but process.exit should not be called in ignoreFailures mode
-      expect(error.message).toBe('test error');
-    }
+    const result = await task('failing task', () => {
+      throw new Error('test error');
+    });
     
+    // task() now returns TaskResult instead of throwing, but process.exit should not be called in ignoreFailures mode
+    expect(result.hasFailed).toBe(true);
+    expect(result.output).toBe('test error');
     expect(process.exit).not.toHaveBeenCalled();
     
     console.log.mockRestore();
