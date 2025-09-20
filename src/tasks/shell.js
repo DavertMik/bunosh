@@ -81,9 +81,16 @@ export default function shell(strings, ...values) {
         
         const output = await result.text();
         
+        const metadata = {
+          taskType: 'shell',
+          exitCode: 0,
+          stdout: output.trim(),
+          stderr: ''
+        };
+        
         printer.finish(cmd);
         finishTaskInfo(taskInfo, true, null, output.trim());
-        resolve(TaskResult.success(output.trim()));
+        resolve(TaskResult.success(output.trim(), metadata));
         return;
         
       } catch (shellError) {
@@ -118,22 +125,29 @@ export default function shell(strings, ...values) {
             }
           }
           
+          const metadata = {
+            taskType: 'shell',
+            exitCode: shellError.exitCode,
+            stdout: stdout.trim(),
+            stderr: stderr.trim()
+          };
+          
           const error = new Error(`Exit code: ${shellError.exitCode}`);
           printer.error(cmd, null, { exitCode: shellError.exitCode });
           finishTaskInfo(taskInfo, false, error, errorOutput);
-          resolve(TaskResult.fail(errorOutput));
+          resolve(TaskResult.fail(errorOutput, metadata));
           return;
         } else {
           const errorMessage = shellError.message || shellError.toString();
           printer.error(cmd, shellError);
           finishTaskInfo(taskInfo, false, shellError, errorMessage);
-          resolve(TaskResult.fail(errorMessage));
+          resolve(TaskResult.fail(errorMessage, { taskType: 'shell' }));
         }
       }
     } catch (error) {
       printer.error(cmd, error);
       finishTaskInfo(taskInfo, false, error, error.message);
-      resolve(TaskResult.fail(error.message));
+      resolve(TaskResult.fail(error.message, { taskType: 'shell' }));
     }
   });
 

@@ -28,21 +28,29 @@ export default async function httpFetch() {
       }
     }
 
+    const metadata = {
+      taskType: 'fetch',
+      response: response.clone(), // Clone to allow json() to be called later
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    };
+
     if (response.ok) {
       printer.finish(taskName, { status: `${response.status} ${response.statusText}` });
       finishTaskInfo(taskInfo, true, null, output.trim());
-      return TaskResult.success(output.trim());
+      return TaskResult.success(output.trim(), metadata);
     } else {
       const errorMsg = `HTTP ${response.status} ${response.statusText}`;
       const error = new Error(errorMsg);
       printer.error(taskName, errorMsg);
       finishTaskInfo(taskInfo, false, error, errorMsg);
-      return TaskResult.fail(errorMsg);
+      return TaskResult.fail(errorMsg, metadata);
     }
     
   } catch (error) {
     printer.error(taskName, error);
     finishTaskInfo(taskInfo, false, error, error.message);
-    return TaskResult.fail(error.message);
+    return TaskResult.fail(error.message, { taskType: 'fetch' });
   }
 }

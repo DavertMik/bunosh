@@ -185,7 +185,7 @@ export async function task(name, fn, isSilent = false) {
     printer.finish(name);
     runningTasks.delete(taskInfo.id);
 
-    return result;
+    return TaskResult.success(result, { taskType: 'task' });
   } catch (err) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
@@ -212,12 +212,13 @@ export async function task(name, fn, isSilent = false) {
       process.exit(1);
     }
     
-    throw err;
+    return TaskResult.fail(err.message, { taskType: 'task', error: err });
   }
 }
 
 // Add try method to task function
 task.try = tryTask;
+
 
 export class SilentTaskWrapper {
   constructor() {
@@ -246,9 +247,10 @@ export function silent() {
 }
 
 export class TaskResult {
-  constructor({ status, output }) {
+  constructor({ status, output, metadata = {} }) {
     this.status = status;
     this.output = output;
+    this._metadata = metadata;
   }
 
   get hasFailed() {
@@ -263,15 +265,76 @@ export class TaskResult {
     return this.status === TaskStatus.WARNING;
   }
 
-  static fail(output = null) {
-    return new TaskResult({ status: TaskStatus.FAIL, output });
+  async json() {
+    const taskType = this._metadata.taskType || 'unknown';
+    
+    switch (taskType) {
+      case 'fetch':
+        // For fetch tasks, parse the response body as JSON
+        if (this._metadata.response) {
+          try {
+            return await this._metadata.response.json();
+          } catch (error) {
+            throw new Error(`Failed to parse fetch response as JSON: ${error.message}`);
+          }
+        } else if (typeof this.output === 'string') {
+          try {
+            return JSON.parse(this.output);
+          } catch (error) {
+            throw new Error(`Failed to parse fetch output as JSON: ${error.message}`);
+          }
+        }
+        throw new Error('No JSON data available from fetch task');
+
+      case 'exec':
+      case 'shell':
+        // For exec/shell tasks, return structured output
+        const lines = this.output ? this.output.split('\n').filter(line => line.trim()) : [];
+        return {
+          stdout: this._metadata.stdout || this.output || '',
+          stderr: this._metadata.stderr || '',
+          exitCode: this._metadata.exitCode || (this.hasFailed ? 1 : 0),
+          lines
+        };
+
+      case 'ai':
+        // For AI tasks, return the structured output if available
+        if (typeof this.output === 'object') {
+          return this.output;
+        } else if (typeof this.output === 'string') {
+          try {
+            return JSON.parse(this.output);
+          } catch (error) {
+            // If it's not JSON, return as text property
+            return { text: this.output };
+          }
+        }
+        return { text: this.output || '' };
+
+      default:
+        // For unknown task types, try to parse output as JSON or return as text
+        if (typeof this.output === 'object') {
+          return this.output;
+        } else if (typeof this.output === 'string') {
+          try {
+            return JSON.parse(this.output);
+          } catch (error) {
+            return { text: this.output };
+          }
+        }
+        return { text: this.output || '' };
+    }
   }
 
-  static success(output = null) {
-    return new TaskResult({ status: TaskStatus.SUCCESS, output });
+  static fail(output = null, metadata = {}) {
+    return new TaskResult({ status: TaskStatus.FAIL, output, metadata });
   }
 
-  static warning(output = null) {
-    return new TaskResult({ status: TaskStatus.WARNING, output });
+  static success(output = null, metadata = {}) {
+    return new TaskResult({ status: TaskStatus.SUCCESS, output, metadata });
+  }
+
+  static warning(output = null, metadata = {}) {
+    return new TaskResult({ status: TaskStatus.WARNING, output, metadata });
   }
 }

@@ -1,10 +1,19 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { ConsoleFormatter } from '../src/formatters/console.js';
 import { GitHubActionsFormatter } from '../src/formatters/github-actions.js';
-import { createFormatter } from '../src/formatters/factory.js';
+import { createFormatter, setTestFormatter, clearTestFormatter } from '../src/formatters/factory.js';
 
 describe('ConsoleFormatter', () => {
   const formatter = new ConsoleFormatter();
+  
+  beforeEach(() => {
+    // Force console formatter for consistent testing
+    setTestFormatter(ConsoleFormatter);
+  });
+
+  afterEach(() => {
+    clearTestFormatter();
+  });
 
   test('formats start status', () => {
     const result = formatter.format('test command', 'start', 'exec');
@@ -15,7 +24,7 @@ describe('ConsoleFormatter', () => {
 
   test('formats finish status with duration', () => {
     const result = formatter.format('test command', 'finish', 'exec', { duration: 123 });
-    expect(result).toContain('✓');
+    expect(result).toContain('✔');
     expect(result).toContain('123ms');
   });
 

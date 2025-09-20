@@ -62,6 +62,8 @@ export default function exec(strings, ...values) {
 
       const decoder = new TextDecoder();
       let output = '';
+      let stdout = '';
+      let stderr = '';
       let finished = false;
 
       // Process stdout
@@ -84,6 +86,7 @@ export default function exec(strings, ...values) {
               if (line.trim()) {
                 printer.output(line);
                 output += line + '\n';
+                stdout += line + '\n';
               }
             }
           }
@@ -91,6 +94,7 @@ export default function exec(strings, ...values) {
           if (buffer.trim()) {
             printer.output(buffer);
             output += buffer + '\n';
+            stdout += buffer + '\n';
           }
         } finally {
           reader.releaseLock();
@@ -117,6 +121,7 @@ export default function exec(strings, ...values) {
               if (line.trim()) {
                 printer.output(line, true);
                 output += line + '\n';
+                stderr += line + '\n';
               }
             }
           }
@@ -124,6 +129,7 @@ export default function exec(strings, ...values) {
           if (buffer.trim()) {
             printer.output(buffer, true);
             output += buffer + '\n';
+            stderr += buffer + '\n';
           }
         } finally {
           reader.releaseLock();
@@ -140,20 +146,27 @@ export default function exec(strings, ...values) {
       finished = true;
       const exitCode = parseInt(exitResult, 10);
 
+      const metadata = {
+        taskType: 'exec',
+        exitCode,
+        stdout: stdout.trim(),
+        stderr: stderr.trim()
+      };
+
       if (exitCode === 0) {
         printer.finish(cmd);
         finishTaskInfo(taskInfo, true, null, output.trim());
-        resolve(TaskResult.success(output.trim()));
+        resolve(TaskResult.success(output.trim(), metadata));
       } else {
         const error = new Error(`Exit code: ${exitCode}`);
         printer.error(cmd, null, { exitCode });
         finishTaskInfo(taskInfo, false, error, output.trim());
-        resolve(TaskResult.fail(output.trim()));
+        resolve(TaskResult.fail(output.trim(), metadata));
       }
     } catch (error) {
       printer.error(cmd, error);
       finishTaskInfo(taskInfo, false, error, error.message);
-      resolve(TaskResult.fail(error.message));
+      resolve(TaskResult.fail(error.message, { taskType: 'exec' }));
     }
   });
 
@@ -182,35 +195,44 @@ async function nodeExec(cmd, extraInfo, printer, taskInfo) {
     });
     
     let output = '';
-    let errorOutput = '';
+    let stdout = '';
+    let stderr = '';
     
     proc.stdout.on('data', (data) => {
       const text = data.toString();
       printer.output(text.trim());
       output += text;
+      stdout += text;
     });
     
     proc.stderr.on('data', (data) => {
       const text = data.toString();
       printer.output(text.trim(), true);
-      errorOutput += text;
+      output += text;
+      stderr += text;
     });
     
     proc.on('close', (code) => {
-      const combinedOutput = (output + errorOutput).trim();
+      const combinedOutput = (output).trim();
+      const metadata = {
+        taskType: 'exec',
+        exitCode: code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim()
+      };
       
       if (code === 0) {
         printer.finish(cmd);
-        resolve(TaskResult.success(combinedOutput));
+        resolve(TaskResult.success(combinedOutput, metadata));
       } else {
         printer.error(cmd, new Error(`Exit code: ${code}`));
-        resolve(TaskResult.fail(combinedOutput));
+        resolve(TaskResult.fail(combinedOutput, metadata));
       }
     });
     
     proc.on('error', (error) => {
       printer.error(cmd, error);
-      resolve(TaskResult.fail(error.message));
+      resolve(TaskResult.fail(error.message, { taskType: 'exec' }));
     });
   });
 }
