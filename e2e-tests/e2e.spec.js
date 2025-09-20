@@ -13,6 +13,7 @@ import {
   runSystemCommand, 
   checkBunoshAvailable 
 } from './helpers/command-runner.js';
+import { cleanTestOutput } from './helpers/test-utils.js';
 
 // Check if Bun is available for testing
 const isBunAvailable = await checkBunoshAvailable();
@@ -533,8 +534,9 @@ export function zHomeTask() {
         env: { BUNOSH_FORMATTER: 'console' }
       });
       
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('✔ exec Fetch all users > echo "Fetching data..."');
+      const cleaned = cleanTestOutput(result);
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('✔ exec Fetch all users > echo "Fetching data..."');
     });
 
     it('should show numbered prefixes for parallel tasks', async () => {
@@ -551,10 +553,11 @@ export function zHomeTask() {
         env: { BUNOSH_FORMATTER: 'console' }
       });
       
-      expect(result.success).toBe(true);
-      expect(result.stdout).toMatch(/▶ task ❰1❱ Task 1/);
-      expect(result.stdout).toMatch(/▶ task ❰2❱ Task 2/);
-      expect(result.stdout).toMatch(/▶ task ❰3❱ Task 3/);
+      const cleaned = cleanTestOutput(result);
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toMatch(/▶ task ❰1❱ Task 1/);
+      expect(cleaned.stdout).toMatch(/▶ task ❰2❱ Task 2/);
+      expect(cleaned.stdout).toMatch(/▶ task ❰3❱ Task 3/);
     });
 
     it('should not show prefixes for single tasks', async () => {
@@ -567,10 +570,11 @@ export function zHomeTask() {
         env: { BUNOSH_FORMATTER: 'console' }
       });
       
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('▶ task');
-      expect(result.stdout).toContain('Single task');
-      expect(result.stdout).not.toMatch(/✔ task ❰\\d+❱ Single task/);
+      const cleaned = cleanTestOutput(result);
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('▶ task');
+      expect(cleaned.stdout).toContain('Single task');
+      expect(cleaned.stdout).not.toMatch(/✔ task ❰\\d+❱ Single task/);
     });
 
     it('should handle task failures correctly', async () => {
@@ -589,9 +593,10 @@ export function zHomeTask() {
         env: { BUNOSH_FORMATTER: 'console' }
       });
       
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('✗ exec Task that fails > sh -c "exit 1"');
-      expect(result.stdout).toContain('✔ task Task that fails');
+      const cleaned = cleanTestOutput(result);
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('✗ exec Task that fails > sh -c "exit 1"');
+      expect(cleaned.stdout).toContain('✔ task Task that fails');
     });
   });
 });
