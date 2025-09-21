@@ -246,47 +246,29 @@ Functions are automatically converted to kebab-case commands:
 | `npmInstall` | `bunosh npm:install` |
 | `buildAndDeploy` | `bunosh build:and-deploy` |
 
+
 ### Personal Commands (My Namespace)
 
+To separate personal commands with team-wide project commands, Bunosh can automatically mix your personal commands when you run it. 
 Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
-
-**Create your personal toolkit:**
 
 ```javascript
 // ~/Bunoshfile.js - Your global commands available everywhere
-
-/**
- * Quick project setup
- */
 export function setup(name, template = 'basic') {
   await shell`
-      git clone https://github.com/my-templates/${template}.git ${name}`;
-      cd ${name}
-      bun i
+      git clone https://github.com/my-templates/${template}.git ${name}
+      cd ${name} && bun i
   `;
-  say(`✅ Project ${name} ready!`);
+  say(`Project ${name} ready!`);
 }
 ```
 
-**Available in any project:**
+Now command `my:setup` is availble from any folder 
 
 ```bash
-# From any directory, these commands work:
-bunosh my:deploy my-app production
-bunosh my:backup projects
-bunosh my:new-project awesome-app react
-
-# List all your personal commands
-bunosh --help  # Shows "My Commands" section
+bunosh my:setup awesome-app nextjs
 ```
 
-**Key Features:**
-- 🏠 **Global availability** - Access your personal commands from any project directory
-- 🏷️ **Namespaced** - `my:` prefix prevents conflicts with project commands
-- 📝 **Same syntax** - Uses identical JavaScript function syntax as project commands
-- 🔧 **Parameters & options** - Full support for arguments and CLI options
-- 📚 **Help integration** - Shows in help output with descriptions
-- 🚫 **Graceful fallback** - Works seamlessly when no home Bunoshfile exists
 
 ## Tasks
 
