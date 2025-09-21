@@ -516,6 +516,185 @@ export function zHomeTask() {
     });
   });
 
+  describe.skipIf(!isBunAvailable)('Custom Bunoshfile Loading', () => {
+    beforeEach(() => {
+      // Create default Bunoshfile
+      createTestBunoshfile(testDir);
+      createTestPackageJson(testDir);
+    });
+
+    it('should load commands from custom Bunoshfile with --bunoshfile option', async () => {
+      // Create custom Bunoshfile
+      const customBunoshfile = path.join(testDir, 'Bunoshfile.custom.js');
+      fs.writeFileSync(customBunoshfile, `
+/**
+ * Custom task from alternative Bunoshfile
+ */
+export function customTask() {
+  console.log('Custom task executed from alternative Bunoshfile');
+}
+
+/**
+ * Another custom command
+ */
+export function alternativeCommand(message = 'Hello') {
+  console.log(\`Alternative: \${message}\`);
+}
+`);
+
+      // Test help output shows custom commands
+      const helpResult = await runBunoshCommand('--bunoshfile Bunoshfile.custom.js --help', { cwd: testDir });
+      
+      expect(helpResult.success).toBe(true);
+      expect(helpResult.stdout).toContain('custom:task');
+      expect(helpResult.stdout).toContain('alternative:command');
+      expect(helpResult.stdout).toContain('Custom task from alternative Bunoshfile');
+      
+      // Should not contain default commands
+      expect(helpResult.stdout).not.toContain('simple:exec');
+      expect(helpResult.stdout).not.toContain('fetch:task');
+    });
+
+    it('should execute commands from custom Bunoshfile', async () => {
+      // Create custom Bunoshfile
+      const customBunoshfile = path.join(testDir, 'Bunoshfile.dev.js');
+      fs.writeFileSync(customBunoshfile, `
+export function devTask(env = 'development') {
+  console.log(\`Running in \${env} mode\`);
+}
+`);
+
+      const result = await runBunoshCommand('--bunoshfile Bunoshfile.dev.js dev:task production', { cwd: testDir });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Running in production mode');
+    });
+
+    it('should load Bunoshfile from different directory', async () => {
+      // Create subdirectory with custom Bunoshfile
+      const subDir = path.join(testDir, 'configs');
+      fs.mkdirSync(subDir);
+      
+      const configBunoshfile = path.join(subDir, 'build-tasks.js');
+      fs.writeFileSync(configBunoshfile, `
+export function buildProd() {
+  console.log('Building for production from config directory');
+}
+`);
+
+      const result = await runBunoshCommand('--bunoshfile configs/build-tasks.js build:prod', { cwd: testDir });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Building for production from config directory');
+    });
+
+    it('should work with BUNOSHFILE environment variable', async () => {
+      // Create custom Bunoshfile
+      const envBunoshfile = path.join(testDir, 'Bunoshfile.env.js');
+      fs.writeFileSync(envBunoshfile, `
+export function envTask() {
+  console.log('Task executed via BUNOSHFILE environment variable');
+}
+`);
+
+      const result = await runBunoshCommand('env:task', { 
+        cwd: testDir,
+        env: { BUNOSHFILE: 'Bunoshfile.env.js' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Task executed via BUNOSHFILE environment variable');
+    });
+
+    it('should prioritize --bunoshfile option over BUNOSHFILE env var', async () => {
+      // Create two custom Bunoshfiles
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.cli.js'), `
+export function cliTask() {
+  console.log('CLI option takes precedence');
+}
+`);
+      
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.env.js'), `
+export function envTask() {
+  console.log('Environment variable task');
+}
+`);
+
+      const result = await runBunoshCommand('--bunoshfile Bunoshfile.cli.js cli:task', { 
+        cwd: testDir,
+        env: { BUNOSHFILE: 'Bunoshfile.env.js' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('CLI option takes precedence');
+      expect(result.stdout).not.toContain('Environment variable task');
+    });
+
+    it('should show appropriate error for non-existent custom Bunoshfile', async () => {
+      const result = await runBunoshCommand('--bunoshfile non-existent.js --help', { cwd: testDir });
+      
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('Bunoshfile not found');
+      expect(result.stderr).toContain('non-existent.js');
+    });
+
+    it('should change working directory to custom Bunoshfile directory', async () => {
+      // Create subdirectory structure
+      const subDir = path.join(testDir, 'project');
+      fs.mkdirSync(subDir);
+      
+      // Create a file in subdirectory that the task will read
+      fs.writeFileSync(path.join(subDir, 'config.txt'), 'project configuration');
+      
+      const customBunoshfile = path.join(subDir, 'Bunoshfile.js');
+      fs.writeFileSync(customBunoshfile, `
+const fs = require('fs');
+
+export function readConfig() {
+  // This should work because working directory changes to where Bunoshfile is located
+  const config = fs.readFileSync('config.txt', 'utf8');
+  console.log(\`Config: \${config}\`);
+}
+`);
+
+      const result = await runBunoshCommand('--bunoshfile project/Bunoshfile.js read:config', { cwd: testDir });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Config: project configuration');
+    });
+
+    it('should handle relative paths in BUNOSHFILE environment variable', async () => {
+      // Create custom Bunoshfile in subdirectory
+      const subDir = path.join(testDir, 'tasks');
+      fs.mkdirSync(subDir);
+      
+      const relativeBunoshfile = path.join(subDir, 'custom.js');
+      fs.writeFileSync(relativeBunoshfile, `
+export function relativeTask() {
+  console.log('Task from relative path via environment variable');
+}
+`);
+
+      const result = await runBunoshCommand('relative:task', { 
+        cwd: testDir,
+        env: { BUNOSHFILE: 'tasks/custom.js' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Task from relative path via environment variable');
+    });
+
+    it('should fall back to default Bunoshfile when BUNOSHFILE env var is empty', async () => {
+      const result = await runBunoshCommand('simple:exec', { 
+        cwd: testDir,
+        env: { BUNOSHFILE: '' }
+      });
+      
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Hello from exec');
+    });
+  });
+
   describe.skipIf(!isBunAvailable)('Task Formatting and Output', () => {
     beforeEach(() => {
       createTestBunoshfile(testDir);

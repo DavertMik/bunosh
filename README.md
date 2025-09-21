@@ -151,6 +151,33 @@ bunosh build development
 
 ## Commands
 
+
+By default, Bunosh loads commands from `Bunoshfile.js` in the current directory.
+
+```
+# reads Bunoshfile form cwd and runs hello()
+bunosh hello
+```
+
+You can specify custom configuration file using CLI option:
+
+```bash
+# Load commands from a different file
+bunosh --bunoshfile Bunoshfile.dev.js hello
+```
+
+or via environment variable:
+
+```bash
+# Set default bunoshfile for session
+export BUNOSHFILE=Bunoshfile.dev.js
+bunosh hello  # Uses Bunoshfile.dev.js
+
+# One-time usage
+BUNOSHFILE=Bunoshfile.prod.js bunosh deploy
+```
+
+
 ### Creating Commands
 
 Every exported function in `Bunoshfile.js` becomes a CLI command:
