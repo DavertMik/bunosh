@@ -256,30 +256,14 @@ Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`)
 // ~/Bunoshfile.js - Your global commands available everywhere
 
 /**
- * Quick deployment to personal staging server
- */
-export function deploy(app, env = 'staging') {
-  say(`🚀 Deploying ${app} to personal ${env} environment...`);
-  await exec`ssh deploy@myserver.com "deploy.sh ${app} ${env}"`;
-  say('✅ Deployment complete!');
-}
-
-/**
- * Personal backup script
- */
-export function backup(target = 'documents') {
-  say(`💾 Creating backup of ${target}...`);
-  await exec`rsync -av ~/${target}/ ~/Backups/${target}-$(date +%Y%m%d)/`;
-  say('📦 Backup completed!');
-}
-
-/**
  * Quick project setup
  */
-export function newProject(name, template = 'basic') {
-  say(`🏗️ Creating new project: ${name}`);
-  await exec`git clone https://github.com/my-templates/${template}.git ${name}`;
-  await exec`cd ${name} && npm install`;
+export function setup(name, template = 'basic') {
+  await shell`
+      git clone https://github.com/my-templates/${template}.git ${name}`;
+      cd ${name}
+      bun i
+  `;
   say(`✅ Project ${name} ready!`);
 }
 ```
