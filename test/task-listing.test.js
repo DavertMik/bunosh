@@ -25,12 +25,13 @@ describe('Task Listing Display', () => {
     const programContent = fs.readFileSync(programPath, 'utf8');
     
     // Verify the old color picker function no longer exists
-    // The old function had this pattern:
     expect(programContent).not.toContain('function pickColorForColorName');
     expect(programContent).not.toContain('pickColorForColorName = function');
     
-    // But the gradient colors array should still exist
-    expect(programContent).toContain('const colors = [');
+    // Verify the new gradient implementation exists
+    expect(programContent).toContain('createGradientAscii');
+    expect(programContent).toContain('startColor = { r: 255, g: 220, b: 0 }');
+    expect(programContent).toContain('endColor = { r: 139, g: 69, b: 19 }');
   });
 
 });
