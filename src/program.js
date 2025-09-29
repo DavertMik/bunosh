@@ -7,13 +7,22 @@ import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
-import { upgradeExecutable, isExecutable, getCurrentVersion } from './upgrade.js';
+import { upgradeCommand } from './upgrade.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
 export const banner = () => {
-  const asciiArt = cprint('Bunosh', { symbol: '⯀' });
-  console.log(createGradientAscii(asciiArt));
+  const logoArt = 
+`     .::=-=-___.        
+   .:+*##*-**:___.       
+ :**#%*-+#####*++*     
+ :-+**++*########*+     
+  \▒░░░░:----▒▒▒▒░/      
+   \▒▒▒▒▒▒▒▒▒▒▒░░/       
+    \▓▓▓▓▓▓▓▓░░░/        
+     \▓▓▓▓▓▓░░░/   `;
+  
+  console.log(createGradientAscii(logoArt));
 
   let version = '';
   try {
@@ -22,32 +31,32 @@ export const banner = () => {
     version = pkg.version;
   } catch (e) {
   }
-  console.log(color.gray('🍲 Your deliciously cooked tasks', color.yellow(version)));
+  console.log(color.gray('🍲 ', color.yellowBright.bold('BUNOSH'), color.yellow(version)));
 
   console.log();
 };
 
 function createGradientAscii(asciiArt) {
   const lines = asciiArt.split('\n');
-  const colors = [
-    color.bold.yellow,
-    color.bold.green,
-    color.bold.greenBright,
-    color.bold.cyan,
-    color.bold.blue
-  ];
-
+  
+  // Yellow RGB (255, 220, 0) to Brown RGB (139, 69, 19)
+  const startColor = { r: 255, g: 220, b: 0 };
+  const endColor = { r: 139, g: 69, b: 19 };
+  
   return lines.map((line, index) => {
-    // Create smooth gradient by interpolating between colors
+    // Block characters should always be brown
+    if (line.includes('░') || line.includes('▒') || line.includes('▓')) {
+      return `\x1b[38;2;139;69;19m${line}\x1b[0m`;
+    }
+    
+    // Create smooth gradient for other characters
     const progress = index / (lines.length - 1);
-    const colorIndex = progress * (colors.length - 1);
-    const lowerIndex = Math.floor(colorIndex);
-    const upperIndex = Math.min(lowerIndex + 1, colors.length - 1);
-    const factor = colorIndex - lowerIndex;
-
-    // For smoother transition, we'll use the closest color
-    const color = factor < 0.5 ? colors[lowerIndex] : colors[upperIndex];
-    return color(line);
+    const r = Math.round(startColor.r + (endColor.r - startColor.r) * progress);
+    const g = Math.round(startColor.g + (endColor.g - startColor.g) * progress);
+    const b = Math.round(startColor.b + (endColor.b - startColor.b) * progress);
+    
+    // Use true color escape sequence
+    return `\x1b[38;2;${r};${g};${b}m${line}\x1b[0m`;
   }).join('\n');
 }
 
@@ -428,85 +437,11 @@ export default async function bunosh(commands, sources) {
   internalCommands.push(setupCompletionCmd);
 
   const upgradeCmd = program.command('upgrade')
-    .description('Upgrade bunosh to the latest version (single executable only)')
+    .description('Upgrade bunosh to the latest version')
     .option('-f, --force', 'Force upgrade even if already on latest version')
     .option('--check', 'Check for updates without upgrading')
     .action(async (options) => {
-      try {
-        if (!isExecutable()) {
-          console.log('📦 Bunosh is installed via npm.');
-          console.log('To upgrade, run: ' + color.bold('npm update -g bunosh'));
-          process.exit(0);
-        }
-
-        const currentVersion = getCurrentVersion();
-        console.log(`📍 Current version: ${color.bold(currentVersion)}`);
-
-        if (options.check) {
-          console.log('🔍 Checking for updates...');
-          try {
-            const { getLatestRelease, isNewerVersion } = await import('./upgrade.js');
-            const release = await getLatestRelease();
-            const latestVersion = release.tag_name;
-
-            console.log(`📦 Latest version: ${color.bold(latestVersion)}`);
-
-            if (isNewerVersion(latestVersion, currentVersion)) {
-              console.log(`✨ ${color.green('Update available!')} ${currentVersion} → ${latestVersion}`);
-              console.log('Run ' + color.bold('bunosh upgrade') + ' to update.');
-            } else {
-              console.log(`✅ ${color.green('You are on the latest version!')}`);
-            }
-          } catch (error) {
-            console.error(`❌ Failed to check for updates: ${error.message}`);
-            process.exit(1);
-          }
-          return;
-        }
-
-        console.log('⬆️  Starting upgrade process...');
-        console.log();
-
-        let lastMessage = '';
-        const result = await upgradeExecutable({
-          force: options.force,
-          onProgress: (message) => {
-            if (message !== lastMessage) {
-              console.log(`   ${message}`);
-              lastMessage = message;
-            }
-          }
-        });
-
-        console.log();
-        if (result.updated) {
-          console.log(`🎉 ${color.green('Upgrade successful!')}`);
-          console.log(`   ${result.currentVersion} → ${color.bold(result.latestVersion)}`);
-          console.log();
-          console.log(`💡 Run ${color.bold('bunosh --version')} to verify the new version.`);
-        } else {
-          console.log(`✅ ${color.green(result.message)}`);
-          if (!options.force) {
-            console.log(`   Use ${color.bold('--force')} to reinstall the current version.`);
-          }
-        }
-
-      } catch (error) {
-        console.error(`❌ Upgrade failed: ${error.message}`);
-
-        if (error.message.includes('Unsupported platform')) {
-          console.log();
-          console.log('💡 Supported platforms:');
-          console.log('   • Linux x64');
-          console.log('   • macOS ARM64 (Apple Silicon)');
-          console.log('   • Windows x64');
-        } else if (error.message.includes('GitHub API')) {
-          console.log();
-          console.log('💡 Try again later or check your internet connection.');
-        }
-
-        process.exit(1);
-      }
+      await upgradeCommand(options);
     });
 
   internalCommands.push(upgradeCmd);
@@ -535,6 +470,7 @@ Special Commands:
   ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
   ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
+  ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
 
 `));
 

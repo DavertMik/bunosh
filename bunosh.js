@@ -80,13 +80,16 @@ async function loadBunoshfiles(tasksFile) {
 
 async function main() {
 
-  // Parse --bunoshfile flag before importing tasks
+  // Parse --bunoshfile flag or BUNOSHFILE env var before importing tasks
   const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
   let customBunoshfile = null;
+  
   if (bunoshfileIndex !== -1 && bunoshfileIndex + 1 < process.argv.length) {
     customBunoshfile = process.argv[bunoshfileIndex + 1];
     // Remove the flag and its value from process.argv so it doesn't interfere with command parsing
     process.argv.splice(bunoshfileIndex, 2);
+  } else if (process.env.BUNOSHFILE) {
+    customBunoshfile = process.env.BUNOSHFILE;
   }
 
   let tasksFile;

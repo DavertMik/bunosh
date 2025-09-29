@@ -151,6 +151,33 @@ bunosh build development
 
 ## Commands
 
+
+By default, Bunosh loads commands from `Bunoshfile.js` in the current directory.
+
+```
+# reads Bunoshfile form cwd and runs hello()
+bunosh hello
+```
+
+You can specify custom configuration file using CLI option:
+
+```bash
+# Load commands from a different file
+bunosh --bunoshfile Bunoshfile.dev.js hello
+```
+
+or via environment variable:
+
+```bash
+# Set default bunoshfile for session
+export BUNOSHFILE=Bunoshfile.dev.js
+bunosh hello  # Uses Bunoshfile.dev.js
+
+# One-time usage
+BUNOSHFILE=Bunoshfile.prod.js bunosh deploy
+```
+
+
 ### Creating Commands
 
 Every exported function in `Bunoshfile.js` becomes a CLI command:
@@ -219,63 +246,29 @@ Functions are automatically converted to kebab-case commands:
 | `npmInstall` | `bunosh npm:install` |
 | `buildAndDeploy` | `bunosh build:and-deploy` |
 
+
 ### Personal Commands (My Namespace)
 
+To separate personal commands with team-wide project commands, Bunosh can automatically mix your personal commands when you run it. 
 Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
-
-**Create your personal toolkit:**
 
 ```javascript
 // ~/Bunoshfile.js - Your global commands available everywhere
-
-/**
- * Quick deployment to personal staging server
- */
-export function deploy(app, env = 'staging') {
-  say(`🚀 Deploying ${app} to personal ${env} environment...`);
-  await exec`ssh deploy@myserver.com "deploy.sh ${app} ${env}"`;
-  say('✅ Deployment complete!');
-}
-
-/**
- * Personal backup script
- */
-export function backup(target = 'documents') {
-  say(`💾 Creating backup of ${target}...`);
-  await exec`rsync -av ~/${target}/ ~/Backups/${target}-$(date +%Y%m%d)/`;
-  say('📦 Backup completed!');
-}
-
-/**
- * Quick project setup
- */
-export function newProject(name, template = 'basic') {
-  say(`🏗️ Creating new project: ${name}`);
-  await exec`git clone https://github.com/my-templates/${template}.git ${name}`;
-  await exec`cd ${name} && npm install`;
-  say(`✅ Project ${name} ready!`);
+export function setup(name, template = 'basic') {
+  await shell`
+      git clone https://github.com/my-templates/${template}.git ${name}
+      cd ${name} && bun i
+  `;
+  say(`Project ${name} ready!`);
 }
 ```
 
-**Available in any project:**
+Now command `my:setup` is availble from any folder 
 
 ```bash
-# From any directory, these commands work:
-bunosh my:deploy my-app production
-bunosh my:backup projects
-bunosh my:new-project awesome-app react
-
-# List all your personal commands
-bunosh --help  # Shows "My Commands" section
+bunosh my:setup awesome-app nextjs
 ```
 
-**Key Features:**
-- 🏠 **Global availability** - Access your personal commands from any project directory
-- 🏷️ **Namespaced** - `my:` prefix prevents conflicts with project commands
-- 📝 **Same syntax** - Uses identical JavaScript function syntax as project commands
-- 🔧 **Parameters & options** - Full support for arguments and CLI options
-- 📚 **Help integration** - Shows in help output with descriptions
-- 🚫 **Graceful fallback** - Works seamlessly when no home Bunoshfile exists
 
 ### Project Namespaces
 
