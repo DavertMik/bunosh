@@ -13,11 +13,70 @@ globalThis._bunoshGlobalTaskStatus = {
 
 // Now import modules
 
-import program, { BUNOSHFILE, banner }  from "./src/program.js";
+import bunosh, { BUNOSHFILE, banner }  from "./src/program.js";
 import { existsSync, readFileSync, statSync } from "fs";
 import init from "./src/init.js";
 import path from "path";
 
+
+async function loadBunoshfiles(tasksFile) {
+  const path = await import('path');
+  const fs = await import('fs');
+  
+  // Get the directory and base name of the tasks file
+  const dir = path.dirname(tasksFile);
+  const baseName = path.basename(tasksFile, '.js');
+  
+  // Find all matching Bunoshfile variants
+  const files = fs.readdirSync(dir);
+  const bunoshFiles = files
+    .filter(file => {
+      // Match Bunoshfile.js, Bunoshfile.*.js
+      const regex = new RegExp(`^${baseName}(\\.\\w+)?\\.js$`);
+      return regex.test(file);
+    })
+    .sort(); // Ensure consistent order
+  
+  const allTasks = {};
+  const allSources = {};
+  
+  for (const file of bunoshFiles) {
+    const filePath = path.join(dir, file);
+    try {
+      // Extract namespace from filename
+      let namespace = '';
+      if (file !== `${baseName}.js`) {
+        // Remove baseName and .js, then remove the leading dot
+        namespace = file.slice(baseName.length, -3).substring(1);
+      }
+      
+      const tasks = await import(filePath);
+      const source = fs.readFileSync(filePath, 'utf-8');
+      
+      // Add namespace prefix to tasks if namespace exists
+      if (namespace) {
+        Object.keys(tasks).forEach(key => {
+          if (typeof tasks[key] === 'function') {
+            allTasks[`${namespace}:${key}`] = tasks[key];
+            allSources[`${namespace}:${key}`] = { source, namespace, originalFnName: key };
+          }
+        });
+      } else {
+        // No namespace for the main Bunoshfile
+        Object.keys(tasks).forEach(key => {
+          if (typeof tasks[key] === 'function') {
+            allTasks[key] = tasks[key];
+            allSources[key] = { source, namespace: '', originalFnName: key };
+          }
+        });
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not load ${file}:`, error.message);
+    }
+  }
+  
+  return { tasks: allTasks, sources: allSources };
+}
 
 async function main() {
 
@@ -50,61 +109,48 @@ async function main() {
   // Handle -e flag for executing JavaScript code
   const eFlagIndex = process.argv.indexOf('-e');
   if (eFlagIndex !== -1) {
-    let jsCode = '';
-    
-    // Check if code is provided as argument
-    if (eFlagIndex + 1 < process.argv.length && !process.argv[eFlagIndex + 1].startsWith('-')) {
-      jsCode = process.argv[eFlagIndex + 1];
-    } else if (!process.stdin.isTTY) {
-      // Read from stdin only if it's not a TTY (i.e., it's being piped)
-      const chunks = [];
-      for await (const chunk of process.stdin) {
-        chunks.push(chunk);
-      }
-      jsCode = Buffer.concat(chunks).toString('utf8').trim();
-    }
-    
-    if (!jsCode) {
-      console.error('No JavaScript code provided');
-      process.exit(1);
-    }
-    
-    try {
-      // Import bunosh globals before executing JavaScript
-      await import('./index.js');
+    (async () => {
+      let jsCode = '';
       
-      // Make bunosh globals available to the function by creating wrapper functions
-      for (const [key, value] of Object.entries(global.bunosh)) {
-        if (typeof value === 'function') {
-          // For template literal tag functions like exec and shell, create a wrapper
-          // that allows them to be called as regular functions with a string
-          if (key === 'exec' || key === 'writeToFile') {
-            globalThis[key] = (str) => {
-              // If called as a regular function with a string, convert to template literal call
-              if (typeof str === 'string') {
-                return value([str]);
-              }
-              // Otherwise call normally
-              return value(str, ...Array.from(arguments).slice(1));
-            };
-          } else if (key === 'shell') {
-            // Shell function has special handling for string arguments - it falls back to exec
-            globalThis[key] = value;
-          } else {
+      // Check if code is provided as argument
+      if (eFlagIndex + 1 < process.argv.length && !process.argv[eFlagIndex + 1].startsWith('-')) {
+        jsCode = process.argv[eFlagIndex + 1];
+      } else if (!process.stdin.isTTY) {
+        // Read from stdin only if it's not a TTY (i.e., it's being piped)
+        const chunks = [];
+        for await (const chunk of process.stdin) {
+          chunks.push(chunk);
+        }
+        jsCode = Buffer.concat(chunks).toString('utf8').trim();
+      }
+      
+      if (!jsCode) {
+        console.error('No JavaScript code provided');
+        process.exit(1);
+      }
+      
+      try {
+        // Import bunosh globals before executing JavaScript
+        await import('./index.js');
+        
+        // Make bunosh globals available to the function
+        for (const [key, value] of Object.entries(global.bunosh)) {
+          if (typeof value === 'function') {
             globalThis[key] = value;
           }
         }
+        
+        // Execute the JavaScript code with bunosh globals available
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const func = new AsyncFunction(jsCode);
+        await func();
+        process.exit(0);
+      } catch (error) {
+        console.error('Error executing JavaScript:', error.message);
+        process.exit(1);
       }
-      
-      // Execute the JavaScript code with bunosh globals available
-      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-      const func = new AsyncFunction(jsCode);
-      await func();
-      return;
-    } catch (error) {
-      console.error('Error executing JavaScript:', error.message);
-      process.exit(1);
-    }
+    })();
+    return;
   }
 
   if (!existsSync(tasksFile)) {
@@ -124,19 +170,11 @@ async function main() {
     process.exit(1);
   }
 
-  // Import bunosh globals for normal operation
   await import('./index.js');
-  
-  import(tasksFile).then(async (tasks) => {
-    try {
-      const source = readFileSync(tasksFile, "utf-8");
-      await program(tasks, source);
-    } catch (error) {
-      handleBunoshfileError(error, tasksFile);
-    }
-  }).catch((error) => {
-    handleBunoshfileError(error, tasksFile);
-  });
+
+// Load all Bunoshfile variants
+const { tasks, sources } = await loadBunoshfiles(tasksFile);
+await bunosh(tasks, sources);
 }
 
 main().catch((error) => {
@@ -162,7 +200,7 @@ process.on('uncaughtException', (error) => {
   
   console.error('\n❌ Uncaught Exception:');
   console.error(error.message);
-  if (error.stack && process.env.BUNOSH_DEBUG) {
+  if (error.stack) {
     console.error(error.stack);
   }
   process.exit(1);
@@ -189,7 +227,7 @@ process.on('exit', (code) => {
   
   // Check if we're in test environment
   const isTestEnvironment = process.env.NODE_ENV === 'test' ||
-                            typeof Bun?.jest !== 'undefined' ||
+                            (typeof Bun !== 'undefined' && typeof Bun?.jest !== 'undefined') ||
                             process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
   
   // Set exit code to 1 if any tasks failed AND we're not in test environment

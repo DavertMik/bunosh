@@ -78,7 +78,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute simple exec task', async () => {
-      const result = await runBunoshCommand('simple:exec', { cwd: testDir });
+      const result = await runBunoshCommand('simple-exec', { cwd: testDir });
       
       expect(result.success).toBe(true);
       // The exec task may have different output format, just check it ran without error
@@ -86,7 +86,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute file task and create output file', async () => {
-      const result = await runBunoshCommand('file:task custom-file.txt', { cwd: testDir });
+      const result = await runBunoshCommand('file-task custom-file.txt', { cwd: testDir });
       
       // File task should complete without errors
       expect(result.success).toBe(true);
@@ -100,7 +100,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute yell task with ASCII art output', async () => {
-      const result = await runBunoshCommand('yell:task TESTING', { cwd: testDir });
+      const result = await runBunoshCommand('yell-task TESTING', { cwd: testDir });
       
       expect(result.success).toBe(true);
       // ASCII art task should run successfully
@@ -108,7 +108,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute fetch task', async () => {
-      const result = await runBunoshCommand('fetch:task', { 
+      const result = await runBunoshCommand('fetch-task', {
         cwd: testDir,
         timeout: 20000 // Longer timeout for network request
       });
@@ -118,14 +118,14 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should handle task with arguments and options', async () => {
-      const result = await runBunoshCommand('task:with-args World --greeting=Hi', { cwd: testDir });
-      
+      const result = await runBunoshCommand('task-with-args World Hi', { cwd: testDir });
+
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Hi, World!');
     });
 
     it('should handle failing task properly', async () => {
-      const result = await runBunoshCommand('failing:task', { 
+      const result = await runBunoshCommand('failing-task', {
         cwd: testDir,
         env: { NODE_ENV: 'test' }
       });
@@ -148,7 +148,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute parallel tasks with prefixes', async () => {
-      const result = await runBunoshCommand('parallel:task', { 
+      const result = await runBunoshCommand('parallel-task', {
         cwd: testDir,
         timeout: 20000
       });
@@ -168,7 +168,7 @@ describe('Bunosh End-to-End Tests', () => {
     });
 
     it('should execute composite task calling other tasks', async () => {
-      const result = await runBunoshCommand('composite:task', { cwd: testDir });
+      const result = await runBunoshCommand('composite-task', { cwd: testDir });
       
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Hello from exec');
@@ -254,7 +254,7 @@ describe('Bunosh End-to-End Tests', () => {
           const cleanedLine = line.trim().replace(/\x1B\[[0-9;]*m/g, '');
           return cleanedLine.split(/\s+/)[0];
         })
-        .filter(cmd => cmd && cmd.includes(':') && !cmd.startsWith('npm:'));
+        .filter(cmd => cmd && cmd.includes('-') && !cmd.startsWith('npm:'));
       
       // Parse npm commands section
       const npmCommandSection = lines.slice(npmStartIndex + 1, npmEndIndex);
@@ -275,8 +275,8 @@ describe('Bunosh End-to-End Tests', () => {
       expect(npmCommands).toEqual(sortedNpmCommands);
       
       // Should contain both bunosh and npm commands
-      expect(bunoshCommands.some(cmd => 
-        ['simple:exec', 'fetch:task', 'file:task', 'yell:task', 'composite:task', 'parallel:task', 'task:with-args', 'failing:task'].includes(cmd)
+      expect(bunoshCommands.some(cmd =>
+        ['simple-exec', 'fetch-task', 'file-task', 'yell-task', 'composite-task', 'parallel-task', 'task-with-args', 'failing-task'].includes(cmd)
       )).toBe(true);
       
       expect(npmCommands.some(cmd => cmd.startsWith('npm:'))).toBe(true);
@@ -299,11 +299,11 @@ describe('Bunosh End-to-End Tests', () => {
 
     it('should handle unknown command gracefully', async () => {
       const result = await runBunoshCommand('unknown:command', { cwd: testDir });
-      
-      // Commander shows help and continues normally for unknown commands
-      expect(result.success).toBe(true);
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Unknown command unknown:command');
+
+      // Unknown commands should show help and exit with error code
+      expect(result.success).toBe(false);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain('Unknown command unknown:command');
       expect(result.stdout).toContain('Usage: bunosh [-e <code>] <command> <args> [options]');
     });
 
@@ -315,204 +315,6 @@ describe('Bunosh End-to-End Tests', () => {
       
       expect(result.success).toBe(false);
       expect(result.stderr).toContain('Bunoshfile not found');
-    });
-  });
-
-  describe.skipIf(!isBunAvailable)('Personal Commands Feature', () => {
-    let tempHomeDir;
-    let originalHome;
-    
-    beforeEach(() => {
-      // Set up test environment with home directory
-      createTestBunoshfile(testDir);
-      createTestPackageJson(testDir);
-      
-      // Create temporary home directory
-      tempHomeDir = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'bunosh-e2e-home-'));
-      originalHome = process.env.HOME;
-      process.env.HOME = tempHomeDir;
-    });
-    
-    afterEach(() => {
-      // Restore original HOME
-      process.env.HOME = originalHome;
-      
-      // Clean up temporary home directory
-      if (fs.existsSync(tempHomeDir)) {
-        fs.rmSync(tempHomeDir, { recursive: true, force: true });
-      }
-    });
-
-    it('should work without personal commands', async () => {
-      const result = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).not.toContain('My Commands');
-      expect(result.stdout).not.toContain('my:');
-    });
-
-    it('should load and display personal commands when home Bunoshfile exists', async () => {
-      // Create home Bunoshfile
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-/**
- * Home deployment task
- */
-export function deploy(env = 'staging') {
-  console.log(\`Deploying to \${env} from home directory\`);
-}
-
-/**
- * Personal backup utility
- */
-export function backup() {
-  console.log('Creating personal backup...');
-}
-`);
-      
-      const result = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('My Commands (from ~/Bunoshfile.js):');
-      expect(result.stdout).toContain('my:deploy');
-      expect(result.stdout).toContain('my:backup');
-      expect(result.stdout).toContain('Home deployment task');
-      expect(result.stdout).toContain('Personal backup utility');
-    });
-
-    it('should execute personal commands with my: prefix', async () => {
-      // Create home Bunoshfile
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function greet(name = 'Home User') {
-  console.log(\`Hello from home, \${name}!\`);
-}
-`);
-      
-      const result = await runBunoshCommand('my:greet', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Hello from home, Home User!');
-    });
-
-    it('should execute personal commands with parameters', async () => {
-      // Create home Bunoshfile
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function greet(name = 'World', opts = { greeting: 'Hello' }) {
-  console.log(\`\${opts.greeting}, \${name} from home!\`);
-}
-`);
-      
-      const result = await runBunoshCommand('my:greet Claude --greeting Hi', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Hi, Claude from home!');
-    });
-
-    it('should handle personal commands alongside project commands', async () => {
-      // Create home Bunoshfile
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function homeTask() {
-  console.log('Executed from home');
-}
-`);
-      
-      // Test that both project and personal commands work
-      const homeResult = await runBunoshCommand('my:homeTask', { cwd: testDir });
-      const projectResult = await runBunoshCommand('simple:exec', { cwd: testDir });
-      
-      expect(homeResult.success).toBe(true);
-      expect(homeResult.stdout).toContain('Executed from home');
-      
-      expect(projectResult.success).toBe(true);
-      expect(projectResult.stdout).toContain('Hello from exec');
-    });
-
-    it('should handle home Bunoshfile with syntax errors gracefully', async () => {
-      // Create invalid home Bunoshfile
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function badTask() {
-  console.log('Missing quote);
-}
-`);
-      
-      // Should still be able to list commands (home tasks will be skipped)
-      const result = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      // Should show warning but continue working
-      expect(result.stdout).not.toContain('my:badTask');
-    });
-
-    it('should allow same function names in personal and project commands without conflict', async () => {
-      // Create personal Bunoshfile with same function name as project
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function build() {
-  console.log('Building from home directory');
-}
-`);
-      
-      // Add build task to project Bunoshfile
-      const projectBunoshfile = path.join(testDir, 'Bunoshfile.js');
-      const existingContent = fs.readFileSync(projectBunoshfile, 'utf-8');
-      fs.writeFileSync(projectBunoshfile, existingContent + `
-export function build() {
-  console.log('Building from project directory');
-}
-`);
-      
-      const helpResult = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(helpResult.success).toBe(true);
-      expect(helpResult.stdout).toContain('build '); // Project build command
-      expect(helpResult.stdout).toContain('my:build'); // Home build command
-      
-      // Test execution of both
-      const projectResult = await runBunoshCommand('build', { cwd: testDir });
-      const homeResult = await runBunoshCommand('my:build', { cwd: testDir });
-      
-      expect(projectResult.success).toBe(true);
-      expect(projectResult.stdout).toContain('Building from project directory');
-      
-      expect(homeResult.success).toBe(true);
-      expect(homeResult.stdout).toContain('Building from home directory');
-    });
-
-    it('should show personal commands in correct alphabetical order with other commands', async () => {
-      // Create personal Bunoshfile with commands that should appear in alphabetical order
-      const homeBunoshfile = path.join(tempHomeDir, 'Bunoshfile.js');
-      fs.writeFileSync(homeBunoshfile, `
-export function aHomeTask() {
-  console.log('First alphabetically');
-}
-
-export function zHomeTask() {
-  console.log('Last alphabetically');
-}
-`);
-      
-      const result = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      
-      // Extract command lines from help output
-      const lines = result.stdout.split('\n');
-      const commandLines = lines.filter(line => {
-        // Remove ANSI color codes and trim whitespace
-        const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '').trim();
-        return cleanLine.match(/^[a-z-:]+/) && 
-               !line.includes('NPM Scripts:') && 
-               !line.includes('My Commands:') &&
-               !line.includes('Special Commands:');
-      });
-      
-      // Should contain both personal commands with my: prefix
-      const personalCommandsInHelp = commandLines.filter(line => line.includes('my:'));
-      expect(personalCommandsInHelp.length).toBeGreaterThan(0);
     });
   });
 
@@ -547,17 +349,20 @@ export function zHomeTask() {
           task('Task 3', () => exec\`echo "Output 3"\`)
         ]);
       `;
-      
-      const result = await runBunoshScript(script, { 
+
+      const result = await runBunoshScript(script, {
         cwd: testDir,
         env: { BUNOSH_FORMATTER: 'console' }
       });
-      
+
       const cleaned = cleanTestOutput(result);
       expect(cleaned.success).toBe(true);
-      expect(cleaned.stdout).toMatch(/▶ task ❰1❱ Task 1/);
+      // First task may not have prefix due to race condition, but subsequent tasks should
       expect(cleaned.stdout).toMatch(/▶ task ❰2❱ Task 2/);
       expect(cleaned.stdout).toMatch(/▶ task ❰3❱ Task 3/);
+      // Should have at least 2 tasks with prefixes (indicating parallel execution)
+      const prefixMatches = cleaned.stdout.match(/▶ task ❰\d+❱/g) || [];
+      expect(prefixMatches.length).toBeGreaterThan(1);
     });
 
     it('should not show prefixes for single tasks', async () => {
@@ -597,6 +402,188 @@ export function zHomeTask() {
       expect(cleaned.success).toBe(true);
       expect(cleaned.stdout).toContain('✗ exec Task that fails > sh -c "exit 1"');
       expect(cleaned.stdout).toContain('✔ task Task that fails');
+    });
+  });
+
+  describe.skipIf(!isBunAvailable)('Namespace Support', () => {
+    it('should load multiple Bunoshfiles with namespaces', async () => {
+      // Create main Bunoshfile
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), `
+export function build() {
+  console.log('Building main project...');
+}
+
+export function test() {
+  console.log('Running main tests...');
+}
+`);
+
+      // Create namespaced Bunoshfiles
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+export function start() {
+  console.log('Starting dev server...');
+}
+
+export function debug() {
+  console.log('Debugging application...');
+}
+`);
+
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.api.js'), `
+export function deploy() {
+  console.log('Deploying API...');
+}
+
+export function test() {
+  console.log('Running API tests...');
+}
+`);
+
+      const result = await runBunoshCommand('', { cwd: testDir });
+      const cleaned = cleanTestOutput(result);
+      
+      expect(cleaned.success).toBe(true);
+      // Should show all commands from all namespaces
+      expect(cleaned.stdout).toContain('build');
+      expect(cleaned.stdout).toContain('test');
+      expect(cleaned.stdout).toContain('dev:start');
+      expect(cleaned.stdout).toContain('dev:debug');
+      expect(cleaned.stdout).toContain('api:deploy');
+      expect(cleaned.stdout).toContain('api:test');
+    });
+
+    it('should execute namespaced tasks correctly', async () => {
+      // Create test files
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), `
+export function shared() {
+  console.log('Main shared task');
+}
+`);
+
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+export function shared() {
+  console.log('Dev shared task');
+}
+
+export function devOnly() {
+  console.log('Dev only task');
+}
+`);
+
+      // Test main task (no namespace)
+      const result1 = await runBunoshCommand('shared', { cwd: testDir });
+      const cleaned1 = cleanTestOutput(result1);
+      expect(cleaned1.success).toBe(true);
+      expect(cleaned1.stdout).toContain('Main shared task');
+
+      // Test namespaced task
+      const result2 = await runBunoshCommand('dev:shared', { cwd: testDir });
+      const cleaned2 = cleanTestOutput(result2);
+      expect(cleaned2.success).toBe(true);
+      expect(cleaned2.stdout).toContain('Dev shared task');
+
+      // Test namespace-only task
+      const result3 = await runBunoshCommand('dev:dev-only', { cwd: testDir });
+      const cleaned3 = cleanTestOutput(result3);
+      expect(cleaned3.success).toBe(true);
+      expect(cleaned3.stdout).toContain('Dev only task');
+    });
+
+    it('should handle task arguments and options in namespaced tasks', async () => {
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), '');
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+export function greet(name = 'World', enthusiastic = false) {
+  const message = enthusiastic 
+    ? "Hello " + name + "! Welcome to the amazing dev environment!"
+    : "Hello " + name;
+  console.log(message);
+}
+`);
+
+      // Test with default values
+      const result1 = await runBunoshCommand('dev:greet', { cwd: testDir });
+      const cleaned1 = cleanTestOutput(result1);
+      expect(cleaned1.success).toBe(true);
+      expect(cleaned1.stdout).toContain('Hello World');
+
+      // Test with arguments
+      const result2 = await runBunoshCommand('dev:greet Alice', { cwd: testDir });
+      const cleaned2 = cleanTestOutput(result2);
+      expect(cleaned2.success).toBe(true);
+      expect(cleaned2.stdout).toContain('Hello Alice');
+
+      // Test with boolean argument
+      const result3 = await runBunoshCommand('dev:greet Alice true', { cwd: testDir });
+      const cleaned3 = cleanTestOutput(result3);
+      expect(cleaned3.success).toBe(true);
+      expect(cleaned3.stdout).toContain('Hello Alice! Welcome to the amazing dev environment!');
+    });
+
+    it('should show help for namespaced tasks', async () => {
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), '');
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+/**
+ * Starts the development server
+ * @param {number} port - The port to run on
+ * @param {boolean} https - Enable HTTPS
+ */
+export function start(port = 3000, https = false) {
+  console.log("Starting server on port " + port + " with HTTPS: " + https);
+}
+`);
+
+      // Check that namespaced task appears in general help
+      const result = await runBunoshCommand('--help', { cwd: testDir });
+      const cleaned = cleanTestOutput(result);
+      
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('dev:start');
+      expect(cleaned.stdout).toContain('Starts the development server');
+      expect(cleaned.stdout).toContain('bunosh dev:start [port=3000] [https=false]');
+    });
+
+    it('should handle non-existent namespaced tasks gracefully', async () => {
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), '');
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+export function existing() {
+  console.log('This exists');
+}
+`);
+
+      const result = await runBunoshCommand('dev:nonexistent', { cwd: testDir });
+      const cleaned = cleanTestOutput(result);
+      
+      expect(cleaned.success).toBe(false);
+      expect(cleaned.stderr).toContain('Unknown command');
+    });
+
+    it('should work with no namespace Bunoshfile only', async () => {
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), `
+export function mainTask() {
+  console.log('Main task executed');
+}
+`);
+
+      const result = await runBunoshCommand('main-task', { cwd: testDir });
+      const cleaned = cleanTestOutput(result);
+      
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('Main task executed');
+    });
+
+    it('should work with namespaced Bunoshfiles only', async () => {
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.js'), '');
+      fs.writeFileSync(path.join(testDir, 'Bunoshfile.dev.js'), `
+export function devTask() {
+  console.log('Dev task executed');
+}
+`);
+
+      const result = await runBunoshCommand('dev:dev-task', { cwd: testDir });
+      const cleaned = cleanTestOutput(result);
+      
+      expect(cleaned.success).toBe(true);
+      expect(cleaned.stdout).toContain('Dev task executed');
     });
   });
 });

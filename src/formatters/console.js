@@ -11,6 +11,9 @@ const STATUS_CONFIG = {
 };
 
 export class ConsoleFormatter extends BaseFormatter {
+  shouldDelayStart() {
+    return false;
+  }
   format(taskName, status, taskType, extra = {}) {
     const config = STATUS_CONFIG[status];
     if (!config) {

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const BUNOSH_ROOT = path.resolve(__dirname, '../../');
-export const BUNOSH_BINARY = path.join(BUNOSH_ROOT, 'bunosh.js');
+export const BUNOSH_BINARY = process.env.BUNOSH_BINARY || path.join(BUNOSH_ROOT, 'bunosh.js');
 
 /**
  * Creates a temporary test directory and returns its path
@@ -95,9 +95,9 @@ export async function parallelTask() {
   return 'Parallel tasks completed';
 }
 
-export function taskWithArgs(name, options = { greeting: 'Hello' }) {
+export function taskWithArgs(name, greeting = 'Hello') {
   /* Task with arguments and options */
-  return exec\`echo "\${options.greeting}, \${name}!"\`;
+  return exec\`echo "\${greeting}, \${name}!"\`;
 }
 
 export async function failingTask() {

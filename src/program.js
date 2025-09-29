@@ -51,7 +51,7 @@ function createGradientAscii(asciiArt) {
   }).join('\n');
 }
 
-export default async function bunosh(commands, source) {
+export default async function bunosh(commands, sources) {
   const program = new Command();
   program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
 
@@ -59,9 +59,6 @@ export default async function bunosh(commands, source) {
 
   // Load npm scripts from package.json
   const npmScripts = loadNpmScripts();
-
-  // Load personal commands from $HOME/Bunoshfile.js
-  const { tasks: homeTasks, source: homeSource } = await loadHomeTasks();
 
   program.configureHelp({
     commandDescription: _cmd => {
@@ -85,39 +82,63 @@ export default async function bunosh(commands, source) {
   program.showSuggestionAfterError(true);
   program.addHelpCommand(false);
 
-  let completeAst;
-  try {
-    completeAst = babelParser.parse(source, {
-      sourceType: "module",
-      ranges: true,
-      tokens: true,
-      comments: true,
-      attachComment: true,
-    });
-  } catch (parseError) {
-    // Re-throw with more specific error information
-    parseError.code = 'BABEL_PARSER_SYNTAX_ERROR';
-    throw parseError;
+  // Parse AST and comments for each source
+  const comments = {};
+  const namespaceSources = {};
+  
+  for (const [cmdName, cmdInfo] of Object.entries(sources)) {
+    if (cmdInfo.source) {
+      try {
+        const ast = babelParser.parse(cmdInfo.source, {
+          sourceType: "module",
+          ranges: true,
+          tokens: true,
+          comments: true,
+          attachComment: true,
+        });
+        
+        // Store AST for this command
+        if (!namespaceSources[cmdInfo.namespace || '']) {
+          namespaceSources[cmdInfo.namespace || ''] = {
+            ast: ast,
+            source: cmdInfo.source
+          };
+        }
+        
+        // Extract comments for this command
+        const fnName = cmdInfo.namespace ? cmdName.split(':')[1] : cmdName;
+        if (fnName) {
+          comments[cmdName] = extractCommentForFunction(ast, cmdInfo.source, fnName);
+        }
+      } catch (parseError) {
+        // Re-throw with more specific error information
+        parseError.code = 'BABEL_PARSER_SYNTAX_ERROR';
+        throw parseError;
+      }
+    }
   }
-
-  const comments = fetchComments();
-  const homeComments = fetchHomeComments();
-
-  // Collect all commands (bunosh + personal commands + npm scripts) and sort them
+  
+  // Collect all commands (bunosh + namespace commands + npm scripts) and sort them
   const allCommands = [];
 
-  // Add bunosh commands
-  Object.keys(commands).forEach((fnName) => {
-    allCommands.push({ type: 'bunosh', name: fnName, data: commands[fnName] });
-  });
-
-  // Add personal commands with my: prefix
-  Object.keys(homeTasks).forEach((fnName) => {
-    if (typeof homeTasks[fnName] === 'function') {
-      allCommands.push({ type: 'home', name: `my:${fnName}`, data: homeTasks[fnName], source: homeSource });
+  // Add bunosh commands (including namespaced ones)
+  Object.keys(commands).forEach((cmdName) => {
+    const sourceInfo = sources[cmdName];
+    if (sourceInfo && sourceInfo.namespace) {
+      // This is a namespaced command
+      allCommands.push({ 
+        type: 'namespace', 
+        name: cmdName, 
+        namespace: sourceInfo.namespace,
+        data: commands[cmdName] 
+      });
+    } else {
+      // Regular bunosh command
+      allCommands.push({ type: 'bunosh', name: cmdName, data: commands[cmdName] });
     }
   });
 
+  
   // Add npm scripts
   Object.entries(npmScripts).forEach(([scriptName, scriptCommand]) => {
     allCommands.push({ type: 'npm', name: `npm:${scriptName}`, data: { scriptName, scriptCommand } });
@@ -128,14 +149,16 @@ export default async function bunosh(commands, source) {
 
   // Process all commands in sorted order
   allCommands.forEach((cmdData) => {
-    if (cmdData.type === 'bunosh') {
+    if (cmdData.type === 'bunosh' || (cmdData.type === 'namespace' && !cmdData.namespace)) {
+      // Handle main bunosh commands (no namespace)
       const fnName = cmdData.name;
       const fnBody = commands[fnName].toString();
+      const sourceInfo = sources[fnName];
+      const namespaceSource = namespaceSources[''];
 
-      const ast = fetchFnAst();
-      const args = parseArgs();
-      const opts = parseOpts();
-
+      const ast = namespaceSource?.ast || babelParser.parse(fnBody, { comment: true, tokens: true });
+      const args = parseArgs(ast, fnName);
+      const opts = parseOpts(ast, fnName);
       const comment = comments[fnName];
 
       const commandName = prepareCommandName(fnName);
@@ -178,112 +201,33 @@ export default async function bunosh(commands, source) {
       if (comment && argsAndOptsDescription.length) description += `\n ▹ ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
       command.description(description);
-      command.action(commands[fnName].bind(commands));
+      command.action(createCommandAction(commands[fnName], args, opts));
+    } else if (cmdData.type === 'namespace') {
+      // Handle namespaced commands
+      const sourceInfo = sources[cmdData.name];
+      const originalFnName = sourceInfo.originalFnName || cmdData.name.split(':')[1]; // Get original function name
+      const namespace = cmdData.namespace;
+      const fnBody = commands[cmdData.name].toString();
+      const namespaceSource = namespaceSources[namespace];
 
-      function fetchFnAst() {
-        let hasFnInSource = false;
+      const ast = namespaceSource?.ast || babelParser.parse(fnBody, { comment: true, tokens: true });
+      const args = parseArgs(ast, originalFnName);
+      const opts = parseOpts(ast, originalFnName);
+      const comment = comments[cmdData.name];
 
-        traverse(completeAst, {
-          FunctionDeclaration(path) {
-            if (path.node.id.name == fnName) {
-              hasFnInSource = true;
-              return;
-            }
-          },
-        });
-
-        if (hasFnInSource) return completeAst;
-
-        return babelParser.parse(fnBody, { comment: true, tokens: true });
-      }
-
-      function parseArgs() {
-        const functionArguments = {};
-
-        traverse(ast, {
-          FunctionDeclaration(path) {
-            if (path.node.id.name !== fnName) return;
-
-            const params = path.node.params
-              .filter((node) => {
-                return node?.right?.type !== "ObjectExpression";
-              })
-              .forEach((param) => {
-                if (param.type === "AssignmentPattern") {
-                  functionArguments[param.left.name] = param.right.value;
-                  return;
-                }
-                if (!param.name) return;
-
-                return functionArguments[param.name] = null;
-              });
-
-          },
-        });
-
-        return functionArguments;
-      }
-
-      function parseOpts() {
-        let functionOpts = {};
-
-        traverse(ast, {
-          FunctionDeclaration(path) {
-            if (path.node.id.name !== fnName) return;
-
-            const node = path.node.params.pop();
-            if (!node) return;
-            if (
-              !node.type === "AssignmentPattern" &&
-              node.right.type === "ObjectExpression"
-            )
-              return;
-
-            node?.right?.properties?.forEach((p) => {
-              if (
-                ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
-                  p.value.type,
-                )
-              ) {
-                functionOpts[camelToDasherize(p.key.name)] = p.value.value;
-                return;
-              }
-
-              if (p.value.type === "NullLiteral") {
-                functionOpts[camelToDasherize(p.key.name)] = null;
-                return;
-              }
-
-              if (p.value.type == "UnaryExpression" && p.value.operator == "!") {
-                functionOpts[camelToDasherize(p.key.name)] =
-                  !p.value.argument.value;
-                return;
-              }
-            });
-          },
-        });
-
-        return functionOpts;
-      }
-    } else if (cmdData.type === 'home') {
-      // Handle personal commands with my: prefix
-      const originalFnName = cmdData.name.replace('my:', ''); // Remove my: prefix for internal usage
-      const fnBody = cmdData.data.toString();
-      const homeAst = fetchHomeFnAst(originalFnName, cmdData.source);
-      const homeArgs = parseHomeArgs(originalFnName, homeAst);
-      const homeOpts = parseHomeOpts(originalFnName, homeAst);
-      const homeComment = homeComments[originalFnName];
-
-      const commandName = cmdData.name; // Keep the full my: prefix for command name
+      // For namespaced commands, only transform the function part to kebab-case
+      const commandName = cmdData.name.includes(':') 
+        ? cmdData.name.split(':')[0] + ':' + toKebabCase(cmdData.name.split(':')[1])
+        : prepareCommandName(cmdData.name);
 
       const command = program.command(commandName);
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
-      });
+      })
 
       let argsAndOptsDescription = [];
 
-      Object.entries(homeArgs).forEach(([arg, value]) => {
+      Object.entries(args).forEach(([arg, value]) => {
         if (value === undefined) {
           argsAndOptsDescription.push(`<${arg}>`);
           return command.argument(`<${arg}>`);
@@ -298,7 +242,7 @@ export default async function bunosh(commands, source) {
         command.argument(`[${arg}]`, ``, value);
       });
 
-      Object.entries(homeOpts).forEach(([opt, value]) => {
+      Object.entries(opts).forEach(([opt, value]) => {
         if (value === false || value === null) {
           argsAndOptsDescription.push(`--${opt}`);
           return command.option(`--${opt}`);
@@ -308,15 +252,15 @@ export default async function bunosh(commands, source) {
         command.option(`--${opt} [${opt}]`, "", value);
       });
 
-      let description = homeComment?.split('\n')[0] || '';
+      let description = comment?.split('\n')[0] || '';
 
-      if (homeComment && argsAndOptsDescription.length) {
+      if (comment && argsAndOptsDescription.length) {
         description += `\n  ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
       }
 
       command.description(description);
-      command.action(cmdData.data.bind(homeTasks));
-    } else if (cmdData.type === 'npm') {
+      command.action(createCommandAction(commands[cmdData.name], args, opts));
+      } else if (cmdData.type === 'npm') {
       // Handle npm scripts
       const { scriptName, scriptCommand } = cmdData.data;
       const commandName = `npm:${scriptName}`;
@@ -327,6 +271,42 @@ export default async function bunosh(commands, source) {
       command.action(createNpmScriptAction(scriptName));
     }
   });
+
+  // Helper function to create command action with proper argument transformation
+  function createCommandAction(commandFn, args, opts) {
+    return async (...commanderArgs) => {
+      // Transform Commander.js arguments to match function signature
+      const transformedArgs = [];
+      let argIndex = 0;
+      
+      // Add positional arguments
+      Object.keys(args).forEach((argName) => {
+        if (argIndex < commanderArgs.length - 1) { // -1 because last arg is options object
+          transformedArgs.push(commanderArgs[argIndex++]);
+        } else {
+          // Use default value if not provided
+          transformedArgs.push(args[argName]);
+        }
+      });
+      
+      // Handle options object
+      const optionsObj = commanderArgs[commanderArgs.length - 1];
+      if (optionsObj && typeof optionsObj === 'object') {
+        Object.keys(opts).forEach((optName) => {
+          const dasherizedOpt = optName.replace(/([A-Z])/g, '-$1').toLowerCase();
+          if (optionsObj[dasherizedOpt] !== undefined) {
+            transformedArgs.push(optionsObj[dasherizedOpt]);
+          } else {
+            // Use default value
+            transformedArgs.push(opts[optName]);
+          }
+        });
+      }
+      
+      // Call the original function with transformed arguments
+      return commandFn(...transformedArgs);
+    };
+  }
 
   // Helper function to create npm script action with proper closure
   function createNpmScriptAction(scriptName) {
@@ -531,23 +511,7 @@ export default async function bunosh(commands, source) {
 
   internalCommands.push(upgradeCmd);
 
-  // Add personal commands help section if personal commands exist
-  const homeTaskNamesForHelp = Object.keys(homeTasks).filter(key => typeof homeTasks[key] === 'function');
-  if (homeTaskNamesForHelp.length > 0) {
-    const homeCommandsList = homeTaskNamesForHelp.sort().map(taskName => {
-      const commandName = `my:${taskName}`;
-      const taskComment = homeComments[taskName] || '';
-      const description = taskComment ? taskComment.split('\n')[0] : 'Personal command';
-      return `  ${color.white.bold(commandName.padEnd(18))} ${color.gray(description)}`;
-    }).join('\n');
-
-    program.addHelpText('after', `
-
-My Commands (from ~/${BUNOSHFILE}):
-${homeCommandsList}
-`);
-  }
-
+  
   // Add npm scripts help section if npm scripts exist
   const npmScriptNamesForHelp = Object.keys(npmScripts);
   if (npmScriptNamesForHelp.length > 0) {
@@ -575,8 +539,9 @@ Special Commands:
 `));
 
   program.on("command:*", (cmd) => {
-    console.log(`\nUnknown command ${cmd}\n`);
+    console.error(`\nUnknown command ${cmd}\n`);
     program.outputHelp();
+    process.exit(1);
   });
 
   // Show help if no command provided
@@ -586,8 +551,9 @@ Special Commands:
   }
 
   program.parse(process.argv);
+}
 
-  function fetchComments() {
+function fetchComments() {
     const comments = {};
 
     let startFromLine = 0;
@@ -628,157 +594,25 @@ Special Commands:
     return comments;
   }
 
-  function fetchHomeComments() {
-    if (!homeSource) return {};
-
-    const homeComments = {};
-    let homeCompleteAst;
-
-    try {
-      homeCompleteAst = babelParser.parse(homeSource, {
-        sourceType: "module",
-        ranges: true,
-        tokens: true,
-        comments: true,
-        attachComment: true,
-      });
-    } catch (parseError) {
-      console.warn('Warning: Could not parse home Bunoshfile for comments:', parseError.message);
-      return {};
-    }
-
-    let startFromLine = 0;
-
-    traverse(homeCompleteAst, {
-      FunctionDeclaration(path) {
-        const functionName = path.node.id && path.node.id.name;
-
-        const commentSource = homeSource
-          .split("\n")
-          .slice(startFromLine, path.node?.loc?.start?.line)
-          .join("\n");
-        const matches = commentSource.match(
-          /\/\*\*\s([\s\S]*)\\*\/\s*export/,
-        );
-
-        if (matches && matches[1]) {
-          homeComments[functionName] = matches[1]
-            .replace(/^\s*\*\s*/gm, "")
-            .replace(/\s*\*\*\s*$/gm, "")
-            .trim()
-            .replace(/^@.*$/gm, "")
-            .trim();
-        } else {
-          // Check for comments attached to the first statement in the function body
-          const firstStatement = path.node?.body?.body?.[0];
-          const leadingComments = firstStatement?.leadingComments;
-
-          if (leadingComments && leadingComments.length > 0) {
-            homeComments[functionName] = leadingComments[0].value.trim();
-          }
-        }
-
-        startFromLine = path.node?.loc?.end?.line;
-      },
-    });
-
-    return homeComments;
+function prepareCommandName(name) {
+  // name is already the final command name (could be namespaced or not)
+  // For namespaced commands, only transform the function part (after the last colon)
+  const lastColonIndex = name.lastIndexOf(':');
+  if (lastColonIndex !== -1) {
+    const namespace = name.substring(0, lastColonIndex);
+    const commandPart = name.substring(lastColonIndex + 1);
+    return `${namespace}:${toKebabCase(commandPart)}`;
   }
-
-  function fetchHomeFnAst(fnName, source) {
-    try {
-      return babelParser.parse(source, {
-        sourceType: "module",
-        ranges: true,
-        tokens: true,
-        comments: true,
-        attachComment: true,
-      });
-    } catch (parseError) {
-      console.warn('Warning: Could not parse home function AST:', parseError.message);
-      return null;
-    }
-  }
-
-  function parseHomeArgs(fnName, ast) {
-    if (!ast) return {};
-
-    const functionArguments = {};
-
-    traverse(ast, {
-      FunctionDeclaration(path) {
-        if (path.node.id.name !== fnName) return;
-
-        const params = path.node.params
-          .filter((node) => {
-            return node?.right?.type !== "ObjectExpression";
-          })
-          .forEach((param) => {
-            if (param.type === "AssignmentPattern") {
-              functionArguments[param.left.name] = param.right.value;
-              return;
-            }
-            if (!param.name) return;
-
-            return functionArguments[param.name] = null;
-          });
-      },
-    });
-
-    return functionArguments;
-  }
-
-  function parseHomeOpts(fnName, ast) {
-    if (!ast) return {};
-
-    let functionOpts = {};
-
-    traverse(ast, {
-      FunctionDeclaration(path) {
-        if (path.node.id.name !== fnName) return;
-
-        const node = path.node.params.pop();
-        if (!node) return;
-        if (
-          !node.type === "AssignmentPattern" &&
-          node.right.type === "ObjectExpression"
-        )
-          return;
-
-        node?.right?.properties?.forEach((p) => {
-          if (
-            ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
-              p.value.type,
-            )
-          ) {
-            functionOpts[camelToDasherize(p.key.name)] = p.value.value;
-            return;
-          }
-
-          if (p.value.type === "NullLiteral") {
-            functionOpts[camelToDasherize(p.key.name)] = null;
-            return;
-          }
-
-          if (p.value.type == "UnaryExpression" && p.value.operator == "!") {
-            functionOpts[camelToDasherize(p.key.name)] =
-              !p.value.argument.value;
-            return;
-          }
-        });
-      },
-    });
-
-    return functionOpts;
-  }
+  
+  // For non-namespaced commands, just convert to kebab-case
+  return toKebabCase(name);
 }
 
-function prepareCommandName(name) {
-  name = name
+function toKebabCase(name) {
+  return name
     .split(/(?=[A-Z])/)
     .join("-")
     .toLowerCase();
-  return name.replace("-", ":");
 }
 
 function camelToDasherize(camelCaseString) {
@@ -863,25 +697,111 @@ function loadNpmScripts() {
   }
 }
 
-// Load personal commands from user's home directory
-async function loadHomeTasks() {
-  try {
-    const os = await import('os');
-    const path = await import('path');
-    const homeDir = os.homedir();
-    const homeBunoshfile = path.join(homeDir, BUNOSHFILE);
+function extractCommentForFunction(ast, source, fnName) {
+  let startFromLine = 0;
+  let comment = '';
 
-    if (!existsSync(homeBunoshfile)) {
-      return { tasks: {}, source: '' };
-    }
+  traverse(ast, {
+    FunctionDeclaration(path) {
+      if (path.node.id?.name !== fnName) return;
 
-    // Import the home Bunoshfile
-    const homeTasks = await import(homeBunoshfile);
-    const homeSource = readFileSync(homeBunoshfile, 'utf-8');
+      const commentSource = source
+        .split("\n")
+        .slice(startFromLine, path.node?.loc?.start?.line)
+        .join("\n");
+      const matches = commentSource.match(
+        /\/\*\*\s([\s\S]*)\\*\/\s*export/,
+      );
 
-    return { tasks: homeTasks, source: homeSource };
-  } catch (error) {
-    console.warn('Warning: Could not load personal commands:', error.message);
-    return { tasks: {}, source: '' };
-  }
+      if (matches && matches[1]) {
+        comment = matches[1]
+          .replace(/^\s*\*\s*/gm, "")
+          .replace(/\s*\*\*\s*$/gm, "")
+          .trim()
+          .replace(/^@.*$/gm, "")
+          .trim();
+      } else {
+        // Check for comments attached to the first statement in the function body
+        const firstStatement = path.node?.body?.body?.[0];
+        const leadingComments = firstStatement?.leadingComments;
+
+        if (leadingComments && leadingComments.length > 0) {
+          comment = leadingComments[0].value.trim();
+        }
+      }
+
+      startFromLine = path.node?.loc?.end?.line;
+    },
+  });
+
+  return comment;
+}
+
+function parseArgs(ast, fnName) {
+  const functionArguments = {};
+
+  traverse(ast, {
+    FunctionDeclaration(path) {
+      if (path.node.id.name !== fnName) return;
+
+      const params = path.node.params
+        .filter((node) => {
+          return node?.right?.type !== "ObjectExpression";
+        })
+        .forEach((param) => {
+          if (param.type === "AssignmentPattern") {
+            functionArguments[param.left.name] = param.right.value;
+            return;
+          }
+          if (!param.name) return;
+
+          return functionArguments[param.name] = null;
+        });
+
+    },
+  });
+
+  return functionArguments;
+}
+
+function parseOpts(ast, fnName) {
+  let functionOpts = {};
+
+  traverse(ast, {
+    FunctionDeclaration(path) {
+      if (path.node.id.name !== fnName) return;
+
+      const node = path.node.params.pop();
+      if (!node) return;
+      if (
+        node.type !== "AssignmentPattern" ||
+        node.right.type !== "ObjectExpression"
+      )
+        return;
+
+      node?.right?.properties?.forEach((p) => {
+        if (
+          ["NumericLiteral", "StringLiteral", "BooleanLiteral"].includes(
+            p.value.type,
+          )
+        ) {
+          functionOpts[camelToDasherize(p.key.name)] = p.value.value;
+          return;
+        }
+
+        if (p.value.type === "NullLiteral") {
+          functionOpts[camelToDasherize(p.key.name)] = null;
+          return;
+        }
+
+        if (p.value.type == "UnaryExpression" && p.value.operator == "!") {
+          functionOpts[camelToDasherize(p.key.name)] =
+            !p.value.argument.value;
+          return;
+        }
+      });
+    },
+  });
+
+  return functionOpts;
 }
