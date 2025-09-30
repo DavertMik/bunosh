@@ -80,8 +80,8 @@ export default async function bunosh(commands, sources) {
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
     visibleCommands: cmd => {
-      const commands = cmd.commands.filter(c => !internalCommands.includes(c));
-      return commands.filter(c => !c.name().startsWith('npm:') && !c.name().startsWith('my:'));
+      // Hide all commands from default listing - we'll show them in custom sections
+      return [];
     },
     subcommandTerm: (cmd) => color.white.bold(cmd.name()),
     subcommandDescription: (cmd) => color.gray(cmd.description()),
@@ -156,6 +156,29 @@ export default async function bunosh(commands, sources) {
   // Sort all commands alphabetically by name
   allCommands.sort((a, b) => a.name.localeCompare(b.name));
 
+  // Organize commands by namespace for help display
+  const commandsByNamespace = {
+    '': [], // Main commands (no namespace)
+    'dev': [], // Dev commands
+    'npm': [], // NPM scripts
+  };
+
+  // Categorize commands by namespace
+  allCommands.forEach(cmd => {
+    if (cmd.type === 'npm') {
+      commandsByNamespace.npm.push(cmd);
+    } else if (cmd.type === 'namespace' && cmd.namespace) {
+      // Group by namespace, defaulting to 'dev' for unknown namespaces
+      const namespace = cmd.namespace || 'dev';
+      if (!commandsByNamespace[namespace]) {
+        commandsByNamespace[namespace] = [];
+      }
+      commandsByNamespace[namespace].push(cmd);
+    } else {
+      commandsByNamespace[''].push(cmd);
+    }
+  });
+
   // Process all commands in sorted order
   allCommands.forEach((cmdData) => {
     if (cmdData.type === 'bunosh' || (cmdData.type === 'namespace' && !cmdData.namespace)) {
@@ -173,6 +196,9 @@ export default async function bunosh(commands, sources) {
       const commandName = prepareCommandName(fnName);
 
       const command = program.command(commandName);
+      if (comment) {
+        command.description(comment);
+      }
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
       })
@@ -225,11 +251,14 @@ export default async function bunosh(commands, sources) {
       const comment = comments[cmdData.name];
 
       // For namespaced commands, only transform the function part to kebab-case
-      const commandName = cmdData.name.includes(':') 
-        ? cmdData.name.split(':')[0] + ':' + toKebabCase(cmdData.name.split(':')[1])
+      const commandName = cmdData.name.includes(':')
+        ? cmdData.name.split(':')[0] + ':' + toKebabCase(cmdData.name.split(':')[1]).replace(/^[^:]+:/, '')
         : prepareCommandName(cmdData.name);
 
       const command = program.command(commandName);
+      if (comment) {
+        command.description(comment);
+      }
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
       })
@@ -447,32 +476,128 @@ export default async function bunosh(commands, sources) {
   internalCommands.push(upgradeCmd);
 
   
-  // Add npm scripts help section if npm scripts exist
-  const npmScriptNamesForHelp = Object.keys(npmScripts);
-  if (npmScriptNamesForHelp.length > 0) {
-    const npmCommandsList = npmScriptNamesForHelp.sort().map(scriptName => {
-      const commandName = `npm:${scriptName}`;
-      const scriptCommand = npmScripts[scriptName];
-      return `  ${color.white.bold(commandName.padEnd(18))} ${color.gray(scriptCommand)}`;
+  // Add organized command help sections
+  let helpText = '';
+
+  // Main Commands (no namespace)
+  if (commandsByNamespace[''].length > 0) {
+    const mainCommands = commandsByNamespace[''].map(cmd => {
+      const processedName = cmd.type === 'bunosh' ? toKebabCase(cmd.name) : cmd.name;
+      const cmdObj = program.commands.find(c => c.name() === processedName);
+      const description = cmdObj ? cmdObj.description() : '';
+      const paddedName = processedName.padEnd(22);
+
+      if (!description) {
+        return `  ${color.white.bold(paddedName)}`;
+      }
+
+      // Handle multi-line descriptions with proper indentation
+      const lines = description.split('\n');
+      const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+      const indentedLines = lines.slice(1).map(line =>
+        line.trim() ? `                          ${line}` : ''
+      ).filter(line => line);
+
+      return [firstLine, ...indentedLines].join('\n');
     }).join('\n');
+    helpText += `Commands:
+${mainCommands}
 
-    program.addHelpText('after', `
-
-NPM Scripts:
-${npmCommandsList}
-`);
+`;
   }
 
-  program.addHelpText('after', color.dim(`
-Special Commands:
+  // Dev Commands (dev namespace)
+  if (commandsByNamespace.dev.length > 0) {
+    const devCommands = commandsByNamespace.dev.map(cmd => {
+      let processedName;
+      if (cmd.type === 'namespace') {
+        // For namespaced commands, handle the name properly
+        if (cmd.name.includes(':')) {
+          // If cmd.name already has namespace (like 'dev:devFn'), only process the part after the colon
+          const [namespace, functionName] = cmd.name.split(':');
+          processedName = `${namespace}:${toKebabCase(functionName).replace(/^[^:]+:/, '')}`;
+        } else {
+          // If cmd.name doesn't have namespace, use toKebabCase which will add it
+          processedName = toKebabCase(cmd.name);
+        }
+      } else {
+        processedName = cmd.name;
+      }
+      // Debug removed
+      const cmdObj = program.commands.find(c => c.name() === processedName);
+      const description = cmdObj ? cmdObj.description() : '';
+      const paddedName = processedName.padEnd(22);
 
+      if (!description) {
+        return `  ${color.white.bold(paddedName)}`;
+      }
+
+      // Handle multi-line descriptions with proper indentation
+      const lines = description.split('\n');
+      const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+      const indentedLines = lines.slice(1).map(line =>
+        line.trim() ? `                          ${line}` : ''
+      ).filter(line => line);
+
+      return [firstLine, ...indentedLines].join('\n');
+    }).join('\n');
+    helpText += `Dev Commands:
+${devCommands}
+
+`;
+  }
+
+  // Add other namespace sections dynamically
+  Object.keys(commandsByNamespace).forEach(namespace => {
+    if (namespace && namespace !== 'dev' && namespace !== 'npm' && commandsByNamespace[namespace].length > 0) {
+      const namespaceName = namespace.charAt(0).toUpperCase() + namespace.slice(1) + ' Commands';
+      const namespaceCommands = commandsByNamespace[namespace].map(cmd => {
+        const cmdObj = program.commands.find(c => c.name() === cmd.name);
+        const description = cmdObj ? cmdObj.description() : '';
+        const paddedName = cmd.name.padEnd(22);
+
+        if (!description) {
+          return `  ${color.white.bold(paddedName)}`;
+        }
+
+        // Handle multi-line descriptions with proper indentation
+        const lines = description.split('\n');
+        const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+        const indentedLines = lines.slice(1).map(line =>
+          line.trim() ? `                          ${line}` : ''
+        ).filter(line => line);
+
+        return [firstLine, ...indentedLines].join('\n');
+      }).join('\n');
+      helpText += `${namespaceName}:
+${namespaceCommands}
+
+`;
+    }
+  });
+
+  // NPM Scripts
+  if (commandsByNamespace.npm.length > 0) {
+    const npmCommands = commandsByNamespace.npm.map(cmd => {
+      const paddedName = cmd.name.padEnd(22);
+      return `  ${color.white.bold(paddedName)} ${color.gray(cmd.data.scriptCommand)}`;
+    }).join('\n');
+    helpText += `NPM Scripts:
+${npmCommands}
+
+`;
+  }
+
+  // Special Commands
+  helpText += color.dim(`Special Commands:
   ${color.bold('bunosh edit')}           📝 Edit bunosh file with $EDITOR
   ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
   ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
   ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
+`);
 
-`));
+  program.addHelpText('after', helpText);
 
   program.on("command:*", (cmd) => {
     console.error(`\nUnknown command ${cmd}\n`);
@@ -545,10 +670,17 @@ function prepareCommandName(name) {
 }
 
 function toKebabCase(name) {
-  return name
-    .split(/(?=[A-Z])/)
-    .join("-")
-    .toLowerCase();
+  const parts = name.split(/(?=[A-Z])/);
+
+  // If there are multiple parts, treat first part as namespace with colon
+  if (parts.length > 1) {
+    const namespace = parts[0].toLowerCase();
+    const command = parts.slice(1).join("-").toLowerCase();
+    return `${namespace}:${command}`;
+  }
+
+  // Single word, just return lowercase
+  return name.toLowerCase();
 }
 
 function camelToDasherize(camelCaseString) {
@@ -634,39 +766,43 @@ function loadNpmScripts() {
 }
 
 function extractCommentForFunction(ast, source, fnName) {
-  let startFromLine = 0;
   let comment = '';
 
   traverse(ast, {
     FunctionDeclaration(path) {
       if (path.node.id?.name !== fnName) return;
 
-      const commentSource = source
-        .split("\n")
-        .slice(startFromLine, path.node?.loc?.start?.line)
-        .join("\n");
-      const matches = commentSource.match(
-        /\/\*\*\s([\s\S]*)\\*\/\s*export/,
-      );
+      const functionStartLine = path.node.loc.start.line;
 
-      if (matches && matches[1]) {
-        comment = matches[1]
-          .replace(/^\s*\*\s*/gm, "")
-          .replace(/\s*\*\*\s*$/gm, "")
-          .trim()
-          .replace(/^@.*$/gm, "")
-          .trim();
-      } else {
-        // Check for comments attached to the first statement in the function body
-        const firstStatement = path.node?.body?.body?.[0];
-        const leadingComments = firstStatement?.leadingComments;
+      // Find the JSDoc comment that immediately precedes this function
+      if (ast.comments) {
+        for (const astComment of ast.comments) {
+          if (astComment.type === 'CommentBlock' && astComment.value.startsWith('*')) {
+            const commentEndLine = astComment.loc.end.line;
 
-        if (leadingComments && leadingComments.length > 0) {
-          comment = leadingComments[0].value.trim();
+            // Check if this comment is immediately before the function
+            if (commentEndLine === functionStartLine - 1) {
+              comment = astComment.value
+                .replace(/^\s*\*\s*/gm, '') // Remove leading * and spaces
+                .replace(/^\s*@.*$/gm, '') // Remove @param and other @ tags
+                .replace(/\n\s*\n/g, '\n') // Remove excessive empty lines
+                .replace(/^\*\s*/, '') // Remove any remaining leading *
+                .trim();
+              break;
+            }
+          }
         }
       }
 
-      startFromLine = path.node?.loc?.end?.line;
+      // If no JSDoc comment found, check for comments attached to the first statement in the function body
+      if (!comment) {
+        const firstStatement = path.node?.body?.body?.[0];
+        const statementLeadingComments = firstStatement?.leadingComments;
+
+        if (statementLeadingComments && statementLeadingComments.length > 0) {
+          comment = statementLeadingComments[0].value.trim();
+        }
+      }
     },
   });
 
