@@ -12,16 +12,16 @@ import { upgradeCommand } from './upgrade.js';
 export const BUNOSHFILE = `Bunoshfile.js`;
 
 export const banner = () => {
-  const logoArt = 
-`     .::=-=-___.        
-   .:+*##*-**:___.       
- :**#%*-+#####*++*     
- :-+**++*########*+     
-  \▒░░░░:----▒▒▒▒░/      
-   \▒▒▒▒▒▒▒▒▒▒▒░░/       
-    \▓▓▓▓▓▓▓▓░░░/        
+  const logoArt =
+`     .::=-=-___.
+   .:+*##*-**:___.
+ :**#%*-+#####*++*
+ :-+**++*########*+
+  \▒░░░░:----▒▒▒▒░/
+   \▒▒▒▒▒▒▒▒▒▒▒░░/
+    \▓▓▓▓▓▓▓▓░░░/
      \▓▓▓▓▓▓░░░/   `;
-  
+
   console.log(createGradientAscii(logoArt));
 
   let version = '';
@@ -38,23 +38,23 @@ export const banner = () => {
 
 function createGradientAscii(asciiArt) {
   const lines = asciiArt.split('\n');
-  
+
   // Yellow RGB (255, 220, 0) to Brown RGB (139, 69, 19)
   const startColor = { r: 255, g: 220, b: 0 };
   const endColor = { r: 139, g: 69, b: 19 };
-  
+
   return lines.map((line, index) => {
     // Block characters should always be brown
     if (line.includes('░') || line.includes('▒') || line.includes('▓')) {
       return `\x1b[38;2;139;69;19m${line}\x1b[0m`;
     }
-    
+
     // Create smooth gradient for other characters
     const progress = index / (lines.length - 1);
     const r = Math.round(startColor.r + (endColor.r - startColor.r) * progress);
     const g = Math.round(startColor.g + (endColor.g - startColor.g) * progress);
     const b = Math.round(startColor.b + (endColor.b - startColor.b) * progress);
-    
+
     // Use true color escape sequence
     return `\x1b[38;2;${r};${g};${b}m${line}\x1b[0m`;
   }).join('\n');
@@ -73,9 +73,9 @@ export default async function bunosh(commands, sources) {
     commandDescription: _cmd => {
       // Show banner and description
       banner();
-      return `  Commands are loaded from exported functions in ${color.bold(BUNOSHFILE)}`;
+      return ' ';
     },
-    commandUsage: usg => 'bunosh [-e <code>] <command> <args> [options]',
+    commandUsage: usg => 'bunosh <command> <args> [options]',
     showGlobalOptions: false,
     visibleGlobalOptions: _opt => [],
     visibleOptions: _opt => [],
@@ -94,7 +94,7 @@ export default async function bunosh(commands, sources) {
   // Parse AST and comments for each source
   const comments = {};
   const namespaceSources = {};
-  
+
   for (const [cmdName, cmdInfo] of Object.entries(sources)) {
     if (cmdInfo.source) {
       try {
@@ -105,7 +105,7 @@ export default async function bunosh(commands, sources) {
           comments: true,
           attachComment: true,
         });
-        
+
         // Store AST for this command
         if (!namespaceSources[cmdInfo.namespace || '']) {
           namespaceSources[cmdInfo.namespace || ''] = {
@@ -113,7 +113,7 @@ export default async function bunosh(commands, sources) {
             source: cmdInfo.source
           };
         }
-        
+
         // Extract comments for this command
         const fnName = cmdInfo.namespace ? cmdName.split(':')[1] : cmdName;
         if (fnName) {
@@ -126,7 +126,7 @@ export default async function bunosh(commands, sources) {
       }
     }
   }
-  
+
   // Collect all commands (bunosh + namespace commands + npm scripts) and sort them
   const allCommands = [];
 
@@ -135,11 +135,11 @@ export default async function bunosh(commands, sources) {
     const sourceInfo = sources[cmdName];
     if (sourceInfo && sourceInfo.namespace) {
       // This is a namespaced command
-      allCommands.push({ 
-        type: 'namespace', 
-        name: cmdName, 
+      allCommands.push({
+        type: 'namespace',
+        name: cmdName,
         namespace: sourceInfo.namespace,
-        data: commands[cmdName] 
+        data: commands[cmdName]
       });
     } else {
       // Regular bunosh command
@@ -147,7 +147,7 @@ export default async function bunosh(commands, sources) {
     }
   });
 
-  
+
   // Add npm scripts
   Object.entries(npmScripts).forEach(([scriptName, scriptCommand]) => {
     allCommands.push({ type: 'npm', name: `npm:${scriptName}`, data: { scriptName, scriptCommand } });
@@ -316,7 +316,7 @@ export default async function bunosh(commands, sources) {
       // Transform Commander.js arguments to match function signature
       const transformedArgs = [];
       let argIndex = 0;
-      
+
       // Add positional arguments
       Object.keys(args).forEach((argName) => {
         if (argIndex < commanderArgs.length - 1) { // -1 because last arg is options object
@@ -326,7 +326,7 @@ export default async function bunosh(commands, sources) {
           transformedArgs.push(args[argName]);
         }
       });
-      
+
       // Handle options object
       const optionsObj = commanderArgs[commanderArgs.length - 1];
       if (optionsObj && typeof optionsObj === 'object') {
@@ -340,7 +340,7 @@ export default async function bunosh(commands, sources) {
           }
         });
       }
-      
+
       // Call the original function with transformed arguments
       return commandFn(...transformedArgs);
     };
@@ -475,7 +475,7 @@ export default async function bunosh(commands, sources) {
 
   internalCommands.push(upgradeCmd);
 
-  
+
   // Add organized command help sections
   let helpText = '';
 
@@ -664,7 +664,7 @@ function prepareCommandName(name) {
     const commandPart = name.substring(lastColonIndex + 1);
     return `${namespace}:${toKebabCase(commandPart)}`;
   }
-  
+
   // For non-namespaced commands, just convert to kebab-case
   return toKebabCase(name);
 }
