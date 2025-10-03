@@ -24,7 +24,6 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 - **🚀 Zero Configuration** - Write functions, get CLI commands automatically
 - **🎨 Pure JavaScript** - write commands as JavaScript functions
-- **🏠 Personal Commands** - Global commands from `~/Bunoshfile.js` available everywhere with `my:` namespace
 - **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
 - **🤖 AI-Powered** - integrate LLM calls into your daily tasks
 - **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
@@ -71,7 +70,6 @@ export async function helloWorld(name = 'person') {
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Commands](#commands)
-  - [Personal Commands (My Namespace)](#personal-commands-my-namespace)
 - [Tasks](#tasks)
 - [Input/Output](#inputoutput)
 - [Task Control](#task-control)
@@ -247,27 +245,6 @@ Functions are automatically converted to kebab-case commands:
 | `buildAndDeploy` | `bunosh build:and-deploy` |
 
 
-### Personal Commands (My Namespace)
-
-To separate personal commands with team-wide project commands, Bunosh can automatically mix your personal commands when you run it. 
-Bunosh automatically loads commands from your home directory (`~/Bunoshfile.js`) and makes them available in any project with the `my:` namespace prefix.
-
-```javascript
-// ~/Bunoshfile.js - Your global commands available everywhere
-export function setup(name, template = 'basic') {
-  await shell`
-      git clone https://github.com/my-templates/${template}.git ${name}
-      cd ${name} && bun i
-  `;
-  say(`Project ${name} ready!`);
-}
-```
-
-Now command `my:setup` is availble from any folder 
-
-```bash
-bunosh my:setup awesome-app nextjs
-```
 
 
 ### Project Namespaces
