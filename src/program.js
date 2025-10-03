@@ -87,9 +87,19 @@ export default async function bunosh(commands, sources) {
     subcommandDescription: (cmd) => color.gray(cmd.description()),
   });
 
-  program.showHelpAfterError();
+  // Don't show global help after error - individual commands will show their own help
+  // program.showHelpAfterError();
   program.showSuggestionAfterError(true);
   program.addHelpCommand(false);
+
+  // Override the program's error output formatting
+  program.configureOutput({
+    writeErr: (str) => {
+      // Replace "error:" with red "Error:" in error output
+      process.stderr.write(str.replace(/^error:/g, color.red('Error') + ':'));
+    },
+    writeOut: (str) => process.stdout.write(str)
+  });
 
   // Parse AST and comments for each source
   const comments = {};
@@ -236,6 +246,18 @@ export default async function bunosh(commands, sources) {
       if (comment && argsAndOptsDescription.length) description += `\n ▹ ${color.gray(`bunosh ${commandName}`)} ${color.blue(argsAndOptsDescription.join(' ').trim())}`;
 
       command.description(description);
+
+      // Custom error handling for missing arguments - show command help without banner
+      command.configureHelp({
+        commandDescription: () => comment || '',
+        commandUsage: cmd => `bunosh ${cmd.name()}${argsAndOptsDescription.length ? ' ' + argsAndOptsDescription.join(' ').trim() : ''}`,
+        showGlobalOptions: false,
+        visibleGlobalOptions: () => [],
+        visibleOptions: () => [],
+        visibleCommands: () => []
+      });
+      command.showHelpAfterError();
+
       command.action(createCommandAction(commands[fnName], args, opts));
     } else if (cmdData.type === 'namespace') {
       // Handle namespaced commands
@@ -297,6 +319,18 @@ export default async function bunosh(commands, sources) {
       }
 
       command.description(description);
+
+      // Custom error handling for missing arguments - show command help without banner
+      command.configureHelp({
+        commandDescription: () => comment || '',
+        commandUsage: cmd => `bunosh ${cmd.name()}${argsAndOptsDescription.length ? ' ' + argsAndOptsDescription.join(' ').trim() : ''}`,
+        showGlobalOptions: false,
+        visibleGlobalOptions: () => [],
+        visibleOptions: () => [],
+        visibleCommands: () => []
+      });
+      command.showHelpAfterError();
+
       command.action(createCommandAction(commands[cmdData.name], args, opts));
       } else if (cmdData.type === 'npm') {
       // Handle npm scripts
@@ -342,7 +376,16 @@ export default async function bunosh(commands, sources) {
       }
 
       // Call the original function with transformed arguments
-      return commandFn(...transformedArgs);
+      try {
+        return await commandFn(...transformedArgs);
+      } catch (error) {
+        // Handle errors thrown from functions properly
+        console.error(`\n❌ Error: ${error.message}`);
+        if (error.stack && process.env.BUNOSH_DEBUG) {
+          console.error(error.stack);
+        }
+        process.exit(1);
+      }
     };
   }
 
@@ -827,7 +870,7 @@ function parseArgs(ast, fnName) {
           }
           if (!param.name) return;
 
-          return functionArguments[param.name] = null;
+          return functionArguments[param.name] = undefined;
         });
 
     },
