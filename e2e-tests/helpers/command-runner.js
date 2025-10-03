@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import path from 'path';
 import { BUNOSH_BINARY, createTempTestDir, cleanupTempDir, createTestBunoshfile } from './test-env.js';
 
 /**
@@ -72,18 +73,23 @@ export async function runBunoshCommand(args, options = {}) {
   return new Promise((resolve) => {
     const { cwd, timeout = 15000, env = {} } = options;
     
-    // Choose runtime based on environment variable or default to bun
-    const runtime = process.env.BUNOSH_RUNTIME || 'bun';
-    const runtimeCmd = runtime === 'bun' ? 'bun' : 'node';
+    // Always use bun runtime for e2e tests
+    const runtimeCmd = 'bun';
     
     // Handle args - if string, split by spaces; if already array, use as-is
-    const argsArray = typeof args === 'string' 
+    const argsArray = typeof args === 'string'
       ? args.split(' ').filter(arg => arg.length > 0)
       : args;
-    
-    const proc = spawn(runtimeCmd, [BUNOSH_BINARY, ...argsArray], {
+
+    // Add --bunoshfile flag to ensure proper directory isolation
+    // Point to the Bunoshfile.js specifically, not just the directory
+    const bunoshfilePath = path.join(cwd, 'Bunoshfile.js');
+    const finalArgs = ['--bunoshfile', bunoshfilePath, ...argsArray];
+
+    // Use the local bunosh.js from this repository
+    const proc = spawn(runtimeCmd, [BUNOSH_BINARY, ...finalArgs], {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...process.env, ...env, NODE_ENV: 'test' },
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
@@ -189,32 +195,35 @@ export async function runSystemCommand(command, options = {}) {
  * Helper to check if bunosh binary is available
  */
 export async function checkBunoshAvailable() {
-  // In Node.js environments, we need Bun to run bunosh
-  const runtime = process.env.BUNOSH_RUNTIME || 'bun';
-  
-  if (runtime === 'node') {
-    // Check if bun command exists
-    try {
-      const { spawn } = await import('child_process');
-      return new Promise((resolve) => {
-        const proc = spawn('which', ['bun'], { stdio: 'ignore' });
-        proc.on('close', (code) => resolve(code === 0));
-        proc.on('error', () => resolve(false));
+  // Try to use bunosh directly without requiring bun runtime
+  try {
+    const { spawn } = await import('child_process');
+    return new Promise((resolve) => {
+      const proc = spawn('bunosh', ['--help'], { 
+        stdio: ['pipe'],
+        timeout: 5000 
       });
-    } catch {
-      return false;
-    }
+      
+      let stdout = '';
+      let stderr = '';
+      
+      proc.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      proc.on('close', (code) => {
+        resolve(code === 0);
+      });
+      
+      proc.on('error', () => {
+        resolve(false);
+      });
+    });
+  } catch {
+    return false;
   }
-  
-  // Create a temp directory with a Bunoshfile to test bunosh availability
-  const tempDir = createTempTestDir();
-  createTestBunoshfile(tempDir);
-  
-  const result = await runBunoshCommand('--help', { 
-    timeout: 5000,
-    cwd: tempDir 
-  });
-  
-  cleanupTempDir(tempDir);
-  return result.success;
 }

@@ -188,11 +188,24 @@ export function getCompletionCommands() {
  * Converts function name to command name (same logic as program.js)
  */
 function prepareCommandName(name) {
-  name = name
+  // name is already the final command name (could be namespaced or not)
+  // For namespaced commands, only transform the function part (after the last colon)
+  const lastColonIndex = name.lastIndexOf(':');
+  if (lastColonIndex !== -1) {
+    const namespace = name.substring(0, lastColonIndex);
+    const commandPart = name.substring(lastColonIndex + 1);
+    return `${namespace}:${toKebabCase(commandPart)}`;
+  }
+  
+  // For non-namespaced commands, just convert to kebab-case
+  return toKebabCase(name);
+}
+
+function toKebabCase(name) {
+  return name
     .split(/(?=[A-Z])/)
     .join("-")
     .toLowerCase();
-  return name.replace("-", ":");
 }
 
 /**

@@ -270,6 +270,75 @@ bunosh my:setup awesome-app nextjs
 ```
 
 
+### Project Namespaces
+
+Organize your project tasks by creating multiple Bunoshfiles with namespaces. This helps keep large projects organized and separates concerns.
+
+**Create namespace files:**
+```bash
+# Main tasks (no namespace)
+Bunoshfile.js
+
+# Development tasks
+Bunoshfile.dev.js
+
+# API tasks  
+Bunoshfile.api.js
+
+# Database tasks
+Bunoshfile.db.js
+```
+
+**Example structure:**
+```javascript
+// Bunoshfile.js - Core project tasks
+export function build() {
+  console.log('Building project...');
+}
+
+export function test() {
+  console.log('Running tests...');
+}
+
+// Bunoshfile.dev.js - Development tasks
+export function start() {
+  console.log('Starting dev server...');
+}
+
+export function debug() {
+  console.log('Debugging...');
+}
+
+// Bunoshfile.api.js - API specific tasks
+export function deploy() {
+  console.log('Deploying API...');
+}
+
+export function test() {
+  console.log('Running API tests...');
+}
+```
+
+**Usage:**
+```bash
+# Core tasks (no namespace)
+bunosh build
+bunosh test
+
+# Namespaced tasks
+bunosh dev:start
+bunosh dev:debug
+bunosh api:deploy
+bunosh api:test
+```
+
+**Key features:**
+- 🗂️ **Organization** - Group related tasks by namespace
+- 🔒 **No conflicts** - Same function names can exist in different namespaces
+- 📁 **Auto-discovery** - All `Bunoshfile.*.js` files are loaded automatically
+- 🏷️ **Clear naming** - Namespace prefix makes task purpose obvious
+- 📋 **Unified help** - All namespaces appear together in help output
+
 ## Tasks
 
 Bunosh provides built-in tasks which are available via `global.bunosh`:
