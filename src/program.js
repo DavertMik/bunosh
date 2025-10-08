@@ -920,3 +920,126 @@ function parseOpts(ast, fnName) {
 
   return functionOpts;
 }
+
+/**
+ * Represents a parsed Bunosh command with all its metadata
+ */
+export class BunoshCommand {
+  constructor(name, namespace, args, opts, comment, fn) {
+    this.name = name;
+    this.namespace = namespace || '';
+    this.args = args;
+    this.opts = opts;
+    this.comment = comment;
+    this.function = fn;
+  }
+
+  /**
+   * Get the full command name (namespace:name if namespace exists)
+   */
+  get fullName() {
+    return this.namespace ? `${this.namespace}:${this.name}` : this.name;
+  }
+
+  /**
+   * Get the command name in kebab-case for CLI usage
+   */
+  get cliName() {
+    if (this.namespace) {
+      return `${this.namespace}:${camelToDasherize(this.name)}`;
+    }
+    return camelToDasherize(this.name);
+  }
+
+  /**
+   * Get all parameter names (args + opts)
+   */
+  get allParams() {
+    return [...Object.keys(this.args), ...Object.keys(this.opts)];
+  }
+
+  /**
+   * Get required parameter names
+   */
+  get requiredParams() {
+    return Object.keys(this.args).filter(arg => this.args[arg] === undefined);
+  }
+}
+
+/**
+ * Process commands and sources to extract structured command information
+ * This reuses all the existing parsing logic from the main bunosh function
+ * @param {Object} commands - Commands object from Bunoshfile
+ * @param {Object} sources - Sources object containing comments and metadata
+ * @returns {Array<BunoshCommand>} Array of parsed BunoshCommand objects
+ */
+export function processCommands(commands, sources) {
+  const parsedCommands = [];
+
+  // Parse AST and comments for each source (same as in main bunosh function)
+  const comments = {};
+  const namespaceSources = {};
+
+  for (const [cmdName, cmdInfo] of Object.entries(sources)) {
+    if (cmdInfo.source) {
+      try {
+        const ast = babelParser.parse(cmdInfo.source, {
+          sourceType: "module",
+          ranges: true,
+          tokens: true,
+          comments: true,
+          attachComment: true,
+        });
+
+        // Store AST for this command
+        if (!namespaceSources[cmdInfo.namespace || '']) {
+          namespaceSources[cmdInfo.namespace || ''] = {
+            ast: ast,
+            source: cmdInfo.source
+          };
+        }
+
+        // Extract comments for this command
+        const fnName = cmdInfo.namespace ? cmdName.split(':')[1] : cmdName;
+        if (fnName) {
+          comments[cmdName] = extractCommentForFunction(ast, cmdInfo.source, fnName);
+        }
+      } catch (parseError) {
+        parseError.code = 'BABEL_PARSER_SYNTAX_ERROR';
+        throw parseError;
+      }
+    }
+  }
+
+  // Process each command using the same logic as the main bunosh function
+  Object.entries(commands).forEach(([cmdName, cmdFn]) => {
+    const sourceInfo = sources[cmdName];
+    const originalFnName = sourceInfo?.originalFnName || cmdName.split(':')[1] || cmdName;
+    const namespace = sourceInfo?.namespace || '';
+    const namespaceSource = namespaceSources[namespace];
+    const comment = comments[cmdName];
+
+    // Parse function using the same logic as the main bunosh function
+    const fnBody = cmdFn.toString();
+    const ast = namespaceSource?.ast || babelParser.parse(fnBody, { comment: true, tokens: true });
+    const args = parseArgs(ast, originalFnName);
+    const opts = parseOpts(ast, originalFnName);
+
+    // Extract the actual command name without namespace
+    const commandName = originalFnName;
+
+    parsedCommands.push(new BunoshCommand(
+      commandName,
+      namespace,
+      args,
+      opts,
+      comment,
+      cmdFn
+    ));
+  });
+
+  return parsedCommands;
+}
+
+// Export parsing functions for use in MCP server
+export { parseArgs, parseOpts, extractCommentForFunction };
