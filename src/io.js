@@ -7,6 +7,11 @@ export function say(...args) {
 }
 
 export async function ask(question, defaultValueOrOptions = {}, options = {}) {
+  // Check if we're in MCP mode and should use the interactive ask function
+  if (globalThis._mcpAskFunction) {
+    return globalThis._mcpAskFunction(question, defaultValueOrOptions, options);
+  }
+
   // Track that we're in an ask operation to prevent duplicate exit summaries
   globalThis._bunoshInAskOperation = true;
   // Smart parameter detection

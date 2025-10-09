@@ -20,6 +20,7 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 > *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients*
 
+
 ## Hello World
 
 No nore words, just code:
@@ -66,12 +67,14 @@ Hint: Provide this link to a coding agent and make it convert scripts into Bunos
 ## TOC
 
 - [Installation](#installation)
+- [MCP Integration](#mcp-integration)
 - [Quickstart](#quickstart)
 - [Commands](#commands)
 - [Tasks](#tasks)
 - [Input/Output](#inputoutput)
 - [Task Control](#task-control)
 - [AI Integration](#ai-integration)
+- [MCP](#mcp)
 - [Examples](#examples)
 
 ## Installation
@@ -131,22 +134,7 @@ export async function build(env = 'production') {
 }
 ```
 
-That's it! Your function is now a CLI command.
-
-3. **Run it:**
-```bash
-# build for production
-bunosh build
-
-# build for staging
-bunosh build staging
-
-# build for development
-bunosh build development
-```
-
 ## Commands
-
 
 By default, Bunosh loads commands from `Bunoshfile.js` in the current directory.
 
@@ -257,7 +245,7 @@ Bunoshfile.js
 # Development tasks
 Bunoshfile.dev.js
 
-# API tasks  
+# API tasks
 Bunoshfile.api.js
 
 # Database tasks
@@ -307,12 +295,143 @@ bunosh api:deploy
 bunosh api:test
 ```
 
-**Key features:**
-- 🗂️ **Organization** - Group related tasks by namespace
-- 🔒 **No conflicts** - Same function names can exist in different namespaces
-- 📁 **Auto-discovery** - All `Bunoshfile.*.js` files are loaded automatically
-- 🏷️ **Clear naming** - Namespace prefix makes task purpose obvious
-- 📋 **Unified help** - All namespaces appear together in help output
+## MCP
+
+Bunosh supports the **Model Context Protocol (MCP)**, allowing you to expose your Bunoshfile commands as tools for AI assistants like Claude Desktop, Cursor, and other MCP-compatible applications.
+
+### Quick Start
+
+1. **Start MCP server** in your project directory:
+```bash
+# Uses Bunoshfile.js from current directory
+bunosh -mcp
+
+# Or with custom Bunoshfile
+bunosh --bunoshfile Bunoshfile.dev.js -mcp
+```
+
+2. **Configure your AI assistant** to use Bunosh as an MCP server (see instructions below).
+
+<details>
+<summary>Claude Desktop Setup</summary>
+
+1. **Edit Claude Desktop configuration** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "bunosh": {
+      "command": "bunosh",
+      "args": ["-mcp"],
+      "cwd": "/path/to/your/project"
+    }
+  }
+}
+```
+
+2. **Restart Claude Desktop** - your Bunosh commands will now be available as tools.
+
+3. **Use your commands** in Claude:
+   - "Build my project with bunosh"
+   - "Run tests using bunosh"
+   - "Deploy to staging with bunosh"
+
+**Multiple Projects:**
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "command": "bunosh",
+      "args": ["-mcp"],
+      "cwd": "/path/to/my-app"
+    },
+    "my-api": {
+      "command": "bunosh",
+      "args": ["-mcp"],
+      "cwd": "/path/to/my-api"
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Cursor Setup</summary>
+
+1. **Open Cursor settings** (`Cmd/Ctrl + ,`)
+
+2. **Navigate to** `Extensions` → `MCP Servers`
+
+3. **Add new MCP server:**
+   - **Name**: `bunosh`
+   - **Command**: `bunosh`
+   - **Arguments**: `-mcp`
+   - **Working Directory**: `/path/to/your/project`
+
+4. **Save and restart** Cursor
+
+5. **Your Bunosh commands** will now appear in the AI chat sidebar as available tools.
+
+</details>
+
+<details>
+<summary>Cline Setup (VS Code Extension)</summary>
+
+1. **Install Cline** extension from VS Code marketplace
+
+2. **Open Cline settings** (click the gear icon in Cline panel)
+
+3. **Add MCP server** under "MCP Servers" section:
+   ```json
+   {
+     "name": "bunosh",
+     "command": "bunosh",
+     "args": ["-mcp"],
+     "cwd": "/path/to/your/project"
+   }
+   ```
+
+4. **Save and reload** the VS Code window
+
+5. **Your commands** will be available in Cline's tool selection
+
+</details>
+
+<details>
+
+#### Best Practices for MCP
+
+### Command Design for AI
+
+Design your commands to work well with AI assistants:
+
+* Add comments to all commands
+* Describe use cases for each Command
+* Describe each param using JSDoc style comments
+* Include types when describing parameters
+
+```javascript
+/**
+ * Builds the project for specified environment
+ * @param {string} environment - Target environment: 'development', 'staging', or 'production'
+ * @param {Object} options - Build options
+ * @param {boolean} options.verbose - Enable verbose logging
+ * @param {boolean} options.analyze - Run bundle analysis after build
+ */
+export async function build(environment = 'development', options = {}) {
+  const config = getBuildConfig(environment);
+  if (options.verbose) say(`🔨 Building for ${environment}...`);
+
+  await exec`npm run build:${environment}`;
+
+  if (options.analyze) {
+    await exec`npm run analyze`;
+  }
+
+  say('✅ Build complete!');
+}
+```
 
 ## Tasks
 

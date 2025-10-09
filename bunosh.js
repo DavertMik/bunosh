@@ -83,13 +83,53 @@ async function main() {
   // Parse --bunoshfile flag or BUNOSHFILE env var before importing tasks
   const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
   let customBunoshfile = null;
-  
+
   if (bunoshfileIndex !== -1 && bunoshfileIndex + 1 < process.argv.length) {
     customBunoshfile = process.argv[bunoshfileIndex + 1];
     // Remove the flag and its value from process.argv so it doesn't interfere with command parsing
     process.argv.splice(bunoshfileIndex, 2);
   } else if (process.env.BUNOSHFILE) {
     customBunoshfile = process.env.BUNOSHFILE;
+  }
+
+  // Check for -mcp flag first
+  const mcpFlagIndex = process.argv.indexOf('-mcp');
+  if (mcpFlagIndex !== -1) {
+    // Remove the flag from process.argv
+    process.argv.splice(mcpFlagIndex, 1);
+
+    // Set environment variable to indicate MCP mode
+    process.env.BUNOSH_MCP_MODE = 'true';
+
+    // Import MCP server and start it
+    const { createMcpServer, startMcpServer } = await import('./src/mcp-server.js');
+
+    let tasksFile;
+    if (customBunoshfile) {
+      const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
+      // If it's a directory, append the default BUNOSHFILE
+      if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
+        tasksFile = path.join(resolvedPath, BUNOSHFILE);
+      } else {
+        tasksFile = resolvedPath;
+      }
+    } else {
+      tasksFile = path.join(process.cwd(), BUNOSHFILE);
+    }
+
+    if (!existsSync(tasksFile)) {
+      console.error('Bunoshfile not found for MCP mode');
+      process.exit(1);
+    }
+
+    // Load tasks and sources
+    const { tasks, sources } = await loadBunoshfiles(tasksFile);
+
+    // Create and start MCP server
+    const server = createMcpServer(tasks, sources);
+    await startMcpServer(server);
+
+    return; // Exit early for MCP mode
   }
 
   let tasksFile;
