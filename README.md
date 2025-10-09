@@ -20,15 +20,6 @@ Bunosh is a modern task runner that turns your JavaScript functions into CLI com
 
 > *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients*
 
-### ✨ Key Features
-
-- **🚀 Zero Configuration** - Write functions, get CLI commands automatically
-- **🎨 Pure JavaScript** - write commands as JavaScript functions
-- **📦 Built-in Tasks** - Shell execution, HTTP requests, file operations
-- **🤖 AI-Powered** - integrate LLM calls into your daily tasks
-- **🔧 Cross-Platform** - Works seamlessly on macOS, Linux, and Windows. Via bun, npm, or as single executable.
-- **🎯 Smart CLI** - Auto-completion, help generation, and intuitive argument handling
-
 ## Hello World
 
 No nore words, just code:
@@ -64,6 +55,13 @@ export async function helloWorld(name = 'person') {
 | **Cross-platform** | No | Yes | Yes | ✅ Yes |
 | **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
 | **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
+
+** Migrate to Bunosh**
+
+- [Migrating from Bash Scripts](docs/bash-migration-guide.md)
+- [Migrating from Node.js Scripts](docs/nodejs-migration-guide.md)
+
+Hint: Provide this link to a coding agent and make it convert scripts into Bunosh! 
 
 ## TOC
 
