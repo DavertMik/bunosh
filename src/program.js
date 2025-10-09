@@ -66,9 +66,7 @@ export default async function bunosh(commands, sources) {
 
   const internalCommands = [];
 
-  // Load npm scripts from package.json
-  const npmScripts = loadNpmScripts();
-
+  
   program.configureHelp({
     commandDescription: _cmd => {
       // Show banner and description
@@ -158,11 +156,7 @@ export default async function bunosh(commands, sources) {
   });
 
 
-  // Add npm scripts
-  Object.entries(npmScripts).forEach(([scriptName, scriptCommand]) => {
-    allCommands.push({ type: 'npm', name: `npm:${scriptName}`, data: { scriptName, scriptCommand } });
-  });
-
+  
   // Sort all commands alphabetically by name
   allCommands.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -170,14 +164,11 @@ export default async function bunosh(commands, sources) {
   const commandsByNamespace = {
     '': [], // Main commands (no namespace)
     'dev': [], // Dev commands
-    'npm': [], // NPM scripts
   };
 
   // Categorize commands by namespace
   allCommands.forEach(cmd => {
-    if (cmd.type === 'npm') {
-      commandsByNamespace.npm.push(cmd);
-    } else if (cmd.type === 'namespace' && cmd.namespace) {
+    if (cmd.type === 'namespace' && cmd.namespace) {
       // Group by namespace, defaulting to 'dev' for unknown namespaces
       const namespace = cmd.namespace || 'dev';
       if (!commandsByNamespace[namespace]) {
@@ -332,15 +323,6 @@ export default async function bunosh(commands, sources) {
       command.showHelpAfterError();
 
       command.action(createCommandAction(commands[cmdData.name], args, opts));
-      } else if (cmdData.type === 'npm') {
-      // Handle npm scripts
-      const { scriptName, scriptCommand } = cmdData.data;
-      const commandName = `npm:${scriptName}`;
-      const command = program.command(commandName);
-      command.description(color.gray(scriptCommand)); // Use script command as description
-
-      // Create action with proper closure to capture scriptName
-      command.action(createNpmScriptAction(scriptName));
     }
   });
 
@@ -389,22 +371,7 @@ export default async function bunosh(commands, sources) {
     };
   }
 
-  // Helper function to create npm script action with proper closure
-  function createNpmScriptAction(scriptName) {
-    return async () => {
-      // Execute npm script using Bunosh's exec task
-      const { exec } = await import('../index.js');
-      try {
-        // Call exec with proper template literal simulation
-        const result = await exec(['npm run ', ''], scriptName);
-        return result;
-      } catch (error) {
-        console.error(`Failed to run npm script: ${scriptName}`);
-        process.exit(1);
-      }
-    };
-  }
-
+  
   const editCmd = program.command('edit')
     .description('Open the bunosh file in your editor. $EDITOR or \'code\' is used.')
     .action(async () => {
@@ -592,7 +559,7 @@ ${devCommands}
 
   // Add other namespace sections dynamically
   Object.keys(commandsByNamespace).forEach(namespace => {
-    if (namespace && namespace !== 'dev' && namespace !== 'npm' && commandsByNamespace[namespace].length > 0) {
+    if (namespace && namespace !== 'dev' && commandsByNamespace[namespace].length > 0) {
       const namespaceName = namespace.charAt(0).toUpperCase() + namespace.slice(1) + ' Commands';
       const namespaceCommands = commandsByNamespace[namespace].map(cmd => {
         const cmdObj = program.commands.find(c => c.name() === cmd.name);
@@ -619,18 +586,7 @@ ${namespaceCommands}
     }
   });
 
-  // NPM Scripts
-  if (commandsByNamespace.npm.length > 0) {
-    const npmCommands = commandsByNamespace.npm.map(cmd => {
-      const paddedName = cmd.name.padEnd(22);
-      return `  ${color.white.bold(paddedName)} ${color.gray(cmd.data.scriptCommand)}`;
-    }).join('\n');
-    helpText += `NPM Scripts:
-${npmCommands}
-
-`;
-  }
-
+  
   // Special Commands
   helpText += color.dim(`Special Commands:
   ${color.bold('bunosh edit')}           📝 Edit bunosh file with $EDITOR
@@ -784,29 +740,6 @@ function exportFn(commands) {
   return true;
 }
 
-function loadNpmScripts() {
-  try {
-    if (!existsSync('package.json')) {
-      return {};
-    }
-
-    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-    const scripts = pkg.scripts || {};
-
-    // Filter out bunosh scripts (scripts that contain "bunosh")
-    const npmScripts = {};
-    Object.entries(scripts).forEach(([name, command]) => {
-      if (!command.includes('bunosh')) {
-        npmScripts[name] = command;
-      }
-    });
-
-    return npmScripts;
-  } catch (error) {
-    console.warn('Warning: Could not load npm scripts from package.json:', error.message);
-    return {};
-  }
-}
 
 function extractCommentForFunction(ast, source, fnName) {
   let comment = '';

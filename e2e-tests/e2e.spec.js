@@ -180,72 +180,29 @@ describe('Bunosh End-to-End Tests', () => {
     });
   });
 
-  describe.skipIf(!isBunAvailable)('NPM Scripts Integration', () => {
-    beforeEach(() => {
-      createTestBunoshfile(testDir);
-      createTestPackageJson(testDir, {
-        'custom-script': 'echo "Custom npm script executed"',
-        'bunosh-script': 'bunosh simple:exec' // This should be filtered out
-      });
-    });
-
-    it('should list npm scripts in help output', async () => {
-      const result = await runBunoshCommand('--help', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('npm:test');
-      expect(result.stdout).toContain('npm:build');
-      expect(result.stdout).toContain('npm:custom-script');
-      
-      // Should not contain bunosh scripts
-      expect(result.stdout).not.toContain('npm:bunosh-script');
-    });
-
-    it('should execute npm script through bunosh', async () => {
-      const result = await runBunoshCommand('npm:custom-script', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Custom npm script executed');
-    });
-
-    it('should execute standard npm test script', async () => {
-      const result = await runBunoshCommand('npm:test', { cwd: testDir });
-      
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('running test');
-    });
-  });
-
+  
   describe.skipIf(!isBunAvailable)('Command Listing and Help', () => {
     beforeEach(() => {
       createTestBunoshfile(testDir);
       createTestPackageJson(testDir);
     });
 
-    it('should show bunosh and npm commands in separate sections', async () => {
+    it('should show bunosh commands in organized sections', async () => {
       const result = await runBunoshCommand('--help', { cwd: testDir });
-      
+
       expect(result.success).toBe(true);
-      
+
       const lines = result.stdout.split('\n');
-      
+
       // Find Commands section
       const commandsStartIndex = lines.findIndex(line => line.includes('Commands:'));
-      const commandsEndIndex = lines.findIndex((line, idx) => 
-        idx > commandsStartIndex && line.includes('NPM Scripts:')
+      const commandsEndIndex = lines.findIndex((line, idx) =>
+        idx > commandsStartIndex && (line.includes('Dev Commands:') || line.includes('Special Commands:'))
       );
-      
-      // Find NPM Scripts section  
-      const npmStartIndex = lines.findIndex(line => line.includes('NPM Scripts:'));
-      const npmEndIndex = lines.findIndex((line, idx) => 
-        idx > npmStartIndex && line.includes('Special Commands:')
-      );
-      
+
       expect(commandsStartIndex).toBeGreaterThan(-1);
-      expect(npmStartIndex).toBeGreaterThan(-1);
       expect(commandsEndIndex).toBeGreaterThan(commandsStartIndex);
-      expect(npmEndIndex).toBeGreaterThan(npmStartIndex);
-      
+
       // Parse bunosh commands section
       const bunoshCommandSection = lines.slice(commandsStartIndex + 1, commandsEndIndex);
       const bunoshCommands = bunoshCommandSection
@@ -254,32 +211,19 @@ describe('Bunosh End-to-End Tests', () => {
           const cleanedLine = line.trim().replace(/\x1B\[[0-9;]*m/g, '');
           return cleanedLine.split(/\s+/)[0];
         })
-        .filter(cmd => cmd && cmd.includes('-') && !cmd.startsWith('npm:'));
-      
-      // Parse npm commands section
-      const npmCommandSection = lines.slice(npmStartIndex + 1, npmEndIndex);
-      const npmCommands = npmCommandSection
-        .filter(line => line.trim() && !line.includes('NPM Scripts:'))
-        .map(line => {
-          const cleanedLine = line.trim().replace(/\x1B\[[0-9;]*m/g, '');
-          return cleanedLine.split(/\s+/)[0];
-        })
-        .filter(cmd => cmd && cmd.startsWith('npm:'));
-      
+        .filter(cmd => cmd && cmd.includes('-'));
+
       // Verify bunosh commands are alphabetically ordered
       const sortedBunoshCommands = [...bunoshCommands].sort();
       expect(bunoshCommands).toEqual(sortedBunoshCommands);
-      
-      // Verify npm commands are alphabetically ordered
-      const sortedNpmCommands = [...npmCommands].sort();
-      expect(npmCommands).toEqual(sortedNpmCommands);
-      
-      // Should contain both bunosh and npm commands
+
+      // Should contain expected bunosh commands
       expect(bunoshCommands.some(cmd =>
         ['simple:exec', 'fetch:task', 'file:task', 'yell:task', 'composite:task', 'parallel:task', 'task:with-args', 'failing:task'].includes(cmd)
       )).toBe(true);
-      
-      expect(npmCommands.some(cmd => cmd.startsWith('npm:'))).toBe(true);
+
+      // Should not contain npm commands
+      expect(bunoshCommands.some(cmd => cmd.startsWith('npm:'))).toBe(false);
     });
 
     it('should show command descriptions and usage', async () => {
