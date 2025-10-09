@@ -301,30 +301,4 @@ export async function awsSpawnServer(
   return instances;
 }
 
-/**
- * Configure Cloudflare DNS for new servers
- */
-export async function cloudflareSetup(domain, ipAddress) {
-  const { exec, task, say } = global.bunosh;
-
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-
-  await task('Creating DNS record', async () => {
-    const result = await exec`curl -X POST \
-      "https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records" \
-      -H "Authorization: Bearer ${apiToken}" \
-      -H "Content-Type: application/json" \
-      --data '{
-        "type": "A",
-        "name": "${domain}",
-        "content": "${ipAddress}",
-        "ttl": 3600
-      }'`;
-
-    return JSON.parse(result.output);
-  });
-
-  say(`✅ DNS configured: ${domain} → ${ipAddress}`);
-}
 ```
