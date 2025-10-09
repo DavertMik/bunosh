@@ -56,9 +56,12 @@ export async function helloWorld(name = 'person') {
 | **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
 | **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
 
-**📚 Migration Guides:**
+** Migrate to Bunosh**
+
 - [Migrating from Bash Scripts](docs/bash-migration-guide.md)
 - [Migrating from Node.js Scripts](docs/nodejs-migration-guide.md)
+
+Hint: Provide this link to a coding agent and make it convert scripts into Bunosh! 
 
 ## TOC
 
