@@ -63,6 +63,7 @@ function createGradientAscii(asciiArt) {
 export default async function bunosh(commands, sources) {
   const program = new Command();
   program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
+  program.option('--env-file <path>', 'Path to environment file');
 
   const internalCommands = [];
 
@@ -638,6 +639,7 @@ ${npmCommands}
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
   ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
   ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
+  ${color.bold('bunosh --env-file …')}   🔧 Load custom environment file
 `);
 
   program.addHelpText('after', helpText);
