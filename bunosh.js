@@ -17,7 +17,44 @@ import bunosh, { BUNOSHFILE, banner }  from "./src/program.js";
 import { existsSync, readFileSync, statSync } from "fs";
 import init from "./src/init.js";
 import path from "path";
+import { config } from "dotenv";
 
+/**
+ * Load environment variables from .env files following Bun's loading order
+ * @param {string} bunoshfileDir - Directory containing the Bunoshfile
+ * @param {string} customEnvFile - Optional custom env file path from --env-file option
+ */
+function loadEnvFiles(bunoshfileDir, customEnvFile = null) {
+  if (customEnvFile) {
+    // Load the specified env file
+    const customEnvPath = path.isAbsolute(customEnvFile)
+      ? customEnvFile
+      : path.resolve(bunoshfileDir, customEnvFile);
+
+    if (existsSync(customEnvPath)) {
+      config({ path: customEnvPath });
+    } else {
+      console.warn(`Warning: Specified env file not found: ${customEnvPath}`);
+    }
+    return;
+  }
+
+  // Follow Bun's automatic loading order
+  const envFiles = [
+    '.env',
+    '.env.production',
+    '.env.development',
+    '.env.test',
+    '.env.local'
+  ];
+
+  envFiles.forEach(envFile => {
+    const envPath = path.join(bunoshfileDir, envFile);
+    if (existsSync(envPath)) {
+      config({ path: envPath });
+    }
+  });
+}
 
 async function loadBunoshfiles(tasksFile) {
   const path = await import('path');
@@ -92,6 +129,16 @@ async function main() {
     customBunoshfile = process.env.BUNOSHFILE;
   }
 
+  // Parse --env-file flag
+  const envFileIndex = process.argv.findIndex(arg => arg.startsWith('--env-file='));
+  let customEnvFile = null;
+
+  if (envFileIndex !== -1) {
+    customEnvFile = process.argv[envFileIndex].split('=')[1];
+    // Remove the flag from process.argv so it doesn't interfere with command parsing
+    process.argv.splice(envFileIndex, 1);
+  }
+
   // Check for -mcp flag first
   const mcpFlagIndex = process.argv.indexOf('-mcp');
   if (mcpFlagIndex !== -1) {
@@ -105,22 +152,29 @@ async function main() {
     const { createMcpServer, startMcpServer } = await import('./src/mcp-server.js');
 
     let tasksFile;
+    let bunoshfileDir;
     if (customBunoshfile) {
       const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
       // If it's a directory, append the default BUNOSHFILE
       if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
         tasksFile = path.join(resolvedPath, BUNOSHFILE);
+        bunoshfileDir = resolvedPath;
       } else {
         tasksFile = resolvedPath;
+        bunoshfileDir = path.dirname(resolvedPath);
       }
     } else {
       tasksFile = path.join(process.cwd(), BUNOSHFILE);
+      bunoshfileDir = process.cwd();
     }
 
     if (!existsSync(tasksFile)) {
       console.error('Bunoshfile not found for MCP mode');
       process.exit(1);
     }
+
+    // Load environment files from the Bunoshfile directory
+    loadEnvFiles(bunoshfileDir, customEnvFile);
 
     // Load tasks and sources
     const { tasks, sources } = await loadBunoshfiles(tasksFile);
@@ -133,21 +187,28 @@ async function main() {
   }
 
   let tasksFile;
+  let bunoshfileDir;
   if (customBunoshfile) {
     const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
     // If it's a directory, append the default BUNOSHFILE
     if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
       tasksFile = path.join(resolvedPath, BUNOSHFILE);
+      bunoshfileDir = resolvedPath;
       // Change working directory to the bunoshfile directory
       process.chdir(resolvedPath);
     } else {
       tasksFile = resolvedPath;
+      bunoshfileDir = path.dirname(resolvedPath);
       // Change working directory to the bunoshfile's directory
       process.chdir(path.dirname(resolvedPath));
     }
   } else {
     tasksFile = path.join(process.cwd(), BUNOSHFILE);
+    bunoshfileDir = process.cwd();
   }
+
+  // Load environment files from the Bunoshfile directory
+  loadEnvFiles(bunoshfileDir, customEnvFile);
 
   // Handle -e flag for executing JavaScript code
   const eFlagIndex = process.argv.indexOf('-e');
