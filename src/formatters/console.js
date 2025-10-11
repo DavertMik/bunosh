@@ -56,7 +56,9 @@ export class ConsoleFormatter extends BaseFormatter {
     let line = leftContent + padding + rightContent;
 
     if (icon.trim()) {
-      line = chalk.bgGray(line);
+      // Apply underline to the task name/type only, not the status in parentheses
+      const underlineContent = taskTypeFormatted + taskNameFormatted + padding;
+      line = icon + ' ' + chalk.underline(underlineContent) + rightContent;
     }
 
     let result = line;
