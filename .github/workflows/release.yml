@@ -111,7 +111,7 @@ jobs:
     - name: Build binary
       run: |
         mkdir -p dist
-        bun build ./bunosh.js --compile --define BUNOSH_EXECUTABLE=true --target=${{ matrix.target }} --outfile dist/${{ matrix.artifact }}
+        bun build ./bunosh.js --compile --define BUNOSH_EXECUTABLE=true --define BUNOSH_VERSION="${{ steps.version.outputs.version }}" --target=${{ matrix.target }} --outfile dist/${{ matrix.artifact }}
       shell: bash
 
     - name: Make executable (Unix)

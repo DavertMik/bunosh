@@ -606,6 +606,27 @@ ${namespaceCommands}
     process.exit(1);
   });
 
+  
+  // Handle --version option before parsing
+  if (process.argv.includes('--version')) {
+    let version = '';
+    // For compiled binaries, check if version is embedded at build time
+    if (typeof BUNOSH_VERSION !== 'undefined') {
+      version = BUNOSH_VERSION;
+    } else {
+      // For development, try to read from package.json
+      try {
+        const pkgPath = new URL('../package.json', import.meta.url);
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+        version = pkg.version;
+      } catch (e) {
+        version = '0.1.5'; // fallback to current version
+      }
+    }
+    console.log(version);
+    process.exit(0);
+  }
+
   // Show help if no command provided
   if (process.argv.length === 2) {
     program.outputHelp();
