@@ -33,6 +33,18 @@ export const banner = () => {
   }
   console.log(color.gray('🍲 ', color.yellowBright.bold('BUNOSH'), color.yellow(version)));
 
+  const isBun = typeof Bun !== 'undefined';
+  const runtime = isBun ? 'Bun' : 'Node.js';
+  const runtimeColor = isBun ? color.red : color.green;
+
+  let runtimeVersion;
+  if (isBun) {
+    runtimeVersion = Bun.version;
+  } else {
+    runtimeVersion = process.version;
+  }
+
+  console.log(color.gray(`Runtime: `, runtimeColor.bold(runtime), color.gray(` (${runtimeVersion})`)));
   console.log();
 };
 
