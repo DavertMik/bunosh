@@ -32,19 +32,6 @@ export const banner = () => {
   } catch (e) {
   }
   console.log(color.gray('🍲 ', color.yellowBright.bold('BUNOSH'), color.yellow(version)));
-
-  const isBun = typeof Bun !== 'undefined';
-  const runtime = isBun ? 'Bun' : 'Node.js';
-  const runtimeColor = isBun ? color.red : color.green;
-
-  let runtimeVersion;
-  if (isBun) {
-    runtimeVersion = Bun.version;
-  } else {
-    runtimeVersion = process.version;
-  }
-
-  console.log(color.gray(`Runtime: `, runtimeColor.bold(runtime), color.gray(` (${runtimeVersion})`)));
   console.log();
 };
 
@@ -215,6 +202,20 @@ export default async function bunosh(commands, sources) {
       }
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
+
+        const isBun = typeof Bun !== 'undefined';
+        const runtime = isBun ? 'Bun' : 'Node.js';
+        const runtimeColor = isBun ? color.red : color.green;
+
+        let runtimeVersion;
+        if (isBun) {
+          runtimeVersion = Bun.version;
+        } else {
+          runtimeVersion = process.version;
+        }
+
+        console.log(color.gray(`Runtime: `, runtimeColor.bold(runtime), color.gray(` (${runtimeVersion})`)));
+        console.log();
       })
 
       let argsAndOptsDescription = [];
@@ -287,6 +288,20 @@ export default async function bunosh(commands, sources) {
       }
       command.hook('preAction', (_thisCommand) => {
         process.env.BUNOSH_COMMAND_STARTED = true;
+
+        const isBun = typeof Bun !== 'undefined';
+        const runtime = isBun ? 'Bun' : 'Node.js';
+        const runtimeColor = isBun ? color.red : color.green;
+
+        let runtimeVersion;
+        if (isBun) {
+          runtimeVersion = Bun.version;
+        } else {
+          runtimeVersion = process.version;
+        }
+
+        console.log(color.gray(`Runtime: `, runtimeColor.bold(runtime), color.gray(` (${runtimeVersion})`)));
+        console.log();
       })
 
       let argsAndOptsDescription = [];
