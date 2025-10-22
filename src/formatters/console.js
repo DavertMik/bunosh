@@ -56,9 +56,8 @@ export class ConsoleFormatter extends BaseFormatter {
     let line = leftContent + padding + rightContent;
 
     if (icon.trim()) {
-      // Apply underline to the task name/type only, not the status in parentheses
-      const underlineContent = taskTypeFormatted + taskNameFormatted + padding;
-      line = icon + ' ' + chalk.underline(underlineContent) + rightContent;
+      const underlineContent = taskTypeFormatted + taskNameFormatted;
+      line = icon + ' ' + chalk.underline(underlineContent) + padding + rightContent;
     }
 
     let result = line;
@@ -74,7 +73,40 @@ export class ConsoleFormatter extends BaseFormatter {
 
   formatOutput(line, isError = false) {
     if (!line.trim()) return '';
-    return isError ? chalk.red(line) : line;
+
+    const indent = '   ';
+    const terminalWidth = process.stdout.columns || 100;
+    const maxLineWidth = terminalWidth - indent.length;
+
+    let formattedLine = line;
+    const plainLine = this._stripAnsi(line);
+
+    if (plainLine.length > maxLineWidth) {
+      const truncateAt = maxLineWidth - 3;
+      let charCount = 0;
+      let truncatedLine = '';
+
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '\u001b') {
+          let j = i;
+          while (j < line.length && line[j] !== 'm') j++;
+          truncatedLine += line.substring(i, j + 1);
+          i = j;
+          continue;
+        }
+
+        if (charCount >= truncateAt) break;
+
+        truncatedLine += line[i];
+        charCount++;
+      }
+
+      formattedLine = truncatedLine + '...';
+    }
+
+    formattedLine = indent + formattedLine;
+
+    return isError ? chalk.red(formattedLine) : formattedLine;
   }
 
   _stripAnsi(str) {
