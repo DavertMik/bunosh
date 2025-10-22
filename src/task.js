@@ -81,8 +81,8 @@ export function getTaskPrefix(taskId) {
 }
 
 
-export function createTaskInfo(name, parentId = null) {
-  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId);
+export function createTaskInfo(name, parentId = null, isSilent = false) {
+  const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId, isSilent);
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
 
@@ -109,12 +109,13 @@ export function finishTaskInfo(taskInfo, success = true, error = null, output = 
 }
 
 export class TaskInfo {
-  constructor(name, startTime, status, parentId = null) {
+  constructor(name, startTime, status, parentId = null, isSilent = false) {
     this.id = `task-${++taskCounter}-${Math.random().toString(36).substring(7)}`;
     this.name = name;
     this.startTime = startTime;
     this.status = status;
     this.parentId = parentId;
+    this.isSilent = isSilent;
   }
 }
 
@@ -124,7 +125,7 @@ export async function tryTask(name, fn, isSilent = true) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = createTaskInfo(name);
+  const taskInfo = createTaskInfo(name, null, isSilent);
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);
@@ -181,7 +182,7 @@ export async function task(name, fn, isSilent = false) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = createTaskInfo(name);
+  const taskInfo = createTaskInfo(name, null, isSilent);
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);

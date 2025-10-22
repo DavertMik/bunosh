@@ -1,4 +1,4 @@
-import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId, runningTasks } from '../task.js';
 import Printer from '../printer.js';
 
 const isBun = typeof Bun !== 'undefined';
@@ -14,7 +14,7 @@ export default function exec(strings, ...values) {
       throw new Error('exec() must be called as a template literal: exec`command` or exec("command")');
     }
   }
-  
+
   const cmd = strings.reduce((accumulator, str, i) => {
     return accumulator + str + (values[i] || '');
   }, '');
@@ -23,12 +23,25 @@ export default function exec(strings, ...values) {
   let cwd = null;
 
   const cmdPromise = new Promise(async (resolve, reject) => {
+    // Wait for the next event loop tick to ensure .env() and .cwd() have been called
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const currentTaskId = getCurrentTaskId();
+
+    // Check if parent task is silent
+    let isParentSilent = false;
+    if (currentTaskId) {
+      const parentTask = runningTasks.get(currentTaskId);
+      if (parentTask && parentTask.isSilent) {
+        isParentSilent = true;
+      }
+    }
+
     const extraInfo = {};
     if (cwd) extraInfo.cwd = cwd;
     if (envs) extraInfo.env = envs;
 
-    const currentTaskId = getCurrentTaskId();
-    const taskInfo = createTaskInfo(cmd, currentTaskId);
+    const taskInfo = createTaskInfo(cmd, currentTaskId, isParentSilent);
     const printer = new Printer('exec', taskInfo.id);
     printer.start(cmd, extraInfo);
 

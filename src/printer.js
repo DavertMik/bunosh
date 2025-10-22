@@ -12,6 +12,38 @@ export class Printer {
     this.formatter = createFormatter();
   }
 
+  
+  shouldPrint() {
+    // Check if this task should be silent
+    if (this.taskId) {
+      const taskInfo = runningTasks.get(this.taskId);
+
+      // This task is explicitly marked as silent
+      if (taskInfo && taskInfo.isSilent) {
+        return false;
+      }
+
+      // Check if any parent task is silent (including full hierarchy)
+      if (taskInfo && taskInfo.parentId) {
+        let currentTask = taskInfo;
+        while (currentTask) {
+          const parentTask = runningTasks.get(currentTask.parentId);
+          if (!parentTask) break;
+
+          // If any parent in the hierarchy is silent, this task should be silent
+          if (parentTask.isSilent) {
+            return false;
+          }
+
+          currentTask = parentTask;
+        }
+      }
+    }
+
+    // Default to printing
+    return true;
+  }
+
   print(taskName, status, extra = {}) {
     if (status === 'start' && !this.startTime) {
       this.startTime = Date.now();
@@ -19,6 +51,11 @@ export class Printer {
 
     if ((status === 'finish' || status === 'error') && this.startTime) {
       extra.duration = Date.now() - this.startTime;
+    }
+
+    // Check if we should print this output
+    if (!this.shouldPrint()) {
+      return;
     }
 
     // Get task info to check for parent task

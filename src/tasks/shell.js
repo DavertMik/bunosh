@@ -1,4 +1,4 @@
-import { TaskResult, createTaskInfo, finishTaskInfo } from "../task.js";
+import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId, runningTasks } from "../task.js";
 import Printer from "../printer.js";
 
 const isBun = typeof Bun !== 'undefined' && typeof Bun.spawn === 'function';
@@ -58,7 +58,17 @@ export default function shell(strings, ...values) {
       return;
     }
 
-    const taskInfo = createTaskInfo(cmd);
+    // Check if parent task is silent
+    let isParentSilent = false;
+    const currentTaskId = getCurrentTaskId();
+    if (currentTaskId) {
+      const parentTask = runningTasks.get(currentTaskId);
+      if (parentTask && parentTask.isSilent) {
+        isParentSilent = true;
+      }
+    }
+
+    const taskInfo = createTaskInfo(cmd, null, isParentSilent);
     const printer = new Printer("shell", taskInfo.id);
     printer.start(cmd, extraInfo);
 

@@ -1,4 +1,4 @@
-import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId } from '../task.js';
+import { TaskResult, createTaskInfo, finishTaskInfo, getCurrentTaskId, runningTasks } from '../task.js';
 import Printer from '../printer.js';
 
 export default async function httpFetch() {
@@ -7,7 +7,17 @@ export default async function httpFetch() {
   const taskName = `${method} ${url}`;
   
   const currentTaskId = getCurrentTaskId();
-  const taskInfo = createTaskInfo(taskName, currentTaskId);
+
+  // Check if parent task is silent
+  let isParentSilent = false;
+  if (currentTaskId) {
+    const parentTask = runningTasks.get(currentTaskId);
+    if (parentTask && parentTask.isSilent) {
+      isParentSilent = true;
+    }
+  }
+
+  const taskInfo = createTaskInfo(taskName, currentTaskId, isParentSilent);
   const printer = new Printer('fetch', taskInfo.id);
   printer.start(taskName);
 

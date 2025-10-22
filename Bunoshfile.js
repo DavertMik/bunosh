@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { exec, shell, fetch, ai, task, ignoreFail, ask, say, yell, writeToFile } from "./index.js";
 
-import fs from "fs";
 
 /**
  * Builds binary file for Bunosh
@@ -158,6 +157,90 @@ export async function testAsk() {
   const description = await ask('Enter project description:', {
     multiline: true
   });
+}
+
+/**
+ * 🧪 Test exec().cwd() - Change working directory for command execution
+ */
+export async function testExecCwd() {
+  say("🧁 Testing exec() with custom working directory");
+
+  // Show current directory
+  await exec`pwd`;
+
+  // Run command in /tmp directory
+  say("Running command in /tmp directory:");
+  await exec`pwd`.cwd("/tmp");
+
+  // Create a file in /tmp and verify it exists there
+  await exec`echo "test from $(pwd)" > test-cwd.txt`.cwd("/tmp");
+  await exec`cat test-cwd.txt`.cwd("/tmp");
+
+  // List files in /tmp to show our file exists
+  await exec`ls -la test-cwd.txt`.cwd("/tmp");
+
+  // Cleanup
+  await exec`rm -f test-cwd.txt`.cwd("/tmp");
+
+  yell("✅ exec().cwd() test completed successfully!");
+}
+
+/**
+ * 🧪 Test exec().env() - Set environment variables for command execution
+ */
+export async function testExecEnv() {
+  say("🌍 Testing exec() with custom environment variables");
+
+  // Test basic environment variable
+  await exec`echo "TEST_VAR is: $TEST_VAR"`.env({ TEST_VAR: "Hello from Bunosh!" });
+
+  // Test multiple environment variables
+  await exec`echo "USER: $USER_VAR, ROLE: $ROLE_VAR"`.env({
+    USER_VAR: "developer",
+    ROLE_VAR: "tester"
+  });
+
+  // Test environment variable with spaces and special characters
+  await exec`echo "Complex var: $COMPLEX_VAR"`.env({
+    COMPLEX_VAR: "Hello world! This is a test with spaces & symbols."
+  });
+
+  // Test that environment variables don't persist between commands
+  await exec`echo "After first command, TEST_VAR is: $TEST_VAR"`;
+
+  // Test with a command that uses environment in different ways
+  await exec`sh -c 'echo "Shell sees: $TEST_VAR and $ANOTHER_VAR"'`.env({
+    TEST_VAR: "shell-value",
+    ANOTHER_VAR: "another-value"
+  });
+
+  yell("✅ exec().env() test completed successfully!");
+}
+
+/**
+ * 🧪 Test exec().cwd() and exec().env() together
+ */
+export async function testExecCombined() {
+  say("🔗 Testing exec() with both cwd() and env() together");
+
+  // Create a temporary directory structure
+  await exec`mkdir -p /tmp/bunosh-test/subdir`.cwd("/tmp");
+
+  // Run command with both custom cwd and env
+  await exec`echo "In directory $(pwd), user is: $USER_VAR" > subdir/combined-test.txt`.cwd("/tmp/bunosh-test").env({
+    USER_VAR: "combined-tester"
+  });
+
+  // Verify the file was created in the correct directory with correct content
+  await exec`cat subdir/combined-test.txt`.cwd("/tmp/bunosh-test");
+
+  // List the directory structure to confirm
+  await exec`find . -name "*.txt" -exec echo "Found: {}" \;`.cwd("/tmp/bunosh-test");
+
+  // Cleanup
+  await exec`rm -rf /tmp/bunosh-test`.cwd("/tmp");
+
+  yell("✅ exec().cwd() + exec().env() combined test completed!");
 }
 
 /**
