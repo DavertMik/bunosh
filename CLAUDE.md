@@ -110,10 +110,10 @@ The project uses two different test frameworks:
 ## Important Implementation Details
 
 ### Exit Code Behavior
-- Default: Exit code 1 if any tasks fail
-- Test mode (NODE_ENV=test): Exit code 0 regardless of failures
-- `stopOnFailures()`: Exit immediately with code 1 on failure
-- `ignoreFailures()`: Exit with code 0 regardless of failures
+- **Default**: Exit code 1 if any tasks fail (but continue execution)
+- **Test mode** (NODE_ENV=test or test framework detected): Exit code 0 regardless of failures
+- **`task.stopOnFailures()`**: Exit immediately with code 1 on first task failure
+- **`task.ignoreFailures()`**: Continue execution AND exit with code 0 regardless of task failures
 
 ### Output Formatters
 - ConsoleFormatter (default) - Colored terminal output

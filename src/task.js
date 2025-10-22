@@ -28,15 +28,23 @@ export function ignoreFail(enable = true) {
 }
 
 // Global failure mode control
-// true = stop on failures (exit with code 1), false = continue on failures
 let stopOnFailuresMode = false;
+let ignoreFailuresMode = false;
 
 export function ignoreFailures() {
   stopOnFailuresMode = false;
+  ignoreFailuresMode = true;
+  globalThis._bunoshIgnoreFailuresMode = true;
 }
 
 export function stopOnFailures() {
   stopOnFailuresMode = true;
+  ignoreFailuresMode = false;
+  globalThis._bunoshIgnoreFailuresMode = false;
+}
+
+export function getIgnoreFailuresMode() {
+  return ignoreFailuresMode;
 }
 
 export function silence() {
@@ -198,9 +206,16 @@ export async function task(name, fn, isSilent = false) {
     runningTasks.delete(taskInfo.id);
 
     // Don't exit during testing
+    const commandArgs = process.argv.slice(2);
     const isTestEnvironment = process.env.NODE_ENV === 'test' ||
                               typeof Bun?.jest !== 'undefined' ||
-                              process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
+                              commandArgs.some(arg => {
+                                const lowerArg = arg.toLowerCase();
+                                return lowerArg.includes('vitest') ||
+                                       lowerArg.includes('jest') ||
+                                       lowerArg === '--test' ||
+                                       lowerArg.startsWith('test:');
+                              });
 
     // Exit immediately if stopOnFailures mode is enabled
     if (stopOnFailuresMode && !isTestEnvironment) {

@@ -4,6 +4,7 @@
 globalThis._bunoshStartTime = Date.now();
 globalThis._bunoshCommandCompleted = false;
 globalThis._bunoshGlobalTasksExecuted = [];
+globalThis._bunoshIgnoreFailuresMode = false;
 globalThis._bunoshGlobalTaskStatus = {
   RUNNING: 'running',
   FAIL: 'fail',
@@ -310,39 +311,60 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// Handle exit for task summary
 process.on('exit', (code) => {
   if (!process.env.BUNOSH_COMMAND_STARTED) return;
-  
-  // Don't print summary if exit was due to stdin closing during an ask operation
-  // This prevents duplicate output when ask commands don't receive all required input
+
   if (globalThis._bunoshInAskOperation && code === 0) {
     return;
   }
-  
-  // Access global values directly
+
   const tasksExecuted = globalThis._bunoshGlobalTasksExecuted || [];
   const TaskStatus = globalThis._bunoshGlobalTaskStatus || { FAIL: 'fail', WARNING: 'warning' };
-  
-  // Calculate total time from when the process started
+
   const totalTime = Date.now() - globalThis._bunoshStartTime || 0;
   const tasksFailed = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.FAIL).length;
   const tasksWarning = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.WARNING).length;
-  
-  // Check if we're in test environment
+
+  const commandArgs = process.argv.slice(2);
   const isTestEnvironment = process.env.NODE_ENV === 'test' ||
                             (typeof Bun !== 'undefined' && typeof Bun?.jest !== 'undefined') ||
-                            process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
-  
-  // Set exit code to 1 if any tasks failed AND we're not in test environment
-  if (tasksFailed > 0 && !isTestEnvironment) {
+                            commandArgs.some(arg => {
+                              const lowerArg = arg.toLowerCase();
+                              return lowerArg.includes('vitest') ||
+                                     lowerArg.includes('jest') ||
+                                     lowerArg === '--test' ||
+                                     lowerArg.startsWith('test:');
+                            });
+
+  const ignoreFailuresMode = globalThis._bunoshIgnoreFailuresMode || false;
+
+  if (process.env.BUNOSH_DEBUG) {
+    console.log('\n[DEBUG] Exit handler:');
+    console.log('  tasksFailed:', tasksFailed);
+    console.log('  isTestEnvironment:', isTestEnvironment);
+    console.log('  ignoreFailuresMode:', ignoreFailuresMode);
+    console.log('  NODE_ENV:', process.env.NODE_ENV);
+    console.log('  commandArgs:', commandArgs);
+    console.log('  full process.argv:', process.argv);
+    if (isTestEnvironment) {
+      const matchingArg = commandArgs.find(arg => {
+        const lowerArg = arg.toLowerCase();
+        return lowerArg.includes('vitest') ||
+               lowerArg.includes('jest') ||
+               lowerArg === '--test' ||
+               lowerArg.startsWith('test:');
+      });
+      console.log('  Matched command arg:', matchingArg);
+    }
+  }
+
+  if (tasksFailed > 0 && !isTestEnvironment && !ignoreFailuresMode) {
     process.exitCode = 1;
   }
-  
-  const finalExitCode = (tasksFailed > 0 && !isTestEnvironment) ? 1 : code;
+
+  const finalExitCode = (tasksFailed > 0 && !isTestEnvironment && !ignoreFailuresMode) ? 1 : code;
   const success = finalExitCode === 0;
 
-  // Debug: Check if this handler has already run
   if (globalThis._bunoshExitHandlerCalled) {
     console.log('\n[DEBUG] Exit handler already called, skipping duplicate');
     return;
