@@ -55,7 +55,7 @@ Functions available via `global.bunosh` or direct imports:
 
 ### Task Control
 - `task(name, fn)` - Wrap function with task tracking and logging
-- `task.try(fn)` or `task.try(name, fn)` - Returns true/false on success/failure
+- `task.try(fn)` or `task.try(name, fn)` - Returns true/false on success/failure (silent by default)
 - `task.stopOnFailures()` - Exit immediately on any task failure
 - `task.ignoreFailures()` - Continue on task failures (default)
 - `task.silence()` - Globally disable task output
@@ -67,8 +67,11 @@ Functions available via `global.bunosh` or direct imports:
 // Basic task
 await task('Build', () => shell`npm run build`);
 
-// Try operation
+// Try operation (silent by default)
 const success = await task.try(() => shell`test -f file.txt`);
+
+// Try operation with verbose output
+const success = await task.try('Check file', () => shell`test -f file.txt`, false);
 
 // Failure control
 task.stopOnFailures();  // Exit on failure
