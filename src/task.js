@@ -135,6 +135,17 @@ export async function tryTask(name, fn, isSilent = true) {
       return await Promise.resolve(fn());
     });
 
+    if (result && result.constructor && result.constructor.name === 'TaskResult') {
+      if (result.hasFailed) {
+        taskInfo.status = TaskStatus.WARNING;
+        taskInfo.duration = Date.now() - taskInfo.startTime;
+        taskInfo.result = { status: TaskStatus.WARNING, output: result.output };
+        if (shouldPrint) printer.warning(name);
+        runningTasks.delete(taskInfo.id);
+        return false;
+      }
+    }
+
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
 
