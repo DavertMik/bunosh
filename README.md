@@ -398,41 +398,6 @@ bunosh --bunoshfile Bunoshfile.dev.js -mcp
 
 </details>
 
-<details>
-
-#### Best Practices for MCP
-
-### Command Design for AI
-
-Design your commands to work well with AI assistants:
-
-* Add comments to all commands
-* Describe use cases for each Command
-* Describe each param using JSDoc style comments
-* Include types when describing parameters
-
-```javascript
-/**
- * Builds the project for specified environment
- * @param {string} environment - Target environment: 'development', 'staging', or 'production'
- * @param {Object} options - Build options
- * @param {boolean} options.verbose - Enable verbose logging
- * @param {boolean} options.analyze - Run bundle analysis after build
- */
-export async function build(environment = 'development', options = {}) {
-  const config = getBuildConfig(environment);
-  if (options.verbose) say(`🔨 Building for ${environment}...`);
-
-  await exec`npm run build:${environment}`;
-
-  if (options.analyze) {
-    await exec`npm run analyze`;
-  }
-
-  say('✅ Build complete!');
-}
-```
-
 ## Tasks
 
 Bunosh provides built-in tasks which are available via `global.bunosh`:
@@ -738,7 +703,7 @@ Gracefully handle operations that might fail:
  * Check service availability
  */
 export async function checkServices() {
-  const dbConnected = await task.try(shell`nc -z localhost 5432`);
+  const dbConnected = await task.try(() => shell`nc -z localhost 5432`);
 
   if (dbConnected) {
     say('✅ Database connected');

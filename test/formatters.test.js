@@ -39,9 +39,22 @@ describe('ConsoleFormatter', () => {
     expect(result).toContain('error line');
   });
 
-  test('formatOutput handles normal lines', () => {
+  test('formatOutput handles normal lines with indentation', () => {
     const result = formatter.formatOutput('normal line', false);
-    expect(result).toBe('normal line');
+    expect(result).toBe('   normal line');
+  });
+
+  test('formatOutput truncates long lines', () => {
+    const longLine = 'a'.repeat(200);
+    const result = formatter.formatOutput(longLine, false);
+    expect(result).toContain('...');
+    expect(result.length).toBeLessThan(longLine.length + 10);
+  });
+
+  test('formatOutput preserves short lines without truncation', () => {
+    const shortLine = 'short line';
+    const result = formatter.formatOutput(shortLine, false);
+    expect(result).toBe('   short line');
   });
 
   test('static detect returns true for non-CI', () => {

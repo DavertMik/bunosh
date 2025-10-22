@@ -194,12 +194,31 @@ jobs:
         echo "NPM version: $VERSION"
       shell: bash
 
-    - name: Verify package.json version
+    - name: Update and commit package.json version
+      if: github.event_name == 'release'
       run: |
         CURRENT_VERSION=$(node -p "require('./package.json').version")
         echo "Current package.json version: $CURRENT_VERSION"
         echo "Expected version: ${{ steps.version.outputs.version }}"
-        
+
+        if [ "$CURRENT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+          echo "Updating package.json version to match release version"
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json
+          git commit -m "chore: Update version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin main
+        fi
+
+    - name: Verify package.json version
+      if: github.event_name != 'release'
+      run: |
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        echo "Current package.json version: $CURRENT_VERSION"
+        echo "Expected version: ${{ steps.version.outputs.version }}"
+
         if [ "$CURRENT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
           echo "Updating package.json version to match release version"
           npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
@@ -243,27 +262,6 @@ jobs:
         echo "✅ **Published successfully to NPM registry**" >> $GITHUB_STEP_SUMMARY
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Commit package.json version update
-      if: github.event_name == 'release'
-      run: |
-        # Configure git
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        
-        # Ensure we're on main branch
-        git fetch origin main
-        git checkout main
-        git pull origin main
-        
-        # Update package.json version
-        CURRENT_VERSION=$(node -p "require('./package.json').version")
-        if [ "$CURRENT_VERSION" != "${{ steps.version.outputs.version }}" ]; then
-          npm version ${{ steps.version.outputs.version }} --no-git-tag-version --allow-same-version
-          git add package.json
-          git commit -m "chore: Update version to ${{ steps.version.outputs.version }} [skip ci]"
-          git push origin main
-        fi
 
   release:
     name: Attach Release Assets

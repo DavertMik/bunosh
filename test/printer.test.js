@@ -46,12 +46,12 @@ describe('Printer', () => {
 
   test('output method prints formatted line', () => {
     spyOn(console, 'log').mockImplementation(mockConsoleLog);
-    
+
     const printer = new Printer('test');
     printer.output('test output');
-    
-    expect(mockConsoleLog).toHaveBeenCalledWith('test output');
-    
+
+    expect(mockConsoleLog).toHaveBeenCalledWith('   test output');
+
     console.log.mockRestore();
   });
 
