@@ -703,7 +703,7 @@ Gracefully handle operations that might fail:
  * Check service availability
  */
 export async function checkServices() {
-  const dbConnected = await task.try(shell`nc -z localhost 5432`);
+  const dbConnected = await task.try(() => shell`nc -z localhost 5432`);
 
   if (dbConnected) {
     say('✅ Database connected');
