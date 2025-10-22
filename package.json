@@ -21,6 +21,7 @@
     "@babel/traverse": "^7.27.4",
     "@modelcontextprotocol/sdk": "^1.19.1",
     "ai": "^5.0.29",
+    "ansi-to-html": "^0.7.2",
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
     "debug": "^4.4.1",

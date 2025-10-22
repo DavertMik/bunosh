@@ -8,6 +8,10 @@ import { yell } from './io.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
 import { upgradeCommand } from './upgrade.js';
+import { BunoshWebServer } from './web-server.js';
+
+// Ensure global.bunosh is available for ask() function
+import '../index.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
@@ -64,6 +68,8 @@ export default async function bunosh(commands, sources) {
   const program = new Command();
   program.option('--bunoshfile <path>', 'Path to the Bunoshfile');
   program.option('--env-file <path>', 'Path to environment file');
+  program.option('-s, --serve', 'Start web server mode');
+  program.option('-S, --serve-port <port>', 'Start web server mode on custom port', '3000');
 
   const internalCommands = [];
 
@@ -596,6 +602,8 @@ ${namespaceCommands}
   ${color.bold('bunosh -e "say(\'Hi\')"')} 🔧 Run inline Bunosh script
   ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
   ${color.bold('bunosh --env-file …')}   🔧 Load custom environment file
+  ${color.bold('bunosh -s')}              🌐 Start web server mode
+  ${color.bold('bunosh -S <port>')}      🌐 Start web server on custom port
 `);
 
   program.addHelpText('after', helpText);
@@ -606,7 +614,43 @@ ${namespaceCommands}
     process.exit(1);
   });
 
-  
+  // Handle web server mode before parsing
+  const hasServeFlag = process.argv.includes('-s') || process.argv.includes('--serve');
+  const servePortIndex = process.argv.findIndex(arg => arg.startsWith('--serve-port=') || arg === '-S');
+
+  if (hasServeFlag || servePortIndex !== -1) {
+    // Extract port from --serve-port=PORT or -S PORT
+    let port = 3000;
+    if (servePortIndex !== -1) {
+      const portArg = process.argv[servePortIndex];
+      if (portArg.startsWith('--serve-port=')) {
+        port = parseInt(portArg.split('=')[1]) || 3000;
+      } else if (portArg === '-S' && process.argv[servePortIndex + 1] && !process.argv[servePortIndex + 1].startsWith('-')) {
+        port = parseInt(process.argv[servePortIndex + 1]) || 3000;
+      }
+    }
+
+    // Start web server
+    const webServer = new BunoshWebServer(port);
+    webServer.setCommands(commands, sources);
+    webServer.start();
+
+    // Keep process alive
+    process.on('SIGINT', () => {
+      console.log('\n🛑 Shutting down web server...');
+      webServer.stop();
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      webServer.stop();
+      process.exit(0);
+    });
+
+    // Don't proceed with normal CLI parsing
+    return;
+  }
+
   // Handle --version option before parsing
   if (process.argv.includes('--version')) {
     let version = '';
