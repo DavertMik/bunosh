@@ -118,7 +118,7 @@ export class TaskInfo {
   }
 }
 
-export async function tryTask(name, fn, isSilent = false) {
+export async function tryTask(name, fn, isSilent = true) {
   if (!fn) {
     fn = name;
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
