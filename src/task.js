@@ -28,15 +28,23 @@ export function ignoreFail(enable = true) {
 }
 
 // Global failure mode control
-// true = stop on failures (exit with code 1), false = continue on failures
 let stopOnFailuresMode = false;
+let ignoreFailuresMode = false;
 
 export function ignoreFailures() {
   stopOnFailuresMode = false;
+  ignoreFailuresMode = true;
+  globalThis._bunoshIgnoreFailuresMode = true;
 }
 
 export function stopOnFailures() {
   stopOnFailuresMode = true;
+  ignoreFailuresMode = false;
+  globalThis._bunoshIgnoreFailuresMode = false;
+}
+
+export function getIgnoreFailuresMode() {
+  return ignoreFailuresMode;
 }
 
 export function silence() {
