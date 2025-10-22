@@ -326,8 +326,11 @@ process.on('exit', (code) => {
   const tasksWarning = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.WARNING).length;
 
   const commandArgs = process.argv.slice(2);
+
+  // Test environment detection
   const isTestEnvironment = process.env.NODE_ENV === 'test' ||
-                            (typeof Bun !== 'undefined' && typeof Bun?.jest !== 'undefined') ||
+                            (typeof jest !== 'undefined' && jest.isRunning) ||
+                            (process.env.VITEST_WORKER_ID !== undefined) ||
                             commandArgs.some(arg => {
                               const lowerArg = arg.toLowerCase();
                               return lowerArg.includes('vitest') ||
@@ -337,26 +340,6 @@ process.on('exit', (code) => {
                             });
 
   const ignoreFailuresMode = globalThis._bunoshIgnoreFailuresMode || false;
-
-  if (process.env.BUNOSH_DEBUG) {
-    console.log('\n[DEBUG] Exit handler:');
-    console.log('  tasksFailed:', tasksFailed);
-    console.log('  isTestEnvironment:', isTestEnvironment);
-    console.log('  ignoreFailuresMode:', ignoreFailuresMode);
-    console.log('  NODE_ENV:', process.env.NODE_ENV);
-    console.log('  commandArgs:', commandArgs);
-    console.log('  full process.argv:', process.argv);
-    if (isTestEnvironment) {
-      const matchingArg = commandArgs.find(arg => {
-        const lowerArg = arg.toLowerCase();
-        return lowerArg.includes('vitest') ||
-               lowerArg.includes('jest') ||
-               lowerArg === '--test' ||
-               lowerArg.startsWith('test:');
-      });
-      console.log('  Matched command arg:', matchingArg);
-    }
-  }
 
   if (tasksFailed > 0 && !isTestEnvironment && !ignoreFailuresMode) {
     process.exitCode = 1;

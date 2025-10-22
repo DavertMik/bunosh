@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import cprint from './font.js';
 
 export function say(...args) {
-  console.log('!', ...args);
+  console.log('○', ...args);
 }
 
 export async function ask(question, defaultValueOrOptions = {}, options = {}) {
