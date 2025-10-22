@@ -325,9 +325,16 @@ process.on('exit', (code) => {
   const tasksFailed = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.FAIL).length;
   const tasksWarning = tasksExecuted.filter(ti => ti.result?.status === TaskStatus.WARNING).length;
 
+  const commandArgs = process.argv.slice(2);
   const isTestEnvironment = process.env.NODE_ENV === 'test' ||
                             (typeof Bun !== 'undefined' && typeof Bun?.jest !== 'undefined') ||
-                            process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
+                            commandArgs.some(arg => {
+                              const lowerArg = arg.toLowerCase();
+                              return lowerArg.includes('vitest') ||
+                                     lowerArg.includes('jest') ||
+                                     lowerArg === '--test' ||
+                                     lowerArg.startsWith('test:');
+                            });
 
   const ignoreFailuresMode = globalThis._bunoshIgnoreFailuresMode || false;
 
@@ -337,10 +344,17 @@ process.on('exit', (code) => {
     console.log('  isTestEnvironment:', isTestEnvironment);
     console.log('  ignoreFailuresMode:', ignoreFailuresMode);
     console.log('  NODE_ENV:', process.env.NODE_ENV);
-    console.log('  process.argv:', process.argv);
+    console.log('  commandArgs:', commandArgs);
+    console.log('  full process.argv:', process.argv);
     if (isTestEnvironment) {
-      const matchingArg = process.argv.find(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
-      console.log('  Matched argv:', matchingArg);
+      const matchingArg = commandArgs.find(arg => {
+        const lowerArg = arg.toLowerCase();
+        return lowerArg.includes('vitest') ||
+               lowerArg.includes('jest') ||
+               lowerArg === '--test' ||
+               lowerArg.startsWith('test:');
+      });
+      console.log('  Matched command arg:', matchingArg);
     }
   }
 

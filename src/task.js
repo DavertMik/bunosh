@@ -206,9 +206,16 @@ export async function task(name, fn, isSilent = false) {
     runningTasks.delete(taskInfo.id);
 
     // Don't exit during testing
+    const commandArgs = process.argv.slice(2);
     const isTestEnvironment = process.env.NODE_ENV === 'test' ||
                               typeof Bun?.jest !== 'undefined' ||
-                              process.argv.some(arg => arg.includes('vitest') || arg.includes('jest') || arg.includes('--test') || arg.includes('test:'));
+                              commandArgs.some(arg => {
+                                const lowerArg = arg.toLowerCase();
+                                return lowerArg.includes('vitest') ||
+                                       lowerArg.includes('jest') ||
+                                       lowerArg === '--test' ||
+                                       lowerArg.startsWith('test:');
+                              });
 
     // Exit immediately if stopOnFailures mode is enabled
     if (stopOnFailuresMode && !isTestEnvironment) {
