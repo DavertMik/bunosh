@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Set up global variables BEFORE any imports
 globalThis._bunoshStartTime = Date.now();
