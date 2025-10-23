@@ -33,7 +33,7 @@ function loadEnvFiles(bunoshfileDir, customEnvFile = null) {
       : path.resolve(bunoshfileDir, customEnvFile);
 
     if (existsSync(customEnvPath)) {
-      config({ path: customEnvPath });
+      config({ path: customEnvPath, quiet: true });
     } else {
       console.warn(`Warning: Specified env file not found: ${customEnvPath}`);
     }
@@ -52,7 +52,7 @@ function loadEnvFiles(bunoshfileDir, customEnvFile = null) {
   envFiles.forEach(envFile => {
     const envPath = path.join(bunoshfileDir, envFile);
     if (existsSync(envPath)) {
-      config({ path: envPath });
+      config({ path: envPath, quiet: true });
     }
   });
 }
