@@ -60,6 +60,7 @@ export async function helloWorld(name = 'person') {
 **🚀 Key Features:**
 - **[Commands](#commands)** - Turn JavaScript functions into CLI commands
 - **[Tasks](#tasks)** - Built-in utilities for shell execution, file operations, and more
+- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
 - **[AI Integration](docs/ai.md)** - Built-in AI support for automation
 - **[MCP Support](docs/mcp.md)** - Expose commands to AI assistants
 
@@ -70,16 +71,27 @@ export async function helloWorld(name = 'person') {
 
 Hint: Provide this link to a coding agent and make it convert scripts into Bunosh! 
 
-## TOC
+## Documentation
 
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Commands](#commands)
-- [Tasks](#tasks)
-- [Input/Output](#inputoutput)
-- [Task Control](#task-control)
-- [JavaScript Execution](#execute-javascript-code)
-- [Examples](#examples)
+### Getting Started
+- [Installation](#installation) - Install Bunosh via executable or package managers
+- [Quickstart](#quickstart) - Initialize your first Bunoshfile
+- [Commands](#commands) - Transform JavaScript functions into CLI commands
+- [Tasks](#tasks) - Built-in utilities for shell execution, file operations, and more
+- [Input/Output](#inputoutput) - User interaction methods (`say`, `ask`, `yell`)
+- [Task Control](#task-control) - Parallel execution, error handling, and flow control
+
+### Advanced Features
+- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
+- **[AI Integration](docs/ai.md)** - Built-in AI support for code generation and automation
+- **[MCP Integration](docs/mcp.md)** - Expose commands to AI assistants (Claude, Cursor, etc.)
+
+### Migration Guides
+- **[Bash Migration Guide](docs/bash-migration-guide.md)** - Convert bash scripts to Bunosh
+- **[Node.js Migration Guide](docs/nodejs-migration-guide.md)** - Migrate from Node.js scripts
+
+### Examples
+- **[Examples](docs/examples.md)** - Comprehensive real-world examples and workflows
 
 ## Installation
 
@@ -622,125 +634,7 @@ export async function checkServices() {
 }
 ```
 
-## 🤖 AI & MCP Integration
 
-Bunosh includes advanced AI features and Model Context Protocol (MCP) support for seamless integration with AI assistants.
-
-### 📚 Documentation
-
-- **[AI Integration](docs/ai.md)** - Built-in AI support for code generation, documentation, and automation
-- **[MCP Integration](docs/mcp.md)** - Expose your Bunosh commands as tools for Claude Desktop, Cursor, and other AI assistants
-
-Quick start with MCP:
-```bash
-bunosh -mcp  # Start MCP server
-```
-
-
-## Execute JavaScript Code
-
-Bunosh supports executing JavaScript code directly using the `-e` flag, allowing for powerful one-liners and integration with shell scripts and CI/CD systems.
-
-### Basic Usage
-
-```bash
-# Execute inline JavaScript
-bunosh -e "say('Hello')"
-
-# Execute JavaScript from stdin
-echo "say('Hello')" | bunosh -e
-```
-
-### Heredoc Syntax
-
-For multi-line scripts, use heredoc syntax for clean, readable code:
-
-```bash
-bunosh -e << 'EOF'
-say('🚀 Starting build process...')
-await task('Install Dependencies', () => shell`npm ci`)
-await task('Build', () => shell`npm run build`)
-await task('Test', () => shell`npm test`)
-say('✅ All tasks completed successfully!')
-EOF
-```
-
-### With Environment Variables and Control Flow
-
-```bash
-# Complex script with conditions
-bunosh -e << 'EOF'
-const env = process.env.NODE_ENV || 'development'
-say(`Building for ${env}...`)
-
-if (env === 'production') {
-  await shell`npm run build:prod`
-  await task('Deploy', () => shell`./deploy.sh`)
-} else {
-  await shell`npm run build:dev`
-}
-
-yell('BUILD COMPLETE!')
-EOF
-```
-
-### Error Handling
-
-```bash
-# Script with error handling
-bunosh -e << 'EOF'
-task.stopOnFailures()
-
-try {
-  await shell`npm test`
-  await shell`npm run build`
-  say('✅ Success!')
-} catch (error) {
-  yell(`❌ Build failed: ${error.message}`)
-  process.exit(1)
-}
-EOF
-```
-
-### JavaScript Execution in GitHub Actions
-
-Use JavaScript execution to run Bunosh scripts inside CI/CD workflows without creating separate files:
-
-```yaml
-- name: Build and Deploy
-  run: |
-    bunosh -e << 'EOF'
-    say('🚀 Starting deployment...')
-
-    if (!process.env.NODE_ENV === 'production') return;
-
-    shell`./deploy.sh`
-
-    const response = await fetch('${{ secrets.DEPLOY_WEBHOOK }}', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ${{ secrets.API_TOKEN }}' }
-    })
-
-    if (response.ok) {
-      yell('🚀 DEPLOYMENT COMPLETE!')
-    } else {
-      yell('❌ DEPLOYMENT FAILED!')
-      process.exit(1)
-    }
-    EOF
-  env:
-    NODE_ENV: production
-```
-
-### Shell Integration
-
-```bash
-bunosh -e << 'EOF'
-say('Running database migrations...')
-await shell`npm run migrate`
-say('Migrations completed')
-EOF
-```
 
 
 ## Examples
@@ -757,7 +651,8 @@ This includes:
 
 ### Additional Resources
 
-- **[AI Examples](docs/ai.md)** - AI-powered automation examples
+- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
+- **[AI Integration](docs/ai.md)** - AI-powered automation examples
 - **[MCP Setup](docs/mcp.md)** - Configure AI assistants with your Bunosh commands
 
 ## License
