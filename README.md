@@ -57,6 +57,12 @@ export async function helloWorld(name = 'person') {
 | **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
 | **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
 
+**🚀 Key Features:**
+- **[Commands](#commands)** - Turn JavaScript functions into CLI commands
+- **[Tasks](#tasks)** - Built-in utilities for shell execution, file operations, and more
+- **[AI Integration](docs/ai.md)** - Built-in AI support for automation
+- **[MCP Support](docs/mcp.md)** - Expose commands to AI assistants
+
 ** Migrate to Bunosh**
 
 - [Migrating from Bash Scripts](docs/bash-migration-guide.md)
@@ -67,14 +73,12 @@ Hint: Provide this link to a coding agent and make it convert scripts into Bunos
 ## TOC
 
 - [Installation](#installation)
-- [MCP Integration](#mcp-integration)
 - [Quickstart](#quickstart)
 - [Commands](#commands)
 - [Tasks](#tasks)
 - [Input/Output](#inputoutput)
 - [Task Control](#task-control)
-- [AI Integration](#ai-integration)
-- [MCP](#mcp)
+- [JavaScript Execution](#execute-javascript-code)
 - [Examples](#examples)
 
 ## Installation
@@ -295,108 +299,6 @@ bunosh api:deploy
 bunosh api:test
 ```
 
-## MCP
-
-Bunosh supports the **Model Context Protocol (MCP)**, allowing you to expose your Bunoshfile commands as tools for AI assistants like Claude Desktop, Cursor, and other MCP-compatible applications.
-
-### Quick Start
-
-1. **Start MCP server** in your project directory:
-```bash
-# Uses Bunoshfile.js from current directory
-bunosh -mcp
-
-# Or with custom Bunoshfile
-bunosh --bunoshfile Bunoshfile.dev.js -mcp
-```
-
-2. **Configure your AI assistant** to use Bunosh as an MCP server (see instructions below).
-
-<details>
-<summary>Claude Desktop Setup</summary>
-
-1. **Edit Claude Desktop configuration** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "bunosh": {
-      "command": "bunosh",
-      "args": ["-mcp"],
-      "cwd": "/path/to/your/project"
-    }
-  }
-}
-```
-
-2. **Restart Claude Desktop** - your Bunosh commands will now be available as tools.
-
-3. **Use your commands** in Claude:
-   - "Build my project with bunosh"
-   - "Run tests using bunosh"
-   - "Deploy to staging with bunosh"
-
-**Multiple Projects:**
-```json
-{
-  "mcpServers": {
-    "my-app": {
-      "command": "bunosh",
-      "args": ["-mcp"],
-      "cwd": "/path/to/my-app"
-    },
-    "my-api": {
-      "command": "bunosh",
-      "args": ["-mcp"],
-      "cwd": "/path/to/my-api"
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Cursor Setup</summary>
-
-1. **Open Cursor settings** (`Cmd/Ctrl + ,`)
-
-2. **Navigate to** `Extensions` → `MCP Servers`
-
-3. **Add new MCP server:**
-   - **Name**: `bunosh`
-   - **Command**: `bunosh`
-   - **Arguments**: `-mcp`
-   - **Working Directory**: `/path/to/your/project`
-
-4. **Save and restart** Cursor
-
-5. **Your Bunosh commands** will now appear in the AI chat sidebar as available tools.
-
-</details>
-
-<details>
-<summary>Cline Setup (VS Code Extension)</summary>
-
-1. **Install Cline** extension from VS Code marketplace
-
-2. **Open Cline settings** (click the gear icon in Cline panel)
-
-3. **Add MCP server** under "MCP Servers" section:
-   ```json
-   {
-     "name": "bunosh",
-     "command": "bunosh",
-     "args": ["-mcp"],
-     "cwd": "/path/to/your/project"
-   }
-   ```
-
-4. **Save and reload** the VS Code window
-
-5. **Your commands** will be available in Cline's tool selection
-
-</details>
 
 ## Tasks
 
@@ -720,70 +622,19 @@ export async function checkServices() {
 }
 ```
 
-## 💫 AI Integration
+## 🤖 AI & MCP Integration
 
-Built-in AI support for code generation, documentation, and automation.
-Automatically responds to structured JSON output.
+Bunosh includes advanced AI features and Model Context Protocol (MCP) support for seamless integration with AI assistants.
 
-AI provider automatically detected, but you need to provide API key and model name.
-Use `.env` file with `AI_MODEL` and `OPENAI_API_KEY` variables.
-In case you use provider other than OpenAI, Anthropic, Groq, you may need to configure it manually in top of Bunoshfile
+### 📚 Documentation
 
+- **[AI Integration](docs/ai.md)** - Built-in AI support for code generation, documentation, and automation
+- **[MCP Integration](docs/mcp.md)** - Expose your Bunosh commands as tools for Claude Desktop, Cursor, and other AI assistants
+
+Quick start with MCP:
 ```bash
-# Choose your AI model
-export AI_MODEL=gpt-5  # or claude-4-sonnet, llama-3.3-70b, etc.
-
-# Set API key for your provider
-export OPENAI_API_KEY=your_key_here      # For OpenAI
-# export ANTHROPIC_API_KEY=your_key_here  # For Claude
-# export GROQ_API_KEY=your_key_here       # For Groq
+bunosh -mcp  # Start MCP server
 ```
-
-
-Use the `ai` function to interact with the AI.
-
-```js
-const resp = await ai(message, { field1: 'what should be there', field2: 'what should be there' })
-```
-
-### Usage
-
-```javascript
-const { ai, writeToFile } = global.bunosh;
-
-/**
- * Generate commit message from staged changes
- */
-export async function commit() {
-  const diff = await exec`git diff --staged`;
-
-  if (!diff.output.trim()) {
-    say('No staged changes');
-    return;
-  }
-
-  const response = await ai(
-    `Generate a conventional commit message for: ${diff.output}`,
-    {
-      type: 'Commit type (feat/fix/docs/chore)',
-      scope: 'Commit scope (optional)',
-      subject: 'Brief subject line (50 chars max)',
-      body: 'Detailed explanation'
-    }
-  );
-
-  const commit = await response.json();
-
-  const message = commit.scope
-    ? `${commit.type}(${commit.scope}): ${commit.subject}\n\n${commit.body}`
-    : `${commit.type}: ${commit.subject}\n\n${commit.body}`;
-
-  await exec`git commit -m "${message}"`;
-  say('✅ AI-generated commit created');
-}
-```
-
-See more ai usage examples in [docs/examples.md](docs/examples.md)
 
 
 ## Execute JavaScript Code
@@ -903,6 +754,11 @@ This includes:
 - Kubernetes deployment and rollback
 - AWS infrastructure management
 - And more practical examples
+
+### Additional Resources
+
+- **[AI Examples](docs/ai.md)** - AI-powered automation examples
+- **[MCP Setup](docs/mcp.md)** - Configure AI assistants with your Bunosh commands
 
 ## License
 
