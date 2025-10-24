@@ -57,19 +57,7 @@ export async function helloWorld(name = 'person') {
 | **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
 | **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
 
-**🚀 Key Features:**
-- **[Commands](#commands)** - Turn JavaScript functions into CLI commands
-- **[Tasks](#tasks)** - Built-in utilities for shell execution, file operations, and more
-- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
-- **[AI Integration](docs/ai.md)** - Built-in AI support for automation
-- **[MCP Support](docs/mcp.md)** - Expose commands to AI assistants
-
-** Migrate to Bunosh**
-
-- [Migrating from Bash Scripts](docs/bash-migration-guide.md)
-- [Migrating from Node.js Scripts](docs/nodejs-migration-guide.md)
-
-Hint: Provide this link to a coding agent and make it convert scripts into Bunosh! 
+**💡 Hint**: Provide this link to a coding agent and make it convert scripts into Bunosh! 
 
 ## Documentation
 
