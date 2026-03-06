@@ -1,91 +1,33 @@
-# 🍲 Bunosh
+# Bunosh
 
 <p align="center">
   <img src="assets/logo.png" alt="Logo" width="150">
 </p>
 
 <p align="center">
-  <strong>Your exceptional task runner</strong>
+  A task runner for JavaScript. Transform functions into CLI commands.
 </p>
-
-<p align="center">
-  Transform JavaScript functions into CLI commands.
-</p>
-
----
-
-## What is Bunosh?
-
-Bunosh is a modern task runner that turns your JavaScript functions into CLI commands instantly. No configuration, no boilerplate - just write functions and run them from the terminal.
 
 > *Named after **banosh**, a traditional Ukrainian dish from cornmeal cooked with various ingredients*
 
+---
 
-## Hello World
-
-No nore words, just code:
+## Quick Example
 
 ```js
-// this is a command in Bunoshfile.js
-// bunosh hello:world
-
-export async function helloWorld(name = 'person') {
-  name = await ask("What's your name?", name);
-  say(`👋 Hello, ${name}!`);
-  const city = await ask('Which city do you live in?')
-  const result = await fetch(`https://wttr.in/${city}?format=3`)
-  say(`Weather in your city ${result.output}`)
-
-  const toCleanup = await ask('Do you want me to cleanup tmp for you?', true);
-
-  if (!toCleanup) {
-    say('Bye, then!');
-    return;
-  }
-
-  await shell`rm -rf ${require('os').tmpdir()}/*`;
-  say('🧹 Cleaned up! Have a great day!');
+// Bunoshfile.js — run with: bunosh deploy
+export async function deploy(env = 'production') {
+  await exec`npm run build`.env({ NODE_ENV: env });
+  await exec`rsync -az dist/ server:/var/www/`;
+  say(`Deployed to ${env}`);
 }
-````
-
-## Why Choose Bunosh?
-
-| Comparison | 🐚 Bash Scripts | 📦 npm scripts | 🛠️ Task Runners | 🍲 **Bunosh** |
-|------------|-----------------|----------------|------------------------------|----------------|
-| **Syntax** | bash/zsh  | Simple commands | Custom DSL | ✅ JavaScript |
-| **Cross-platform** | No | Yes | Yes | ✅ Yes |
-| **Ecosystem** | CLI tools | npm packages | Plugin dependent | ✅ Bash + npm |
-| **Composability** | Commands | Separate scripts | Task dependencies | ✅ Import any JS code |
-
-**💡 Hint**: Provide this link to a coding agent and make it convert scripts into Bunosh! 
-
-## Documentation
-
-### Getting Started
-- [Installation](#installation) - Install Bunosh via executable or package managers
-- [Quickstart](#quickstart) - Initialize your first Bunoshfile
-- [Commands](#commands) - Transform JavaScript functions into CLI commands
-- [Tasks](#tasks) - Built-in utilities for shell execution, file operations, and more
-- [Input/Output](#inputoutput) - User interaction methods (`say`, `ask`, `yell`)
-- [Task Control](#task-control) - Parallel execution, error handling, and flow control
-
-### Advanced Features
-- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
-- **[AI Integration](docs/ai.md)** - Built-in AI support for code generation and automation
-- **[MCP Integration](docs/mcp.md)** - Expose commands to AI assistants (Claude, Cursor, etc.)
-
-### Migration Guides
-- **[Bash Migration Guide](docs/bash-migration-guide.md)** - Convert bash scripts to Bunosh
-- **[Node.js Migration Guide](docs/nodejs-migration-guide.md)** - Migrate from Node.js scripts
-
-### Examples
-- **[Examples](docs/examples.md)** - Comprehensive real-world examples and workflows
+```
 
 ## Installation
 
-### Option 1: Single Executable (Recommended)
+### Single Executable (Recommended)
 
-Download the standalone executable - no Node.js or Bun required:
+Download the standalone executable — no Node.js or Bun required:
 
 **macOS:**
 ```bash
@@ -106,7 +48,7 @@ Expand-Archive -Path "bunosh.zip" -DestinationPath .
 Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
 ```
 
-### Option 2: Package Managers
+### Package Managers
 
 ```bash
 # Using Bun
@@ -123,7 +65,7 @@ npm install -g bunosh
 bunosh init
 ```
 
-2. **Write your first command:**
+2. **Write a command:**
 ```javascript
 // Bunoshfile.js
 const { exec, say } = global.bunosh;
@@ -132,10 +74,15 @@ const { exec, say } = global.bunosh;
  * Builds the project for production
  */
 export async function build(env = 'production') {
-  say(`🔨 Building for ${env}...`);
   await exec`npm run build`.env({ NODE_ENV: env });
-  say('✅ Build complete!');
+  say('Build complete');
 }
+```
+
+3. **Run it:**
+```bash
+bunosh build
+bunosh build staging
 ```
 
 ## Commands
@@ -143,52 +90,35 @@ export async function build(env = 'production') {
 By default, Bunosh loads commands from `Bunoshfile.js` in the current directory.
 
 ```
-# reads Bunoshfile form cwd and runs hello()
 bunosh hello
 ```
 
-You can specify custom configuration file using CLI option:
+You can specify a custom file using `--bunoshfile` or the `BUNOSHFILE` environment variable:
 
 ```bash
-# Load commands from a different file
 bunosh --bunoshfile Bunoshfile.dev.js hello
-```
-
-or via environment variable:
-
-```bash
-# Set default bunoshfile for session
-export BUNOSHFILE=Bunoshfile.dev.js
-bunosh hello  # Uses Bunoshfile.dev.js
-
-# One-time usage
 BUNOSHFILE=Bunoshfile.prod.js bunosh deploy
 ```
-
 
 ### Creating Commands
 
 Every exported function in `Bunoshfile.js` becomes a CLI command:
 
 ```javascript
-// Simple command
 export function hello() {
   console.log('Hello, World!');
 }
 
-// Command with parameters
 export function greet(name = 'friend') {
   console.log(`Hello, ${name}!`);
 }
 
-// Command with options
 export function deploy(env = 'staging', options = { force: false, verbose: false }) {
   if (options.verbose) console.log('Verbose mode enabled');
   console.log(`Deploying to ${env}${options.force ? ' (forced)' : ''}`);
 }
 ```
 
-**CLI Usage:**
 ```bash
 bunosh hello
 bunosh greet John
@@ -197,7 +127,7 @@ bunosh deploy production --force --verbose
 
 ### Arguments and Options
 
-Bunosh automatically maps function parameters to CLI arguments:
+Bunosh maps function parameters to CLI arguments automatically:
 
 ```javascript
 /**
@@ -216,7 +146,6 @@ export async function feature(name, base = 'main', options = { push: false }) {
 }
 ```
 
-**Generated CLI:**
 ```bash
 bunosh feature my-feature           # Creates from main
 bunosh feature my-feature develop   # Creates from develop
@@ -234,109 +163,56 @@ Functions are automatically converted to kebab-case commands:
 | `npmInstall` | `bunosh npm:install` |
 | `buildAndDeploy` | `bunosh build:and-deploy` |
 
-
-
-
 ### Project Namespaces
 
-Organize your project tasks by creating multiple Bunoshfiles with namespaces. This helps keep large projects organized and separates concerns.
+Organize tasks by creating multiple Bunoshfiles. Files named `Bunoshfile.<namespace>.js` register commands under that namespace:
 
-**Create namespace files:**
 ```bash
-# Main tasks (no namespace)
-Bunoshfile.js
-
-# Development tasks
-Bunoshfile.dev.js
-
-# API tasks
-Bunoshfile.api.js
-
-# Database tasks
-Bunoshfile.db.js
+Bunoshfile.js        # bunosh build, bunosh test
+Bunoshfile.dev.js    # bunosh dev:start, bunosh dev:debug
+Bunoshfile.api.js    # bunosh api:deploy, bunosh api:test
 ```
 
-**Example structure:**
-```javascript
-// Bunoshfile.js - Core project tasks
-export function build() {
-  console.log('Building project...');
-}
+## Comparison
 
-export function test() {
-  console.log('Running tests...');
-}
-
-// Bunoshfile.dev.js - Development tasks
-export function start() {
-  console.log('Starting dev server...');
-}
-
-export function debug() {
-  console.log('Debugging...');
-}
-
-// Bunoshfile.api.js - API specific tasks
-export function deploy() {
-  console.log('Deploying API...');
-}
-
-export function test() {
-  console.log('Running API tests...');
-}
-```
-
-**Usage:**
-```bash
-# Core tasks (no namespace)
-bunosh build
-bunosh test
-
-# Namespaced tasks
-bunosh dev:start
-bunosh dev:debug
-bunosh api:deploy
-bunosh api:test
-```
-
+| | Bash Scripts | npm scripts | Task Runners | **Bunosh** |
+|--|--|--|--|--|
+| **Syntax** | bash/zsh | Simple commands | Custom DSL | JavaScript |
+| **Cross-platform** | No | Yes | Yes | Yes |
+| **Ecosystem** | CLI tools | npm packages | Plugin dependent | Bash + npm |
+| **Composability** | Commands | Separate scripts | Task dependencies | Import any JS code |
 
 ## Tasks
 
-Bunosh provides built-in tasks which are available via `global.bunosh`:
+Built-in tasks are available via `global.bunosh`:
 
 ```javascript
 const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
 ```
 
-> We use global variables instead of imports to ensure you can use it with bunosh single-executable on any platform.
-
+> Global variables are used instead of imports so bunosh works with the single-executable on any platform.
 
 * Async tasks: `exec`, `shell`, `fetch`
 * Sync tasks: `writeToFile`, `copyFile`
 * Task wrapper: `task`
 
-Each executed task returns `TaskResult` object which can be analyzed and used in next steps:
+Each task returns a `TaskResult` object:
 
 ```js
 const result = await shell`echo "Hello"`;
-console.log(result.status);    // 'success', 'fail', or 'warning'
-console.log(result.output);    // Command output or result data
-console.log(result.hasFailed); // true if status is 'fail'
+console.log(result.status);       // 'success', 'fail', or 'warning'
+console.log(result.output);       // Command output
+console.log(result.hasFailed);    // true if status is 'fail'
 console.log(result.hasSucceeded); // true if status is 'success'
-console.log(result.hasWarning); // true if status is 'warning'
 
-// Get structured JSON data from any task (async method)
-const json = await result.json();
+const json = await result.json(); // Structured data
 ```
 
-Now let's look into other tasks:
+### `task`
 
-#### `task`
-
-General method that transforms a function into a task. Adds it to tasks registry and prints task information:
+Wraps a function into a named task with tracking and output:
 
 ```js
-// register operation as a task
 const result = task('Fetch Readme file', () => {
   const content = fs.readFileSync('README.md', 'utf8');
   console.log(content);
@@ -344,17 +220,15 @@ const result = task('Fetch Readme file', () => {
 });
 ```
 
-If a another task is executed inside a task function, its description will be appended to all child tasks.
+If another task runs inside a task function, its description is appended to child tasks.
 
-#### `exec`
+### `exec`
 
-Run single command using [child process `spawn`](https://nodejs.org/api/child_process.html#child_processspawncommand-args-options)
+Runs a command using [child process `spawn`](https://nodejs.org/api/child_process.html#child_processspawncommand-args-options):
 
 ```javascript
-// Complex commands with pipes and streaming output
 await exec`npm install --verbose`;
 await exec`docker build . | tee build.log`;
-await exec`find . -name "*.js" | grep -v node_modules | wc -l`;
 
 // With environment variables
 await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
@@ -362,75 +236,58 @@ await exec`echo $NODE_ENV`.env({ NODE_ENV: 'production' });
 // In specific directory
 await exec`npm install`.cwd('/tmp/project');
 
-// Get structured output with stdout, stderr, exit code and lines
+// Structured output
 const result = await exec`git status --porcelain`;
 const data = await result.json();
 // Returns: { stdout: "...", stderr: "...", exitCode: 0, lines: [...] }
 ```
 
-By default task prints live line-by-line output from stdout and stderr. To disable output, use `silent` method:
+By default tasks print live output from stdout and stderr. To disable, use `silent`:
 
 ```javascript
-
-// disable printing output
 await task.silent(() => exec`npm install`);
 
-// disable output for all commands
-await task.silence();
+// Or disable for all commands
+task.silence();
 ```
 
-See more [#silent](#silent)
+### `shell`
 
-#### `shell` - Fast Native Execution
-
-Optimized for simple, fast commands when running under Bun:
+Optimized for simple commands when running under Bun:
 
 ```javascript
-// Simple, fast commands
 await shell`pwd`;
 await shell`ls -la`;
 await shell`cat package.json`;
 
-// Get structured output with stdout, stderr, exit code and lines
 const result = await shell`ls -la`;
 const data = await result.json();
-// Returns: { stdout: "...", stderr: "...", exitCode: 0, lines: [...] }
 ```
 
-For more details see [bun shell](https://bun.sh/docs/runtime/shell) reference
+For details see the [Bun shell](https://bun.sh/docs/runtime/shell) reference.
 
-`shell` vs `exec`
+**`shell` vs `exec`:**
 
-| Command | Best For | Use Cases | Implementation | Compatibility |
-|---------|----------|-----------|----------------|---------------|
-| `exec` | Single command execution | single command | spawn process | NodeJS + Bun but platform dependent |
-| `shell` | Multiple cross-platform shell commands | exec + `pwd`, `ls`, `echo`, `cat`, basic file ops | bun shell | Bun only but Cross-platform |
+| Command | Best For | Implementation | Compatibility |
+|---------|----------|----------------|---------------|
+| `exec` | Single command execution | spawn process | Node.js + Bun, platform dependent |
+| `shell` | Cross-platform shell commands | Bun shell | Bun only, cross-platform |
 
-shell prints output from stdout and stderr. To disable output, [make tasks silent](#silent):
+### `fetch`
 
-###$ `fetch`
-
-`fetch` task wraps fetch:
+Wraps the fetch API as a task:
 
 ```javascript
-/**
- * Check service health
- */
 export async function healthCheck(url) {
   const response = await fetch(url);
 
   if (response.ok) {
     const data = await response.json();
-    say(`✅ Service healthy: ${data.status}`);
+    say(`Service healthy: ${data.status}`);
   } else {
-    yell(`❌ Service down: ${response.status}`);
+    yell(`Service down: ${response.status}`);
   }
 }
-
-// Get JSON response data directly
-const apiResponse = await fetch('https://api.example.com/data');
-const jsonData = await apiResponse.json();
-// Calls response.json() method internally
 ```
 
 ### File Operations
@@ -438,9 +295,6 @@ const jsonData = await apiResponse.json();
 Template-based file writing and copying:
 
 ```javascript
-/**
- * Generate configuration file
- */
 export function generatePage(name, description = '') {
   writeToFile('index.mdx', (line) => {
     line`name": "${name}",`;
@@ -450,103 +304,62 @@ export function generatePage(name, description = '') {
     line`---`;
   });
 
-  say('📝 Page created');
+  copyFile('template.env', '.env');
 }
-
-// Copy files
-copyFile('template.env', '.env');
 ```
-
 
 ## Input/Output
 
-### `say` - Normal Output
+### `say`
 
-Standard output with visual indicator:
+Standard output:
 
 ```javascript
 say('Building project...');
-say('📦 Dependencies installed');
 say(`Found ${count} files to process`);
 ```
 
-### `ask` - User Input
+### `ask`
 
-Flexible user input with smart parameter detection:
+User input with smart parameter detection:
 
 ```javascript
-// Text input with default
 const name = await ask('Project name:', 'my-app');
-
-// Boolean confirmation (auto-detects)
 const proceed = await ask('Continue?', true);
-
-// Single selection (auto-detects from array)
 const env = await ask('Select environment:', ['dev', 'staging', 'prod']);
-
-// Multiple selection
-const features = await ask('Select features:',
-  ['TypeScript', 'ESLint', 'Tests'],
-  { multiple: true }
-);
-
-// Password input
+const features = await ask('Select features:', ['TypeScript', 'ESLint', 'Tests'], { multiple: true });
 const password = await ask('Enter password:', { type: 'password' });
-
-// Multiline editor input
 const description = await ask('Enter description:', { editor: true });
 ```
 
-| Parameter/Option | Type | Description | Example |
-|------------------|------|-------------|---------|
-| **Smart Detection** | | |
-| `defaultValue` | String/Number | Sets default value for text/number input | `'John'`, `3000` |
-| `defaultValue` | Boolean | Auto-detects as confirmation prompt | `true`, `false` |
-| `choices` | Array | Auto-detects as selection list | `['A', 'B', 'C']` |
-| **Options Object** | | |
-| `multiple` | Boolean | Enables multiple selections (requires `choices`) | `true` |
-| `multiline` | Boolean | Opens system editor for multi-line input | `true` |
-| `editor` | Boolean | Opens system editor for multi-line input (same as `multiline`) | `true` |
-| `default` | Any | Default value or content (when using options object) | `'default value'` |
-| `type` | String | Input type: `'input'`, `'confirm'`, `'password'`, `'number'` | `'password'` |
-| `validate` | Function | Custom validation function | `(input) => input.length > 0` |
-
-
 ### `yell`
-
-Emphasized Output
 
 ASCII art output for important messages:
 
 ```javascript
 yell('BUILD COMPLETE!');
-yell('DEPLOYMENT SUCCESSFUL!');
 ```
 
 ### `silent`
 
-Stop printing realtime output
+Disable realtime output:
 
 ```javascript
-// Silence all task output
-task.silence();
+task.silence();           // Silence all task output
 await shell`npm build`;
+task.prints();            // Restore output
 
-// restore printing output
-task.prints();
-
-// Silent specific task
+// Silence a specific task
 const labels = await task.silent(() => shell(`gh api repos/:org/:repo/labels`));
 ```
 
 ## Task Control
 
-### Parallel Executions
+### Parallel Execution
 
-No magic here. Use `Promise.all()` to run tasks in parallel:
+Use `Promise.all()` to run tasks in parallel:
 
 ```javascript
-// Parallel tasks
 const results = await Promise.all([
   exec`npm run build:frontend`,
   exec`npm run build:backend`,
@@ -556,61 +369,49 @@ const results = await Promise.all([
 
 ### Custom Tasks
 
-Name and group your tasks operations:
+Name and group operations:
 
 ```js
-await task('Build', () => {
-  await exec`npm run build:frontend`);
-  await exec`npm run build:docs`);
+await task('Build', async () => {
+  await exec`npm run build:frontend`;
+  await exec`npm run build:docs`;
 });
-````
+```
 
 ### Stop on Failure
 
-By default bunosh executes all tasks event if they fail. To stop execution immediately on failure, use the `task.stopOnFailures()` method.
-
+By default bunosh continues execution when tasks fail. To stop immediately on failure:
 
 ```javascript
-/**
- * Strict deployment - stop on any failure
- */
 export async function deployStrict() {
-  task.stopOnFailures();  // Exit immediately on any task failure
+  task.stopOnFailures();
 
   await exec`npm test`;
   await exec`npm run build`;
   await exec`deploy-script`;
-  // If any task fails, script exits immediately
 }
 
-/**
- * Cleanup - continue despite failures
- */
 export async function cleanup() {
-  task.ignoreFailures();  // Continue even if tasks fail
+  task.ignoreFailures();
 
   await task('Remove temp files', () => shell`rm -rf tmp/*`);
   await task('Clear logs', () => shell`rm -f logs/*.log`);
   await task('Reset cache', () => shell`rm -rf .cache`);
-  // All tasks run regardless of failures
 }
 ```
 
 ### Try Operations
 
-Gracefully handle operations that might fail:
+Handle operations that might fail:
 
 ```javascript
-/**
- * Check service availability
- */
 export async function checkServices() {
   const dbConnected = await task.try(() => shell`nc -z localhost 5432`);
 
   if (dbConnected) {
-    say('✅ Database connected');
+    say('Database connected');
   } else {
-    say('⚠️ Database unavailable, using fallback');
+    say('Database unavailable, using fallback');
     await useFallbackDatabase();
   }
 
@@ -622,26 +423,14 @@ export async function checkServices() {
 }
 ```
 
+## Documentation
 
-
-
-## Examples
-
-For comprehensive examples of Bunosh in action, see [docs/examples.md](docs/examples.md).
-
-This includes:
-- Feature branch workflow with git worktrees
-- AI-powered release note generation
-- Container building and publishing
-- Kubernetes deployment and rollback
-- AWS infrastructure management
-- And more practical examples
-
-### Additional Resources
-
-- **[JavaScript Execution](docs/javascript-execution.md)** - Execute JavaScript directly via CLI
-- **[AI Integration](docs/ai.md)** - AI-powered automation examples
-- **[MCP Setup](docs/mcp.md)** - Configure AI assistants with your Bunosh commands
+- **[Examples](docs/examples.md)** — Real-world examples and workflows
+- **[AI Integration](docs/ai.md)** — Built-in AI support
+- **[MCP Integration](docs/mcp.md)** — Expose commands to AI assistants (Claude, Cursor, etc.)
+- **[JavaScript Execution](docs/javascript-execution.md)** — Execute JavaScript directly via CLI
+- **[Bash Migration Guide](docs/bash-migration-guide.md)** — Convert bash scripts to Bunosh
+- **[Node.js Migration Guide](docs/nodejs-migration-guide.md)** — Migrate from Node.js scripts
 
 ## License
 
@@ -649,4 +438,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-Cooked with ❤️ from Ukraine 🇺🇦
+Made in Ukraine

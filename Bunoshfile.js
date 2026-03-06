@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 import { exec, shell, fetch, ai, task, ignoreFail, ask, say, yell, writeToFile } from "./index.js";
 
+export async function errorCommand() {
+  const data = undefined;
+  await exec`echo ${data.id}`;
+}
+
 
 /**
  * Builds binary file for Bunosh
