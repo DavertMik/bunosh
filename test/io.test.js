@@ -7,7 +7,7 @@ describe('IO Functions', () => {
     
     say('test message');
     
-    expect(mockConsoleLog).toHaveBeenCalledWith('!', 'test message');
+    expect(mockConsoleLog).toHaveBeenCalledWith('○', 'test message');
     
     mockConsoleLog.mockRestore();
   });
@@ -17,7 +17,7 @@ describe('IO Functions', () => {
     
     say('arg1', 'arg2', 'arg3');
     
-    expect(mockConsoleLog).toHaveBeenCalledWith('!', 'arg1', 'arg2', 'arg3');
+    expect(mockConsoleLog).toHaveBeenCalledWith('○', 'arg1', 'arg2', 'arg3');
     
     mockConsoleLog.mockRestore();
   });
