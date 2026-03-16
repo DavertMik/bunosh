@@ -265,12 +265,15 @@ export default async function bunosh(commands, sources) {
         }
       });
 
-      const optionsObj = commanderArgs[commanderArgs.length - 1];
+      const lastArg = commanderArgs[commanderArgs.length - 1];
+      const optionsObj = (lastArg && typeof lastArg.opts === 'function') ? lastArg.opts() : lastArg;
       if (optionsObj && typeof optionsObj === 'object') {
         Object.keys(opts).forEach((optName) => {
-          const dasherizedOpt = optName.replace(/([A-Z])/g, '-$1').toLowerCase();
-          if (optionsObj[dasherizedOpt] !== undefined) {
-            transformedArgs.push(optionsObj[dasherizedOpt]);
+          const camelName = optName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          if (optionsObj[camelName] !== undefined) {
+            transformedArgs.push(optionsObj[camelName]);
+          } else if (optionsObj[optName] !== undefined) {
+            transformedArgs.push(optionsObj[optName]);
           } else {
             transformedArgs.push(opts[optName]);
           }
