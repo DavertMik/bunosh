@@ -246,8 +246,13 @@ export async function task(name, fn, isSilent = false) {
   }
 }
 
-// Add try method to task function
+// Add methods to task function
 task.try = tryTask;
+task.stopOnFailures = stopOnFailures;
+task.ignoreFailures = ignoreFailures;
+task.silence = silence;
+task.prints = prints;
+task.silent = silent;
 
 
 export class SilentTaskWrapper {
