@@ -1,8 +1,25 @@
 {
   "name": "bunosh",
   "version": "0.5.4",
+  "description": "Task runner that turns JavaScript functions into CLI commands. Runs on Bun and Node.js.",
   "type": "module",
   "module": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davertmik/bunosh.git"
+  },
+  "homepage": "https://github.com/davertmik/bunosh#readme",
+  "bugs": {
+    "url": "https://github.com/davertmik/bunosh/issues"
+  },
+  "author": "davert",
+  "keywords": [
+    "task-runner",
+    "cli",
+    "bun",
+    "automation",
+    "scripts"
+  ],
   "bin": {
     "bunosh": "./bunosh.js"
   },
