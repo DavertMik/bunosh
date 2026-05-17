@@ -23,6 +23,7 @@ export default async function httpFetch() {
 
   try {
     const response = await fetch(...arguments);
+    const responseForBody = response.clone(); // Clone before streaming consumes the body
     const textDecoder = new TextDecoder();
     let output = '';
 
@@ -40,7 +41,7 @@ export default async function httpFetch() {
 
     const metadata = {
       taskType: 'fetch',
-      response: response.clone(), // Clone to allow json() to be called later
+      response: responseForBody, // Unconsumed clone so json()/text() work later
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries())

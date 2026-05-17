@@ -8,6 +8,9 @@ bunosh
 bunosh-*
 *.exe
 
+# Skills live in their own repo: github.com/DavertMik/bunosh-skills
+skills/
+
 # Build artifacts
 dist/
 build/
