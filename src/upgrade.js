@@ -304,7 +304,7 @@ function getCurrentVersion() {
 }
 
 async function getLatestRelease() {
-  const response = await fetch('https://api.github.com/repos/davertmik/bunosh/releases/latest', {
+  const response = await fetch('https://api.github.com/repos/DavertMik/bunosh/releases/latest', {
     headers: {
       'User-Agent': 'bunosh'
     }

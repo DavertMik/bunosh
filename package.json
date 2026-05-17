@@ -6,11 +6,11 @@
   "module": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davertmik/bunosh.git"
+    "url": "git+https://github.com/DavertMik/bunosh.git"
   },
-  "homepage": "https://github.com/davertmik/bunosh#readme",
+  "homepage": "https://github.com/DavertMik/bunosh#readme",
   "bugs": {
-    "url": "https://github.com/davertmik/bunosh/issues"
+    "url": "https://github.com/DavertMik/bunosh/issues"
   },
   "author": "davert",
   "keywords": [

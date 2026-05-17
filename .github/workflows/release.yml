@@ -218,15 +218,15 @@ jobs:
           **Single Executable:**
           ```bash
           # Linux
-          curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-linux-x64.tar.gz | tar -xz
+          curl -fsSL https://github.com/DavertMik/bunosh/releases/latest/download/bunosh-linux-x64.tar.gz | tar -xz
           sudo mv bunosh-linux-x64 /usr/local/bin/bunosh
 
           # macOS
-          curl -fsSL https://github.com/davertmik/bunosh/releases/latest/download/bunosh-darwin-arm64.tar.gz | tar -xz  
+          curl -fsSL https://github.com/DavertMik/bunosh/releases/latest/download/bunosh-darwin-arm64.tar.gz | tar -xz  
           sudo mv bunosh-darwin-arm64 /usr/local/bin/bunosh
 
           # Windows (PowerShell)
-          Invoke-WebRequest -Uri "https://github.com/davertmik/bunosh/releases/latest/download/bunosh-windows-x64.exe.zip" -OutFile "bunosh.zip"
+          Invoke-WebRequest -Uri "https://github.com/DavertMik/bunosh/releases/latest/download/bunosh-windows-x64.exe.zip" -OutFile "bunosh.zip"
           Expand-Archive -Path "bunosh.zip" -DestinationPath .
           Move-Item "bunosh-windows-x64.exe" "bunosh.exe"
           ```
