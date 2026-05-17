@@ -265,19 +265,22 @@ export default async function bunosh(commands, sources) {
         }
       });
 
-      const lastArg = commanderArgs[commanderArgs.length - 1];
-      const optionsObj = (lastArg && typeof lastArg.opts === 'function') ? lastArg.opts() : lastArg;
-      if (optionsObj && typeof optionsObj === 'object') {
-        Object.keys(opts).forEach((optName) => {
+      const optNames = Object.keys(opts);
+      if (optNames.length > 0) {
+        const lastArg = commanderArgs[commanderArgs.length - 1];
+        const optionsObj = (lastArg && typeof lastArg.opts === 'function') ? lastArg.opts() : lastArg;
+        const mergedOpts = {};
+        optNames.forEach((optName) => {
           const camelName = optName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-          if (optionsObj[camelName] !== undefined) {
-            transformedArgs.push(optionsObj[camelName]);
-          } else if (optionsObj[optName] !== undefined) {
-            transformedArgs.push(optionsObj[optName]);
+          if (optionsObj && optionsObj[camelName] !== undefined) {
+            mergedOpts[camelName] = optionsObj[camelName];
+          } else if (optionsObj && optionsObj[optName] !== undefined) {
+            mergedOpts[camelName] = optionsObj[optName];
           } else {
-            transformedArgs.push(opts[optName]);
+            mergedOpts[camelName] = opts[optName];
           }
         });
+        transformedArgs.push(mergedOpts);
       }
 
       try {
@@ -387,6 +390,23 @@ export default async function bunosh(commands, sources) {
     });
 
   internalCommands.push(setupCompletionCmd);
+
+  const SKILLS_REPO = 'DavertMik/bunosh-skills';
+
+  const installSkillsCmd = program.command('install-skills')
+    .description('Print the command to install Bunosh AI agent skills.')
+    .action(() => {
+      console.log();
+      console.log(`🤖 Install Bunosh AI agent skills (Claude Code, Cursor, Codex, ...):`);
+      console.log();
+      console.log(`   ${color.bold(`npx skills add ${SKILLS_REPO}`)}`);
+      console.log();
+      console.log(color.dim(`   Skills: bunosh-fundamentals, migrate-to-bunosh`));
+      console.log(color.dim(`   ${SKILLS_REPO} · https://buno.sh`));
+      console.log();
+    });
+
+  internalCommands.push(installSkillsCmd);
 
   const upgradeCmd = program.command('upgrade')
     .description('Upgrade bunosh to the latest version')
@@ -499,6 +519,12 @@ ${namespaceCommands}
   ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
   ${color.bold('bunosh --env-file …')}   🔧 Load custom environment file
 `);
+
+    helpText += `
+${color.bold('🤖 AI agent skills')} ${color.dim('(Claude Code, Cursor, Codex, ...)')}
+  ${color.bold('npx skills add DavertMik/bunosh-skills')}
+  ${color.dim('bunosh-fundamentals · migrate-to-bunosh — see "bunosh install-skills"')}
+`;
   }
 
   program.addHelpText('after', helpText);

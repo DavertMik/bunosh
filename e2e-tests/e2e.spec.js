@@ -124,6 +124,20 @@ describe('Bunosh End-to-End Tests', () => {
       expect(result.stdout).toContain('Hi, World!');
     });
 
+    it('should pass parsed options as an object, not spread positional args', async () => {
+      const result = await runBunoshCommand('task:with-opts World --greeting Hi --loud', { cwd: testDir });
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('HI, WORLD!');
+    });
+
+    it('should use options object defaults when flags are omitted', async () => {
+      const result = await runBunoshCommand('task:with-opts World', { cwd: testDir });
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Hello, World!');
+    });
+
     it('should handle failing task properly', async () => {
       const result = await runBunoshCommand('failing:task', {
         cwd: testDir,

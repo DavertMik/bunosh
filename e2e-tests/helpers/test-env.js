@@ -100,6 +100,12 @@ export function taskWithArgs(name, greeting = 'Hello') {
   return exec\`echo "\${greeting}, \${name}!"\`;
 }
 
+export function taskWithOpts(name, opts = { greeting: 'Hello', loud: false }) {
+  /* Task with an options object */
+  const msg = \`\${opts.greeting}, \${name}!\`;
+  return exec\`echo "\${opts.loud ? msg.toUpperCase() : msg}"\`;
+}
+
 export async function failingTask() {
   /* Task that fails */
   const result = await task('Failing task', () => exec\`sh -c 'exit 1'\`);
