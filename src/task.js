@@ -198,6 +198,8 @@ export async function task(name, fn, isSilent = false) {
 
     // Check if result is a TaskResult instance
     if (result && result.constructor && result.constructor.name === 'TaskResult') {
+      printer.cancel();
+      runningTasks.delete(taskInfo.id);
       return result;
     }
 

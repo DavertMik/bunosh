@@ -128,10 +128,10 @@ describe("Shell Task with Bun Shell $ API", () => {
 
   test("shell function has correct API structure", () => {
     const shellCode = shellFunction.toString();
-    // Check for Bun import - could be either direct import or bundled form
-    expect(shellCode).toMatch(/import.*bun|globalThis\.Bun/);
-    expect(shellCode).toContain("shell.cwd");
-    expect(shellCode).toContain("shell.env"); 
+    // Check for Bun usage - could be import, globalThis.Bun, or Bun.spawn
+    expect(shellCode).toMatch(/import.*bun|globalThis\.Bun|\bBun\b/);
+    expect(shellCode).toContain("cmdPromise.cwd");
+    expect(shellCode).toContain("cmdPromise.env");
     expect(shellCode).toContain("shell(strings, ...values)");
   });
 

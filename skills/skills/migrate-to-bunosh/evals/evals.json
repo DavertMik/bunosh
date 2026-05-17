@@ -1,0 +1,23 @@
+{
+  "skill_name": "migrate-to-bunosh",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We're tired of juggling npm scripts. Here's our package.json. Move the scripts worth moving into a single Bunoshfile.js so we can run them with `bunosh`, but don't bother wrapping the trivial one-tool ones. Keep behaviour identical — the `ci` script must still bail out the moment lint or build or test fails.",
+      "expected_output": "Bunoshfile.js migrates ONLY the composed/script-file scripts: ci (composition, uses task.stopOnFailures()), deploy (build && rsync composition), and build (folds in prebuild rm -rf dist). Trivial one-tool entries (lint=eslint, test=jest, start:dev) are LEFT in package.json, not turned into bunosh functions. ci calls kept lint/test via `npm run` rather than reimplementing them. File registers cleanly with bunosh.",
+      "files": ["fixtures/eval-1-npm-scripts/package.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "Please migrate these two shell scripts in scripts/ into one Bunoshfile.js. deploy.sh parses its own --env/--force/--replicas flags and aborts on any error; backup-db.sh is best-effort and should keep going even if the S3 upload fails. I want `bunosh deploy production --force --replicas 4` and `bunosh backup-db` to work.",
+      "expected_output": "One Bunoshfile.js with deploy(env, options={force,replicas}) and backupDb(). The bash arg-parsing loop is removed in favour of function params + options object. deploy uses task.stopOnFailures() (set -euo pipefail) and coerces replicas with Number(). The production+force guard is preserved with an early return. backupDb uses task.ignoreFailures() or per-step result handling for the best-effort behaviour. No process.exit, no try/catch around shell.",
+      "files": ["fixtures/eval-2-bash-scripts/scripts/deploy.sh", "fixtures/eval-2-bash-scripts/scripts/backup-db.sh"]
+    },
+    {
+      "id": 3,
+      "prompt": "Convert this Makefile into a Bunoshfile.js. The prerequisite chains matter (deploy depends on test, test depends on build and lint, build depends on clean) and make stops on the first failing recipe.",
+      "expected_output": "Bunoshfile.js with exported clean, build, lint, test, deploy. Prerequisites implemented by calling the prerequisite functions first. task.stopOnFailures() used to mirror make's abort-on-failure. The BIN := variable becomes a JS const. Commands register and `bunosh` lists them.",
+      "files": ["fixtures/eval-3-makefile/Makefile"]
+    }
+  ]
+}

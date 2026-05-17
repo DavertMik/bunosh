@@ -46,8 +46,8 @@ Bunosh transforms JavaScript functions into CLI commands.
 Functions available via `global.bunosh` or direct imports:
 
 ### Core Functions
-- `exec` / `$` - Cross-platform shell execution with streaming output
-- `shell` - Native Bun shell execution (fastest, with Node.js fallback)
+- `shell` / `$` - Shell execution with real-time streaming (Bun, with Node.js fallback)
+- `exec` - Deprecated alias for `shell`, kept for backward compatibility
 - `fetch` - HTTP requests
 - `writeToFile` - File operations
 - `copyFile` - File copying
@@ -83,16 +83,16 @@ await task.silent().task('Silent task', () => doSomething());
 ```
 
 ### Built-in Tasks (`src/tasks/`)
-- `exec.js` - Cross-platform command execution with streaming
-- `shell.js` - Native Bun shell with Node.js fallback
+- `shell.js` - Command execution with real-time streaming (Bun.spawn) and Node.js `child_process` fallback
+- `exec.js` - Deprecated thin alias re-exporting `shell`
 - `fetch.js` - HTTP requests with progress
 - `writeToFile.js` - File writing with template builder
 - `copyFile.js` - File copying
 
 **Task Usage:**
-- Use `shell` for Bun performance, simple commands
-- Use `exec` for cross-platform compatibility, complex operations
-- Both support `.env(object)` and `.cwd(path)` methods
+- Use `shell` for all command execution; it uses `Bun.spawn` with real-time streaming and falls back to Node.js `child_process` when not running under Bun
+- `exec` and `$` are aliases of `shell`
+- Supports `.env(object)` and `.cwd(path)` methods
 
 ## Testing
 

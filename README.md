@@ -427,7 +427,6 @@ export async function checkServices() {
 
 - **[Examples](docs/examples.md)** — Real-world examples and workflows
 - **[AI Integration](docs/ai.md)** — Built-in AI support
-- **[MCP Integration](docs/mcp.md)** — Expose commands to AI assistants (Claude, Cursor, etc.)
 - **[JavaScript Execution](docs/javascript-execution.md)** — Execute JavaScript directly via CLI
 - **[Bash Migration Guide](docs/bash-migration-guide.md)** — Convert bash scripts to Bunosh
 - **[Node.js Migration Guide](docs/nodejs-migration-guide.md)** — Migrate from Node.js scripts

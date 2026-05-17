@@ -1,0 +1,16 @@
+{
+  "name": "bunosh-plugins",
+  "metadata": {
+    "description": "Skills for Bunosh — the task runner that turns JavaScript functions into CLI commands"
+  },
+  "owner": {
+    "name": "DavertMik"
+  },
+  "plugins": [
+    {
+      "name": "bunosh",
+      "source": "./plugins/bunosh",
+      "description": "Adds bunosh-fundamentals and migrate-to-bunosh skills for authoring Bunoshfile.js and migrating bash/npm/Makefile/node scripts to Bunosh"
+    }
+  ]
+}

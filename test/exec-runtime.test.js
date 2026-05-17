@@ -84,14 +84,11 @@ describe('Exec Runtime Compatibility', () => {
   }, 3000);
 
   // Test nodeExec function directly if we can simulate Node.js environment
-  test('nodeExec function exists and has correct structure', () => {
-    // We can't easily test the nodeExec function directly since it's not exported
-    // and we're running in Bun, but we can test that the main function handles
-    // the runtime detection correctly
-    
+  test('exec is a deprecated alias that delegates to shell', () => {
+    // exec is kept for backward compatibility and now delegates to shell,
+    // which owns the Bun/Node.js runtime detection logic.
     const execCode = execFunction.toString();
-    expect(execCode).toContain('nodeExec');
-    expect(execCode).toContain('!isBun');
+    expect(execCode).toContain('shell');
   });
 
   test('exec handles special characters in commands', async () => {

@@ -1,5 +1,6 @@
-import exec from "./src/tasks/exec.js";
 import shell from "./src/tasks/shell.js";
+// Deprecated: `exec` is an alias for `shell`, kept for backward compatibility.
+const exec = shell;
 import fetch from "./src/tasks/fetch.js";
 import writeToFile from "./src/tasks/writeToFile.js";
 import copyFile from "./src/tasks/copyFile.js";
@@ -11,7 +12,7 @@ export { exec, shell, fetch, writeToFile, copyFile, ai, ask, yell, say, task, tr
 
 export function buildCmd(cmd) {
   return function (args) {
-    return exec`${cmd} ${args}`;
+    return shell`${cmd} ${args}`;
   };
 }
 
@@ -35,7 +36,7 @@ global.bunosh = {
   silent,
   TaskResult,
   buildCmd,
-  $: exec,
+  $: shell,
 };
 
 export default global.bunosh;

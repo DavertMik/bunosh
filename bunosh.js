@@ -124,45 +124,6 @@ async function main() {
     process.argv.splice(envFileIndex, 1);
   }
 
-  const mcpFlagIndex = process.argv.indexOf('-mcp');
-  if (mcpFlagIndex !== -1) {
-    process.argv.splice(mcpFlagIndex, 1);
-
-    process.env.BUNOSH_MCP_MODE = 'true';
-
-    const { createMcpServer, startMcpServer } = await import('./src/mcp-server.js');
-
-    let tasksFile;
-    let bunoshfileDir;
-    if (customBunoshfile) {
-      const resolvedPath = path.isAbsolute(customBunoshfile) ? customBunoshfile : path.resolve(customBunoshfile);
-      if (existsSync(resolvedPath) && statSync(resolvedPath).isDirectory()) {
-        tasksFile = path.join(resolvedPath, BUNOSHFILE);
-        bunoshfileDir = resolvedPath;
-      } else {
-        tasksFile = resolvedPath;
-        bunoshfileDir = path.dirname(resolvedPath);
-      }
-    } else {
-      tasksFile = path.join(process.cwd(), BUNOSHFILE);
-      bunoshfileDir = process.cwd();
-    }
-
-    if (!existsSync(tasksFile)) {
-      console.error('Bunoshfile not found for MCP mode');
-      process.exit(1);
-    }
-
-    loadEnvFiles(bunoshfileDir, customEnvFile);
-
-    const { tasks, sources } = await loadBunoshfiles(tasksFile);
-
-    const server = createMcpServer(tasks, sources);
-    await startMcpServer(server);
-
-    return;
-  }
-
   let tasksFile;
   let bunoshfileDir;
   if (customBunoshfile) {

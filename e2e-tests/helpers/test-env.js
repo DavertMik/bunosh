@@ -88,9 +88,9 @@ export async function compositeTask() {
 export async function parallelTask() {
   /* Parallel task execution */
   const results = await Promise.all([
-    task('Parallel task 1', () => exec\`echo "Task 1 output"\`),
-    task('Parallel task 2', () => exec\`echo "Task 2 output"\`),
-    task('Parallel task 3', () => exec\`echo "Task 3 output"\`)
+    task('Parallel task 1', async () => { await exec\`echo "Task 1 output"\`; }),
+    task('Parallel task 2', async () => { await exec\`echo "Task 2 output"\`; }),
+    task('Parallel task 3', async () => { await exec\`echo "Task 3 output"\`; })
   ]);
   return 'Parallel tasks completed';
 }

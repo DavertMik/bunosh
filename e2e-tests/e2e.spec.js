@@ -137,7 +137,7 @@ describe('Bunosh End-to-End Tests', () => {
       
       // Check for failure indication (different formats in CI vs local)
       const hasExitCodeMessage = result.stdout.includes('exit code: 1') || result.stdout.includes('Exit code: 1');
-      const hasCIErrorFormat = result.stdout.includes('❌ [exec]');
+      const hasCIErrorFormat = result.stdout.includes('❌ [shell]');
       expect(hasExitCodeMessage || hasCIErrorFormat).toBe(true);
     });
   });
@@ -282,20 +282,24 @@ describe('Bunosh End-to-End Tests', () => {
       
       const cleaned = cleanTestOutput(result);
       expect(cleaned.success).toBe(true);
-      expect(cleaned.stdout).toContain('✔ exec Fetch all users > echo "Fetching data..."');
+      expect(cleaned.stdout).toContain('✔ shell Fetch all users > echo "Fetching data..."');
     });
 
     it('should show numbered prefixes for parallel tasks', async () => {
+      // Tasks overlap and run longer than 1s, so the (delayed) start lines
+      // are printed with numbered prefixes while all tasks are still running.
       const script = `
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
         await Promise.all([
-          task('Task 1', () => exec\`echo "Output 1"\`),
-          task('Task 2', () => exec\`echo "Output 2"\`),
-          task('Task 3', () => exec\`echo "Output 3"\`)
+          task('Task 1', () => wait(1200)),
+          task('Task 2', () => wait(1200)),
+          task('Task 3', () => wait(1200))
         ]);
       `;
 
       const result = await runBunoshScript(script, {
         cwd: testDir,
+        timeout: 20000,
         env: { BUNOSH_FORMATTER: 'console' }
       });
 
@@ -311,7 +315,7 @@ describe('Bunosh End-to-End Tests', () => {
 
     it('should not show prefixes for single tasks', async () => {
       const script = `
-        await task('Single task', () => exec\`echo "Single task output"\`);
+        await task('Single task', async () => { await exec\`echo "Single task output"\`; });
       `;
       
       const result = await runBunoshScript(script, { 
@@ -321,7 +325,7 @@ describe('Bunosh End-to-End Tests', () => {
       
       const cleaned = cleanTestOutput(result);
       expect(cleaned.success).toBe(true);
-      expect(cleaned.stdout).toContain('▶ task');
+      expect(cleaned.stdout).toContain('✔ task');
       expect(cleaned.stdout).toContain('Single task');
       expect(cleaned.stdout).not.toMatch(/✔ task ❰\\d+❱ Single task/);
     });
@@ -344,7 +348,7 @@ describe('Bunosh End-to-End Tests', () => {
       
       const cleaned = cleanTestOutput(result);
       expect(cleaned.success).toBe(true);
-      expect(cleaned.stdout).toContain('✗ exec Task that fails > sh -c "exit 1"');
+      expect(cleaned.stdout).toContain('✗ shell Task that fails > sh -c "exit 1"');
       expect(cleaned.stdout).toContain('✔ task Task that fails');
     });
   });

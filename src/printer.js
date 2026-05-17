@@ -85,7 +85,10 @@ export class Printer {
     const delay = this.formatter.getStartDelay ? this.formatter.getStartDelay() : 50;
 
     if (this.formatter.shouldDelayStart && this.formatter.shouldDelayStart()) {
+      this.pendingStart = { taskName, extra };
       this.startTimeout = setTimeout(() => {
+        this.startTimeout = null;
+        this.pendingStart = null;
         this.hasStarted = true;
         this.print(taskName, 'start', extra);
       }, delay);
@@ -95,19 +98,37 @@ export class Printer {
     }
   }
 
-  finish(taskName, extra = {}) {
+  _flushPendingStart() {
+    if (!this.startTimeout) return;
+    clearTimeout(this.startTimeout);
+    this.startTimeout = null;
+    const pending = this.pendingStart;
+    this.pendingStart = null;
+    if (pending) {
+      this.hasStarted = true;
+      this.print(pending.taskName, 'start', pending.extra);
+    }
+  }
+
+  _cancelPendingStart() {
     if (this.startTimeout) {
       clearTimeout(this.startTimeout);
       this.startTimeout = null;
     }
+    this.pendingStart = null;
+  }
+
+  cancel() {
+    this._cancelPendingStart();
+  }
+
+  finish(taskName, extra = {}) {
+    this._cancelPendingStart();
     this.print(taskName, 'finish', extra);
   }
 
   error(taskName, error = null, extra = {}) {
-    if (this.startTimeout) {
-      clearTimeout(this.startTimeout);
-      this.startTimeout = null;
-    }
+    this._cancelPendingStart();
     if (error) {
       extra.error = typeof error === 'string' ? error : error.message;
     }
@@ -115,10 +136,7 @@ export class Printer {
   }
 
   warning(taskName, error = null, extra = {}) {
-    if (this.startTimeout) {
-      clearTimeout(this.startTimeout);
-      this.startTimeout = null;
-    }
+    this._cancelPendingStart();
     if (error) {
       extra.error = typeof error === 'string' ? error : error.message;
     }
@@ -127,6 +145,8 @@ export class Printer {
 
   output(line, isError = false) {
     if (!line.trim()) return;
+
+    this._flushPendingStart();
 
     // Add task prefix for parallel tasks on output lines
     const prefix = this.taskId ? getTaskPrefix(this.taskId) : '';

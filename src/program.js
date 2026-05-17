@@ -413,7 +413,7 @@ export default async function bunosh(commands, sources) {
       }
 
       const lines = description.split('\n');
-      const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+      const firstLine = `  ${color.white.bold(paddedName)} ${color.dim(lines[0])}`;
       const indentedLines = lines.slice(1).map(line =>
         line.trim() ? `                          ${line}` : ''
       ).filter(line => line);
@@ -448,7 +448,7 @@ ${mainCommands}
       }
 
       const lines = description.split('\n');
-      const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+      const firstLine = `  ${color.white.bold(paddedName)} ${color.dim(lines[0])}`;
       const indentedLines = lines.slice(1).map(line =>
         line.trim() ? `                          ${line}` : ''
       ).filter(line => line);
@@ -474,7 +474,7 @@ ${devCommands}
         }
 
         const lines = description.split('\n');
-        const firstLine = `  ${color.white.bold(paddedName)} ${lines[0]}`;
+        const firstLine = `  ${color.white.bold(paddedName)} ${color.dim(lines[0])}`;
         const indentedLines = lines.slice(1).map(line =>
           line.trim() ? `                          ${line}` : ''
         ).filter(line => line);
@@ -488,7 +488,10 @@ ${namespaceCommands}
     }
   });
 
-  helpText += color.dim(`Special Commands:
+  const helpFlagRequested = process.argv.includes('--help') || process.argv.includes('-h');
+
+  if (helpFlagRequested) {
+    helpText += color.dim(`Special Commands:
   ${color.bold('bunosh edit')}           📝 Edit bunosh file with $EDITOR
   ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh
@@ -496,6 +499,7 @@ ${namespaceCommands}
   ${color.bold('bunosh --bunoshfile …')} 🥧 Load custom Bunoshfile from path
   ${color.bold('bunosh --env-file …')}   🔧 Load custom environment file
 `);
+  }
 
   program.addHelpText('after', helpText);
 
