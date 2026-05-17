@@ -8,7 +8,7 @@ import { yell } from './io.js';
 import { formatError } from './error-formatter.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
-import { upgradeCommand } from './upgrade.js';
+import { upgradeCommand, printUpgradeNoticeIfAvailable } from './upgrade.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
@@ -538,6 +538,7 @@ ${color.bold('🤖 AI agent skills')} ${color.dim('(Claude Code, Cursor, Codex, 
 
   if (process.argv.length === 2) {
     program.outputHelp();
+    await printUpgradeNoticeIfAvailable();
     return program;
   }
 

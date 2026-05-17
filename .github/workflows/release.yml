@@ -157,6 +157,10 @@ jobs:
     needs: [test, build-binaries]
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
 
+    permissions:
+      contents: write
+      id-token: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -167,8 +171,11 @@ jobs:
     - name: Setup Node.js for NPM
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 24.x
         registry-url: 'https://registry.npmjs.org'
+
+    - name: Update npm to latest
+      run: npm install -g npm@latest
 
     - name: Setup Bun
       uses: oven-sh/setup-bun@v1
@@ -247,9 +254,9 @@ jobs:
         echo "   Package name: $(node -p "require('./package.json').name")"
         echo "   Package version: $(node -p "require('./package.json').version")"
         
-        # Publish with detailed output
-        npm publish --tag $NPM_TAG --access public
-        
+        # Publish with provenance via OIDC trusted publishing (no NPM token)
+        npm publish --provenance --tag $NPM_TAG --access public
+
         echo "✅ Successfully published to NPM!"
         echo "   Install with: npm install -g bunosh@$NPM_TAG"
         
@@ -260,8 +267,6 @@ jobs:
         echo "**Install Command**: \`npm install -g bunosh@$NPM_TAG\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "✅ **Published successfully to NPM registry**" >> $GITHUB_STEP_SUMMARY
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   release:
     name: Attach Release Assets

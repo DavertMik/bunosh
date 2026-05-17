@@ -1,4 +1,4 @@
-import { exec, execSync } from 'child_process';
+import { exec, execSync, spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { platform } from 'os';
 import { homedir } from 'os';
@@ -13,18 +13,44 @@ export async function upgradeCommand(options = {}) {
     const installMethod = detectInstallMethod();
     console.log(`Bunosh is installed via: ${color.bold(installMethod)}`);
     
-    if (installMethod === 'bun') {
-      if (!check) {
+    if (installMethod === 'bun' || installMethod === 'npm') {
+      const currentVersion = getCurrentVersion();
+      let latestVersion = null;
+      try {
+        latestVersion = await getLatestNpmVersion();
+      } catch (e) {
+      }
+
+      console.log(`Current version: ${color.bold(currentVersion)}`);
+      if (latestVersion) {
+        console.log(`Latest version:  ${color.bold(latestVersion)}`);
+      }
+
+      if (latestVersion && !force && !isNewerVersion(latestVersion, currentVersion)) {
+        console.log(color.green('You are already on the latest version!'));
+        if (!force) {
+          console.log(`   Use ${color.bold('--force')} to reinstall the current version.`);
+        }
+        return;
+      }
+
+      const upgradeCmd = installMethod === 'bun'
+        ? 'bun add -g bunosh@latest --force'
+        : 'npm install -g bunosh@latest';
+
+      if (check) {
+        console.log('Will upgrade with: ' + color.bold(upgradeCmd));
+        return;
+      }
+
+      if (installMethod === 'bun') {
         await upgradeWithBun();
       } else {
-        console.log('Will upgrade with: ' + color.bold('bun add -g bunosh'));
-      }
-    } else if (installMethod === 'npm') {
-      if (!check) {
         await upgradeWithNpm();
-      } else {
-        console.log('Will upgrade with: ' + color.bold('npm update -g bunosh'));
       }
+
+      console.log();
+      console.log(`Run ${color.bold('bunosh --version')} to verify the new version.`);
     } else if (installMethod === 'executable') {
       await upgradeExecutable({ force, check });
     } else {
@@ -101,36 +127,115 @@ function detectInstallMethod() {
   return 'unknown';
 }
 
-async function upgradeWithBun() {
-  console.log('Upgrading with Bun...');
-  
+function runStreaming(command, args) {
   return new Promise((resolve, reject) => {
-    exec('bun add -g bunosh', (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(`Bun upgrade failed: ${stderr || error.message}`));
+    const child = spawn(command, args, { stdio: 'inherit' });
+    child.on('error', (error) => reject(new Error(`${command} not available: ${error.message}`)));
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
         return;
       }
-      console.log(stdout);
-      console.log(color.green('Upgrade successful!'));
-      resolve();
+      reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
     });
   });
 }
 
+async function upgradeWithBun() {
+  console.log('Upgrading with Bun...');
+
+  try {
+    await runStreaming('bun', ['add', '-g', 'bunosh@latest', '--force']);
+    console.log(color.green('Upgrade successful!'));
+    return;
+  } catch (error) {
+    console.warn(color.yellow(`Bun upgrade failed: ${error.message}`));
+    console.warn(color.yellow('Falling back to npm (a known Bun global-install bug)...'));
+  }
+
+  await upgradeWithNpm();
+}
+
 async function upgradeWithNpm() {
   console.log('Upgrading with npm...');
-  
-  return new Promise((resolve, reject) => {
-    exec('npm update -g bunosh', (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(`npm upgrade failed: ${stderr || error.message}`));
-        return;
-      }
-      console.log(stdout);
-      console.log(color.green('Upgrade successful!'));
-      resolve();
+
+  await runStreaming('npm', ['install', '-g', 'bunosh@latest']);
+  console.log(color.green('Upgrade successful!'));
+}
+
+export async function getLatestNpmVersion(timeoutMs = 3000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch('https://registry.npmjs.org/bunosh/latest', {
+      headers: { 'User-Agent': 'bunosh' },
+      signal: controller.signal,
     });
-  });
+
+    if (!response.ok) {
+      throw new Error(`npm registry error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.version;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getCachedLatestNpmVersion() {
+  const cacheDir = join(homedir(), '.bunosh');
+  const cacheFile = join(cacheDir, 'version-check.json');
+  const TTL = 12 * 60 * 60 * 1000;
+
+  try {
+    if (existsSync(cacheFile)) {
+      const cache = JSON.parse(readFileSync(cacheFile, 'utf8'));
+      if (cache.latest && cache.checkedAt && Date.now() - cache.checkedAt < TTL) {
+        return cache.latest;
+      }
+    }
+  } catch (e) {
+  }
+
+  let latest = null;
+  try {
+    latest = await getLatestNpmVersion(2000);
+  } catch (e) {
+    return null;
+  }
+
+  try {
+    await mkdir(cacheDir, { recursive: true });
+    writeFileSync(cacheFile, JSON.stringify({ checkedAt: Date.now(), latest }));
+  } catch (e) {
+  }
+
+  return latest;
+}
+
+export async function printUpgradeNoticeIfAvailable() {
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST_WORKER_ID !== undefined) {
+    return;
+  }
+
+  try {
+    const currentVersion = getCurrentVersion();
+    if (!currentVersion || currentVersion === 'unknown') {
+      return;
+    }
+
+    const latestVersion = await getCachedLatestNpmVersion();
+    if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {
+      return;
+    }
+
+    console.log();
+    console.log(color.yellow(`🦾 A new version of Bunosh is available: ${color.bold(currentVersion)} → ${color.bold(latestVersion)}`));
+    console.log(color.dim(`   Run ${color.bold('bunosh upgrade')} to update.`));
+  } catch (e) {
+  }
 }
 
 export async function upgradeExecutable(options = {}) {
