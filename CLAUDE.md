@@ -52,6 +52,7 @@ Functions available via `global.bunosh` or direct imports:
 - `writeToFile` - File operations
 - `copyFile` - File copying
 - `ask`, `say`, `yell` - User interaction
+- `assert(condition, message)` - Record a failure when `condition` is falsy. Counts toward exit code 1 at end of run; with `task.stopOnFailures()` it exits immediately at that line.
 
 ### Task Control
 - `task(name, fn)` - Wrap function with task tracking and logging
@@ -80,6 +81,11 @@ task.ignoreFailures();  // Continue on failure
 // Output control
 task.silence();  // Disable output
 await task.silent().task('Silent task', () => doSomething());
+
+// Preconditions
+assert(process.env.TOKEN, 'TOKEN must be set');
+const res = await shell`git status --porcelain`;
+assert((await res.json()).lines.length === 0, 'working tree must be clean');
 ```
 
 ### Built-in Tasks (`src/tasks/`)
@@ -88,6 +94,7 @@ await task.silent().task('Silent task', () => doSomething());
 - `fetch.js` - HTTP requests with progress
 - `writeToFile.js` - File writing with template builder
 - `copyFile.js` - File copying
+- `assert.js` - Precondition guard; failed assertions are recorded as failed tasks
 
 **Task Usage:**
 - Use `shell` for all command execution; it uses `Bun.spawn` with real-time streaming and falls back to Node.js `child_process` when not running under Bun

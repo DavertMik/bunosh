@@ -34,8 +34,9 @@ declare global {
         copyFile(src: string, dst: string): void;
         stopOnFail(enable?: boolean): void;
         ignoreFail(enable?: boolean): void;
-        buildCmd(cmd: string): (args: string) => Promise<any>;       
+        buildCmd(cmd: string): (args: string) => Promise<any>;
         task(name: string | Function, fn?: Function): Promise<any>;
+        assert(condition: any, message?: string): asserts condition;
       };
     }
   }
