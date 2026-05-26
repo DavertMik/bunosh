@@ -187,7 +187,7 @@ Bunoshfile.api.js    # bunosh api:deploy, bunosh api:test
 Built-in tasks are available via `global.bunosh`:
 
 ```javascript
-const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
+const { exec, shell, fetch, writeToFile, copyFile, task, assert } = global.bunosh;
 ```
 
 > Global variables are used instead of imports so bunosh works with the single-executable on any platform.
@@ -195,6 +195,7 @@ const { exec, shell, fetch, writeToFile, copyFile, task } = global.bunosh;
 * Async tasks: `exec`, `shell`, `fetch`
 * Sync tasks: `writeToFile`, `copyFile`
 * Task wrapper: `task`
+* Precondition guard: `assert`
 
 Each task returns a `TaskResult` object:
 
@@ -272,6 +273,30 @@ For details see the [Bun shell](https://bun.sh/docs/runtime/shell) reference.
 |---------|----------|----------------|---------------|
 | `exec` | Single command execution | spawn process | Node.js + Bun, platform dependent |
 | `shell` | Cross-platform shell commands | Bun shell | Bun only, cross-platform |
+
+### `assert`
+
+Guard a command on a precondition. If the condition is falsy, `assert` prints a red failure line and records a failed task — the run continues, and the process exits with code 1 at the end:
+
+```javascript
+export async function deploy() {
+  assert(process.env.TOKEN, 'TOKEN must be set');
+  assert(await Bun.file('dist/bundle.js').exists(), 'bundle not built');
+  await shell`./scripts/deploy.sh`;
+}
+```
+
+With `task.stopOnFailures()` enabled, a failed `assert` exits immediately at that line:
+
+```javascript
+export async function strict() {
+  task.stopOnFailures();
+  assert(process.env.TOKEN, 'TOKEN must be set');
+  await shell`./scripts/deploy.sh`;
+}
+```
+
+`assert` does not throw a JavaScript exception in default mode — it records the failure and execution continues. Use `task.stopOnFailures()` (or `return` after the `assert`) when you need a hard stop.
 
 ### `fetch`
 

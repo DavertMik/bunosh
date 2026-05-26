@@ -47,6 +47,22 @@ export function getIgnoreFailuresMode() {
   return ignoreFailuresMode;
 }
 
+export function isStopOnFailuresMode() {
+  return stopOnFailuresMode;
+}
+
+export function isTestEnv() {
+  const commandArgs = process.argv.slice(2);
+  return process.env.NODE_ENV === 'test' ||
+    commandArgs.some(arg => {
+      const lower = arg.toLowerCase();
+      return lower.includes('vitest') ||
+             lower.includes('jest') ||
+             lower === '--test' ||
+             lower.startsWith('test:');
+    });
+}
+
 export function silence() {
   globalSilenceMode = true;
 }
@@ -222,24 +238,12 @@ export async function task(name, fn, isSilent = false) {
     printer.error(name, err);
     runningTasks.delete(taskInfo.id);
 
-    // Don't exit during testing
-    const commandArgs = process.argv.slice(2);
-    const isTestEnvironment = process.env.NODE_ENV === 'test' ||
-                              typeof Bun?.jest !== 'undefined' ||
-                              commandArgs.some(arg => {
-                                const lowerArg = arg.toLowerCase();
-                                return lowerArg.includes('vitest') ||
-                                       lowerArg.includes('jest') ||
-                                       lowerArg === '--test' ||
-                                       lowerArg.startsWith('test:');
-                              });
+    const isTestEnvironment = isTestEnv();
 
-    // Exit immediately if stopOnFailures mode is enabled
     if (stopOnFailuresMode && !isTestEnvironment) {
       process.exit(1);
     }
-    
-    // Also exit if stopFailToggle is enabled (legacy behavior)
+
     if (stopFailToggle && !isTestEnvironment) {
       process.exit(1);
     }
