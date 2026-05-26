@@ -73,11 +73,10 @@ describe('GitHubActionsFormatter', () => {
     expect(result).toBe('::group::[exec] test command');
   });
 
-  test('formats finish status as notice', () => {
+  test('formats finish status as just endgroup (no notice annotation)', () => {
     const result = formatter.format('test command', 'finish', 'exec', { duration: 123 });
-    expect(result).toContain('::endgroup::');
-    expect(result).toContain('::notice::✅');
-    expect(result).toContain('123ms');
+    expect(result).toBe('::endgroup::');
+    expect(result).not.toContain('::notice::');
   });
 
   test('formats error status', () => {
