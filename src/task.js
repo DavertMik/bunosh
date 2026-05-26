@@ -99,10 +99,21 @@ export function getTaskPrefix(taskId) {
 
 export function createTaskInfo(name, parentId = null, isSilent = false) {
   const taskInfo = new TaskInfo(name, Date.now(), TaskStatus.RUNNING, parentId, isSilent);
+
+  let p = parentId;
+  while (p) {
+    const parent = runningTasks.get(p);
+    if (!parent) break;
+    if (parent.isTry || parent.isInsideTry) {
+      taskInfo.isInsideTry = true;
+      break;
+    }
+    p = parent.parentId;
+  }
+
   runningTasks.set(taskInfo.id, taskInfo);
   tasksExecuted.push(taskInfo);
 
-  // Also add to global array for exit handler
   if (globalThis._bunoshGlobalTasksExecuted) {
     globalThis._bunoshGlobalTasksExecuted.push(taskInfo);
   }
@@ -114,10 +125,19 @@ export function finishTaskInfo(taskInfo, success = true, error = null, output = 
   const endTime = Date.now();
   const duration = endTime - taskInfo.startTime;
 
-  taskInfo.status = success ? TaskStatus.SUCCESS : TaskStatus.FAIL;
+  let status;
+  if (success) {
+    status = TaskStatus.SUCCESS;
+  } else if (taskInfo.isInsideTry) {
+    status = TaskStatus.WARNING;
+  } else {
+    status = TaskStatus.FAIL;
+  }
+
+  taskInfo.status = status;
   taskInfo.duration = duration;
   taskInfo.result = {
-    status: success ? TaskStatus.SUCCESS : TaskStatus.FAIL,
+    status,
     output: error?.message || output || null
   };
 
@@ -132,6 +152,8 @@ export class TaskInfo {
     this.status = status;
     this.parentId = parentId;
     this.isSilent = isSilent;
+    this.isTry = false;
+    this.isInsideTry = false;
   }
 }
 
@@ -141,55 +163,60 @@ export async function tryTask(name, fn, isSilent = true) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = createTaskInfo(name, null, isSilent);
+  const taskInfo = createTaskInfo(name, getCurrentTaskId() || null, isSilent);
+  taskInfo.isTry = true;
+  const startIndex = tasksExecuted.length;
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);
   if (shouldPrint) printer.start(name);
 
+  let result;
+  let caughtError = null;
   try {
-    const result = await asyncLocalStorage.run(taskInfo.id, async () => {
+    result = await asyncLocalStorage.run(taskInfo.id, async () => {
       return await Promise.resolve(fn());
     });
+  } catch (err) {
+    caughtError = err;
+  }
 
-    const endTime = Date.now();
-    const duration = endTime - taskInfo.startTime;
+  const endTime = Date.now();
+  const duration = endTime - taskInfo.startTime;
 
-    // Check if result is a TaskResult and if it has failed
-    if (result && typeof result === 'object' && result.constructor && result.constructor.name === 'TaskResult') {
-      if (result.hasFailed || result.hasWarning) {
-        taskInfo.status = TaskStatus.WARNING;
-        taskInfo.duration = duration;
-        taskInfo.result = { status: TaskStatus.WARNING, output: result.output };
+  let failed = caughtError !== null;
 
-        if (shouldPrint) printer.warning(name);
-        runningTasks.delete(taskInfo.id);
+  if (!failed && result && typeof result === 'object' && result.constructor && result.constructor.name === 'TaskResult') {
+    if (result.hasFailed || result.hasWarning) failed = true;
+  }
 
-        return false;
+  if (!failed) {
+    for (let i = startIndex; i < tasksExecuted.length; i++) {
+      const t = tasksExecuted[i];
+      if (t === taskInfo) continue;
+      const s = t.result?.status;
+      if (s === TaskStatus.FAIL || s === TaskStatus.WARNING) {
+        failed = true;
+        break;
       }
     }
+  }
 
-    taskInfo.status = TaskStatus.SUCCESS;
-    taskInfo.duration = duration;
-    taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
-
-    if (shouldPrint) printer.finish(name);
-    runningTasks.delete(taskInfo.id);
-
-    return true;
-  } catch (err) {
-    const endTime = Date.now();
-    const duration = endTime - taskInfo.startTime;
-
+  if (failed) {
     taskInfo.status = TaskStatus.WARNING;
     taskInfo.duration = duration;
-    taskInfo.result = { status: TaskStatus.WARNING, output: err.message };
-
-    if (shouldPrint) printer.warning(name, err);
+    taskInfo.result = { status: TaskStatus.WARNING, output: caughtError?.message || result?.output || null };
+    if (shouldPrint) printer.warning(name, caughtError);
     runningTasks.delete(taskInfo.id);
-
     return false;
   }
+
+  taskInfo.status = TaskStatus.SUCCESS;
+  taskInfo.duration = duration;
+  taskInfo.result = { status: TaskStatus.SUCCESS, output: result };
+  if (shouldPrint) printer.finish(name);
+  runningTasks.delete(taskInfo.id);
+  return true;
 }
 
 export async function task(name, fn, isSilent = false) {
@@ -198,7 +225,7 @@ export async function task(name, fn, isSilent = false) {
     name = fn.toString().slice(0, 50).replace(/\s+/g, ' ').trim();
   }
 
-  const taskInfo = createTaskInfo(name, null, isSilent);
+  const taskInfo = createTaskInfo(name, getCurrentTaskId() || null, isSilent);
 
   const shouldPrint = !globalSilenceMode && !isSilent;
   const printer = new Printer('task', taskInfo.id);
@@ -231,6 +258,15 @@ export async function task(name, fn, isSilent = false) {
     const endTime = Date.now();
     const duration = endTime - taskInfo.startTime;
 
+    if (taskInfo.isInsideTry) {
+      taskInfo.status = TaskStatus.WARNING;
+      taskInfo.duration = duration;
+      taskInfo.result = { status: TaskStatus.WARNING, output: err.message };
+      printer.warning(name, err);
+      runningTasks.delete(taskInfo.id);
+      return TaskResult.fail(err.message, { taskType: 'task', error: err });
+    }
+
     taskInfo.status = TaskStatus.FAIL;
     taskInfo.duration = duration;
     taskInfo.result = { status: TaskStatus.FAIL, output: err.message };
@@ -247,7 +283,7 @@ export async function task(name, fn, isSilent = false) {
     if (stopFailToggle && !isTestEnvironment) {
       process.exit(1);
     }
-    
+
     return TaskResult.fail(err.message, { taskType: 'task', error: err });
   }
 }

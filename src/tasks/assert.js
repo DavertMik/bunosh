@@ -16,6 +16,13 @@ export default function assert(condition, message = 'Assertion failed') {
   }
 
   const error = new Error(message);
+
+  if (taskInfo.isInsideTry) {
+    printer.warning(message, error);
+    finishTaskInfo(taskInfo, false, error, message);
+    return;
+  }
+
   printer.error(message, error);
   finishTaskInfo(taskInfo, false, error, message);
 
