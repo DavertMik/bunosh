@@ -448,6 +448,8 @@ export async function checkServices() {
 }
 ```
 
+`task.try` fully isolates failures from the exit code. Any `shell`, `fetch`, `task`, or `assert` that fails inside the callback is recorded as a warning (yellow), never as a failed task — so the run still exits with code `0` if the rest succeeded. `task.stopOnFailures()` is also suppressed inside `task.try`: an inner failure will never call `process.exit(1)`. The return value (`true`/`false`) is the only signal you act on.
+
 ## Documentation
 
 - **[Examples](docs/examples.md)** — Real-world examples and workflows
