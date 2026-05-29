@@ -106,6 +106,39 @@ async function loadBunoshfiles(tasksFile) {
 
 async function main() {
 
+  const serverIndex = process.argv.indexOf('-S');
+  if (serverIndex !== -1) {
+    let serverAddress = '127.0.0.1:7171';
+
+    if (serverIndex + 1 < process.argv.length && !process.argv[serverIndex + 1].startsWith('-')) {
+      serverAddress = process.argv[serverIndex + 1];
+    }
+
+    let host = '127.0.0.1';
+    let port = 7171;
+
+    if (serverAddress.startsWith('http://') || serverAddress.startsWith('https://')) {
+      try {
+        const url = new URL(serverAddress);
+        host = url.hostname;
+        port = parseInt(url.port) || 7171;
+      } catch (error) {
+        console.error('Invalid URL format:', serverAddress);
+        process.exit(1);
+      }
+    } else if (serverAddress.includes(':')) {
+      [host, port] = serverAddress.split(':');
+      port = parseInt(port);
+    } else if (!isNaN(parseInt(serverAddress))) {
+      port = parseInt(serverAddress);
+    }
+
+    const BunoshWebServer = (await import('./src/server.js')).default;
+    const server = new BunoshWebServer(port, host);
+    await server.start();
+    return;
+  }
+
   const bunoshfileIndex = process.argv.indexOf('--bunoshfile');
   let customBunoshfile = null;
 
