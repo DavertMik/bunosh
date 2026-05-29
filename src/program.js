@@ -418,6 +418,19 @@ export default async function bunosh(commands, sources) {
 
   internalCommands.push(upgradeCmd);
 
+  const uiCmd = program.command('ui')
+    .description('Launch the Bunosh web UI server')
+    .option('-p, --port <port>', 'Port to listen on', '7171')
+    .option('-H, --host <host>', 'Host to bind to', '127.0.0.1')
+    .action(async (options) => {
+      const { default: BunoshWebServer } = await import('./server.js');
+      const server = new BunoshWebServer(parseInt(options.port), options.host);
+      await server.start();
+      console.log(color.dim('Press Ctrl+C to stop.'));
+    });
+
+  internalCommands.push(uiCmd);
+
 
   let helpText = '';
 
@@ -512,6 +525,7 @@ ${namespaceCommands}
 
   if (helpFlagRequested) {
     helpText += color.dim(`Special Commands:
+  ${color.bold('bunosh ui')}             🌐 Launch web UI server (default :7171)
   ${color.bold('bunosh edit')}           📝 Edit bunosh file with $EDITOR
   ${color.bold('bunosh export:scripts')} 📥 Export commands to package.json
   ${color.bold('bunosh upgrade')}        🦾 Upgrade bunosh

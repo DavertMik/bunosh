@@ -30,6 +30,14 @@ export async function ask(question, defaultValueOrOptions = {}, options = {}) {
     opts = { ...defaultValueOrOptions, ...options };
   }
   
+  if (globalThis._bunoshUIMode && globalThis._bunoshUIServer) {
+    try {
+      return await globalThis._bunoshUIServer.askInUI(question, opts);
+    } finally {
+      globalThis._bunoshInAskOperation = false;
+    }
+  }
+
   // Route to appropriate handler based on options
   if (opts.editor || opts.multiline) {
     return await askWithEditor(question, opts);
