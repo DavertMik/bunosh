@@ -276,11 +276,8 @@ export async function task(name, fn, isSilent = false) {
 
     const isTestEnvironment = isTestEnv();
 
-    if (stopOnFailuresMode && !isTestEnvironment) {
-      process.exit(1);
-    }
-
-    if (stopFailToggle && !isTestEnvironment) {
+    if ((stopOnFailuresMode || stopFailToggle) && !isTestEnvironment) {
+      if (globalThis._bunoshUIMode === true) throw err;
       process.exit(1);
     }
 

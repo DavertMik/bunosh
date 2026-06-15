@@ -26,5 +26,8 @@ export default function assert(condition, message = 'Assertion failed') {
   printer.error(message, error);
   finishTaskInfo(taskInfo, false, error, message);
 
-  if (isStopOnFailuresMode() && !isTestEnv()) process.exit(1);
+  if (isStopOnFailuresMode() && !isTestEnv()) {
+    if (globalThis._bunoshUIMode === true) throw error;
+    process.exit(1);
+  }
 }

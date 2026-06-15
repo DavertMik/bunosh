@@ -316,82 +316,133 @@ class BunoshWebServer {
       command: commandName
     });
 
+    await import('../index.js');
+
+    const tasksExecuted = globalThis._bunoshGlobalTasksExecuted || [];
+    const startIndex = tasksExecuted.length;
+    const TaskStatus = globalThis._bunoshGlobalTaskStatus || { FAIL: 'fail', WARNING: 'warning' };
+
     const originalIsTTY = process.stdout.isTTY;
+    const originalStderrIsTTY = process.stderr.isTTY;
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    globalThis._bunoshUIMode = true;
+    globalThis._bunoshUIExecutionId = executionId;
+    globalThis._bunoshUIServer = this;
+
+    process.env.FORCE_COLOR = '1';
+    process.env.TERM = 'xterm-256color';
+    process.stdout.isTTY = true;
+    process.stderr.isTTY = true;
+
+    console.log = (...args) => {
+      const rawMessage = args.join(' ');
+      this.emitOutput(executionId, 'info', rawMessage, this.ansiConverter.toHtml(rawMessage));
+      originalConsoleLog(...args);
+    };
+
+    console.error = (...args) => {
+      const rawMessage = args.join(' ');
+      this.emitOutput(executionId, 'error', rawMessage, this.ansiConverter.toHtml(rawMessage));
+      originalConsoleError(...args);
+    };
+
+    const argNames = Object.keys(command.args);
+    const positional = argNames.map((name) =>
+      (args && Object.prototype.hasOwnProperty.call(args, name)) ? args[name] : command.args[name]
+    );
+
+    const invocation = this.formatInvocation(commandName, positional, opts);
+    this.logInvocationToTerminal(originalConsoleLog, commandName, argNames, positional, opts, invocation);
+    this.emitOutput(executionId, 'info', '$ ' + invocation, '<span style="color:#f0a02e;font-weight:600">$ ' + this.escapeHtml(invocation) + '</span>');
+
+    let status = 'success';
+    let errorMessage = null;
 
     try {
-      await import('../index.js');
-
-      globalThis._bunoshUIMode = true;
-      globalThis._bunoshUIExecutionId = executionId;
-      globalThis._bunoshUIServer = this;
-
-      process.env.FORCE_COLOR = '1';
-      process.env.TERM = 'xterm-256color';
-
-      process.stdout.isTTY = true;
-      process.stderr.isTTY = true;
-
-      const originalConsoleLog = console.log;
-      const originalConsoleError = console.error;
-
-      console.log = (...args) => {
-        const rawMessage = args.join(' ');
-        const htmlMessage = this.ansiConverter.toHtml(rawMessage);
-        this.broadcast({
-          type: 'output',
-          executionId,
-          level: 'info',
-          message: rawMessage,
-          html: htmlMessage
-        });
-        originalConsoleLog(...args);
-      };
-
-      console.error = (...args) => {
-        const rawMessage = args.join(' ');
-        const htmlMessage = this.ansiConverter.toHtml(rawMessage);
-        this.broadcast({
-          type: 'output',
-          executionId,
-          level: 'error',
-          message: rawMessage,
-          html: htmlMessage
-        });
-        originalConsoleError(...args);
-      };
-
-      const result = await command.fn(...Object.values(args), opts);
-
+      await command.fn(...positional, opts);
+    } catch (error) {
+      status = 'error';
+      errorMessage = error.message || String(error);
+      this.emitOutput(executionId, 'error', errorMessage, '<span style="color:#db5b39">' + this.escapeHtml(errorMessage) + '</span>');
+    } finally {
       console.log = originalConsoleLog;
       console.error = originalConsoleError;
-
       process.stdout.isTTY = originalIsTTY;
-      process.stderr.isTTY = originalIsTTY;
-
+      process.stderr.isTTY = originalStderrIsTTY;
       globalThis._bunoshUIMode = false;
       globalThis._bunoshUIExecutionId = null;
       globalThis._bunoshUIServer = null;
+    }
 
-      this.broadcast({
-        type: 'execution_complete',
-        executionId,
-        status: 'success',
-        result
-      });
-    } catch (error) {
-      process.stdout.isTTY = originalIsTTY;
-      process.stderr.isTTY = originalIsTTY;
+    const newTasks = tasksExecuted.slice(startIndex);
+    const failed = newTasks.filter(t => t.result?.status === TaskStatus.FAIL).length;
+    const warnings = newTasks.filter(t => t.result?.status === TaskStatus.WARNING).length;
+    if (failed > 0) status = 'error';
 
-      globalThis._bunoshUIMode = false;
-      globalThis._bunoshUIExecutionId = null;
-      globalThis._bunoshUIServer = null;
+    const isError = status === 'error';
+    const summary = `🍲 ${isError ? 'FAIL ' : 'OK '}Tasks: ${newTasks.length}${failed ? ` | Failed: ${failed}` : ''}${warnings ? ` | Warnings: ${warnings}` : ''}`;
+    this.emitOutput(executionId, isError ? 'error' : 'info', summary, '<span style="color:' + (isError ? '#db5b39' : '#8fb368') + '">' + this.escapeHtml(summary) + '</span>');
 
-      this.broadcast({
-        type: 'execution_complete',
-        executionId,
-        status: 'error',
-        error: error.message
-      });
+    this.broadcast({
+      type: 'execution_complete',
+      executionId,
+      status,
+      error: errorMessage,
+      failed,
+      warnings
+    });
+  }
+
+  emitOutput(executionId, level, message, html) {
+    this.broadcast({ type: 'output', executionId, level, message, html });
+  }
+
+  escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  formatInvocation(commandName, positional, opts) {
+    const quote = (v) => {
+      const s = String(v);
+      return /[\s"']/.test(s) ? JSON.stringify(s) : s;
+    };
+    const isEmpty = (v) => v === null || v === undefined || v === '';
+
+    const parts = ['bunosh', commandName];
+
+    let lastFilled = -1;
+    positional.forEach((v, i) => { if (!isEmpty(v)) lastFilled = i; });
+    for (let i = 0; i <= lastFilled; i++) {
+      parts.push(isEmpty(positional[i]) ? '""' : quote(positional[i]));
+    }
+
+    Object.entries(opts || {}).forEach(([k, v]) => {
+      if (typeof v === 'boolean') {
+        if (v) parts.push('--' + k);
+        return;
+      }
+      if (isEmpty(v)) return;
+      parts.push('--' + k + '=' + quote(v));
+    });
+    return parts.join(' ');
+  }
+
+  logInvocationToTerminal(log, commandName, argNames, positional, opts, invocation) {
+    log(`\n🍲 ui run: ${commandName}`);
+    log(`   → ${invocation}`);
+    if (argNames.length > 0) {
+      const named = argNames.map((n, i) => `${n}=${JSON.stringify(positional[i])}`).join(', ');
+      log(`   positional: ${named}`);
+    }
+    const optKeys = Object.keys(opts || {});
+    if (optKeys.length > 0) {
+      const named = optKeys.map((k) => `--${k}=${JSON.stringify(opts[k])}`).join(', ');
+      log(`   options: ${named}`);
     }
   }
 
@@ -716,7 +767,7 @@ class BunoshWebServer {
                 const connect = () => {
                     socket = new WebSocket("ws://" + window.location.host + "/ws");
                     socket.onopen = () => setConnected(true);
-                    socket.onclose = () => { setConnected(false); if (!closed) timer = setTimeout(connect, 1500); };
+                    socket.onclose = () => { setConnected(false); setIsExecuting(false); if (!closed) timer = setTimeout(connect, 1500); };
                     socket.onmessage = (e) => onMessage(JSON.parse(e.data));
                     wsRef.current = socket;
                 };
@@ -749,13 +800,28 @@ class BunoshWebServer {
             const run = (e) => {
                 if (e) e.preventDefault();
                 if (!selected || isExecuting) return;
+
+                const coerce = (raw, def) => {
+                    if (typeof def === "number" && raw !== "" && raw !== null && raw !== undefined && !isNaN(Number(raw))) return Number(raw);
+                    return raw;
+                };
+
+                const missing = Object.keys(selected.args).filter((k) => selected.args[k] === null && (formData[k] === undefined || String(formData[k]).trim() === ""));
+                if (missing.length > 0) {
+                    setRunStatus("error");
+                    setOutput('<span style="color:#db5b39">⚠ Fill required argument' + (missing.length > 1 ? "s" : "") + ": " + missing.join(", ") + "</span>\\n");
+                    return;
+                }
+
                 const args = {};
                 const opts = {};
                 Object.keys(selected.args).forEach((k) => {
-                    args[k] = (formData[k] !== undefined && formData[k] !== "") ? formData[k] : selected.args[k];
+                    const raw = (formData[k] !== undefined && formData[k] !== "") ? formData[k] : selected.args[k];
+                    args[k] = coerce(raw, selected.args[k]);
                 });
                 Object.keys(selected.opts).forEach((k) => {
-                    opts[k] = formData[k] !== undefined ? formData[k] : selected.opts[k];
+                    const raw = formData[k] !== undefined ? formData[k] : selected.opts[k];
+                    opts[k] = coerce(raw, selected.opts[k]);
                 });
                 fetch("/api/execute", {
                     method: "POST",
