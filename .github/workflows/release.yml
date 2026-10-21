@@ -44,7 +44,7 @@ jobs:
 
     - name: Run unit tests
       if: matrix.test-type == 'unit'
-      run: bun test test/
+      run: env -u GITHUB_ACTIONS bun test test/
 
     - name: Run E2E tests with Node.js
       if: matrix.test-type == 'e2e-node'
