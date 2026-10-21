@@ -8,7 +8,7 @@ import { yell } from './io.js';
 import { formatError } from './error-formatter.js';
 import cprint from "./font.js";
 import { handleCompletion, detectCurrentShell, installCompletion, getCompletionPaths } from './completion.js';
-import { upgradeCommand, printUpgradeNoticeIfAvailable } from './upgrade.js';
+import { upgradeCommand } from './upgrade.js';
 
 export const BUNOSHFILE = `Bunoshfile.js`;
 
@@ -181,6 +181,7 @@ export default async function bunosh(commands, sources) {
       commandName = prepareCommandName(isNamespaced ? cmdData.name : fnName);
     }
 
+    cmdData.commandName = commandName;
     const command = program.command(commandName);
     if (comment) {
       command.description(comment);
@@ -498,9 +499,9 @@ ${devCommands}
     if (namespace && namespace !== 'dev' && commandsByNamespace[namespace].length > 0) {
       const namespaceName = namespace.charAt(0).toUpperCase() + namespace.slice(1) + ' Commands';
       const namespaceCommands = commandsByNamespace[namespace].map(cmd => {
-        const cmdObj = program.commands.find(c => c.name() === cmd.name);
+        const cmdObj = program.commands.find(c => c.name() === cmd.commandName);
         const description = cmdObj ? cmdObj.description() : '';
-        const paddedName = cmd.name.padEnd(22);
+        const paddedName = cmd.commandName.padEnd(22);
 
         if (!description) {
           return `  ${color.white.bold(paddedName)}`;
@@ -552,7 +553,6 @@ ${color.bold('🤖 AI agent skills')} ${color.dim('(Claude Code, Cursor, Codex, 
 
   if (process.argv.length === 2) {
     program.outputHelp();
-    await printUpgradeNoticeIfAvailable();
     return program;
   }
 

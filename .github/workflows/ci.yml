@@ -24,7 +24,7 @@ jobs:
       run: bun install
 
     - name: Run unit tests
-      run: bun test
+      run: env -u GITHUB_ACTIONS bun test
 
   e2e-bun:
     name: E2E Tests (Bun Runtime)

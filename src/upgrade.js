@@ -184,60 +184,6 @@ export async function getLatestNpmVersion(timeoutMs = 3000) {
   }
 }
 
-async function getCachedLatestNpmVersion() {
-  const cacheDir = join(homedir(), '.bunosh');
-  const cacheFile = join(cacheDir, 'version-check.json');
-  const TTL = 12 * 60 * 60 * 1000;
-
-  try {
-    if (existsSync(cacheFile)) {
-      const cache = JSON.parse(readFileSync(cacheFile, 'utf8'));
-      if (cache.latest && cache.checkedAt && Date.now() - cache.checkedAt < TTL) {
-        return cache.latest;
-      }
-    }
-  } catch (e) {
-  }
-
-  let latest = null;
-  try {
-    latest = await getLatestNpmVersion(2000);
-  } catch (e) {
-    return null;
-  }
-
-  try {
-    await mkdir(cacheDir, { recursive: true });
-    writeFileSync(cacheFile, JSON.stringify({ checkedAt: Date.now(), latest }));
-  } catch (e) {
-  }
-
-  return latest;
-}
-
-export async function printUpgradeNoticeIfAvailable() {
-  if (process.env.NODE_ENV === 'test' || process.env.VITEST_WORKER_ID !== undefined) {
-    return;
-  }
-
-  try {
-    const currentVersion = getCurrentVersion();
-    if (!currentVersion || currentVersion === 'unknown') {
-      return;
-    }
-
-    const latestVersion = await getCachedLatestNpmVersion();
-    if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) {
-      return;
-    }
-
-    console.log();
-    console.log(color.yellow(`🦾 A new version of Bunosh is available: ${color.bold(currentVersion)} → ${color.bold(latestVersion)}`));
-    console.log(color.dim(`   Run ${color.bold('bunosh upgrade')} to update.`));
-  } catch (e) {
-  }
-}
-
 export async function upgradeExecutable(options = {}) {
   const { force = false, check = false } = options;
   
